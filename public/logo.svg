@@ -1,0 +1,61 @@
+<svg width="220" height="48" viewBox="0 0 220 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+    <linearGradient id="doorColor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ── Icon mark (48×48) ── -->
+  <rect width="48" height="48" rx="11" fill="url(#iconBg)"/>
+
+  <!-- House body -->
+  <rect x="11" y="25.5" width="26" height="17" rx="1" fill="white"/>
+
+  <!-- Checkmark roof -->
+  <path
+    d="M 9,26.5 L 15.5,30.8 L 24,12 L 39,26.5"
+    stroke="white"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+
+  <!-- Chimney -->
+  <rect x="15" y="12" width="3" height="8" rx="0.5" fill="white"/>
+
+  <!-- Left window -->
+  <rect x="13" y="28" width="7" height="6" rx="1" fill="#ede9fe" opacity="0.75"/>
+  <!-- Right window -->
+  <rect x="28" y="28" width="7" height="6" rx="1" fill="#ede9fe" opacity="0.75"/>
+
+  <!-- Door (orange) -->
+  <rect x="20.5" y="33.5" width="7" height="9" rx="1.2" fill="url(#doorColor)"/>
+
+  <!-- ── Wordmark ── -->
+  <!-- "Shift" in dark violet -->
+  <text
+    x="58"
+    y="32"
+    font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="800"
+    letter-spacing="-0.5"
+    fill="#3b0764"
+  >Shift</text>
+  <!-- "Proof" in violet-600 -->
+  <text
+    x="102"
+    y="32"
+    font-family="'Segoe UI', system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="800"
+    letter-spacing="-0.5"
+    fill="#7c3aed"
+  >Proof</text>
+</svg>
