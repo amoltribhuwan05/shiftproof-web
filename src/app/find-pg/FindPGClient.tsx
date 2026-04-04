@@ -332,27 +332,33 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
 function PriceRangeSlider({
   value,
   onChange,
+  minBound = PRICE_MIN,
+  maxBound = PRICE_MAX,
 }: {
   value: [number, number];
   onChange: (v: [number, number]) => void;
+  minBound?: number;
+  maxBound?: number;
 }) {
   const [lo, hi] = value;
   const trackRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<"lo" | "hi" | null>(null);
 
-  const pct = (v: number) =>
-    ((v - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100;
+  const pct = (v: number) => {
+    if (maxBound === minBound) return 0;
+    return ((v - minBound) / (maxBound - minBound)) * 100;
+  };
 
   const snap = (raw: number) =>
     Math.round(
-      Math.max(PRICE_MIN, Math.min(PRICE_MAX, raw)) / PRICE_STEP
+      Math.max(minBound, Math.min(maxBound, raw)) / PRICE_STEP
     ) * PRICE_STEP;
 
   const valueFromX = (clientX: number) => {
     const rect = trackRef.current?.getBoundingClientRect();
-    if (!rect) return PRICE_MIN;
+    if (!rect) return minBound;
     return snap(
-      PRICE_MIN + ((clientX - rect.left) / rect.width) * (PRICE_MAX - PRICE_MIN)
+      minBound + ((clientX - rect.left) / rect.width) * (maxBound - minBound)
     );
   };
 
@@ -437,7 +443,7 @@ function PriceRangeSlider({
           onMouseDown={startDrag("lo")}
           onTouchStart={startDrag("lo")}
           className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-violet-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
-          style={{ left: `${pct(lo)}%`, zIndex: lo > (PRICE_MAX + PRICE_MIN) / 2 ? 3 : 2 }}
+          style={{ left: `${pct(lo)}%`, zIndex: lo > (maxBound + minBound) / 2 ? 3 : 2 }}
         >
           <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
         </div>
@@ -447,7 +453,7 @@ function PriceRangeSlider({
           onMouseDown={startDrag("hi")}
           onTouchStart={startDrag("hi")}
           className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-violet-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
-          style={{ left: `${pct(hi)}%`, zIndex: hi < (PRICE_MAX + PRICE_MIN) / 2 ? 3 : 2 }}
+          style={{ left: `${pct(hi)}%`, zIndex: hi < (maxBound + minBound) / 2 ? 3 : 2 }}
         >
           <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
         </div>
@@ -455,18 +461,18 @@ function PriceRangeSlider({
 
       {/* Rail labels */}
       <div className="flex justify-between text-[10px] text-slate-400 mx-2">
-        <span>₹{PRICE_MIN.toLocaleString("en-IN")}</span>
-        <span>₹{PRICE_MAX.toLocaleString("en-IN")}</span>
+        <span>₹{minBound.toLocaleString("en-IN")}</span>
+        <span>₹{maxBound.toLocaleString("en-IN")}</span>
       </div>
 
       {/* Quick presets */}
       <div className="flex flex-wrap gap-1.5">
         {[
-          { label: "< ₹5k",  lo: PRICE_MIN, hi: 5000     },
-          { label: "₹5–8k",  lo: 5000,      hi: 8000     },
-          { label: "₹8–12k", lo: 8000,      hi: 12000    },
-          { label: "> ₹12k", lo: 12000,     hi: PRICE_MAX },
-        ].map((p) => (
+          { label: "< ₹5k",  lo: minBound, hi: Math.min(5000, maxBound) },
+          { label: "₹5–8k",  lo: Math.max(minBound, 5000), hi: Math.min(8000, maxBound) },
+          { label: "₹8–12k", lo: Math.max(minBound, 8000), hi: Math.min(12000, maxBound) },
+          { label: "> ₹12k", lo: Math.max(minBound, 12000), hi: maxBound },
+        ].filter(p => p.lo < p.hi).map((p) => (
           <button
             key={p.label}
             onClick={() => onChange([p.lo, p.hi])}
@@ -541,6 +547,17 @@ function LocalitySlider({ city, locality, setLocality }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+const getCityBounds = (c: string): [number, number] => {
+  let list = pgListings;
+  if (c !== "All") list = list.filter(p => p.city === c);
+  if (list.length === 0) return [PRICE_MIN, PRICE_MAX];
+  const cMin = Math.min(...list.map(p => p.price));
+  const cMax = Math.max(...list.map(p => p.price));
+  const bMin = Math.max(PRICE_MIN, Math.floor(cMin / PRICE_STEP) * PRICE_STEP - PRICE_STEP);
+  const bMax = Math.min(PRICE_MAX, Math.ceil(cMax / PRICE_STEP) * PRICE_STEP + PRICE_STEP);
+  return [bMin, Math.max(bMin + PRICE_STEP, bMax)];
+};
+
 export default function FindPGClient() {
   const [search,            setSearch]            = useState("");
   const [city,              setCity]              = useState("All");
@@ -548,7 +565,7 @@ export default function FindPGClient() {
   const [gender,            setGender]            = useState<Gender | "All">("All");
   const [roomTypes,         setRoomTypes]         = useState<RoomType[]>([]);
   const [amenities,         setAmenities]         = useState<Amenity[]>([]);
-  const [priceRange,        setPriceRange]        = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
+  const [priceRange,        setPriceRange]        = useState<[number, number]>(() => getCityBounds("All"));
   const [sortBy,            setSortBy]            = useState<SortOption>("relevance");
   const [viewMode,          setViewMode]          = useState<ViewMode>("grid");
   const [filterOpen,        setFilterOpen]        = useState(false);
@@ -593,12 +610,16 @@ export default function FindPGClient() {
   const toggleSave = (id: string) =>
     setSavedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // Changing city always resets locality selection
-  const changeCity = (c: string) => { setCity(c); setLocality("All"); };
+  // Changing city always resets locality selection and bounds
+  const changeCity = (c: string) => { 
+    setCity(c); 
+    setLocality("All"); 
+    setPriceRange(getCityBounds(c));
+  };
 
   const clearAll = () => {
     setSearch(""); setCity("All"); setLocality("All"); setGender("All");
-    setRoomTypes([]); setAmenities([]); setPriceRange([PRICE_MIN, PRICE_MAX]); setSortBy("relevance");
+    setRoomTypes([]); setAmenities([]); setPriceRange(getCityBounds("All")); setSortBy("relevance");
   };
 
   // BST built once from static data; price range query is O(log n + k)
@@ -629,7 +650,8 @@ export default function FindPGClient() {
   }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy, userCoords]);
 
 
-  const priceActive = priceRange[0] !== PRICE_MIN || priceRange[1] !== PRICE_MAX;
+  const cityBounds = useMemo(() => getCityBounds(city), [city]);
+  const priceActive = priceRange[0] !== cityBounds[0] || priceRange[1] !== cityBounds[1];
   const activeCount =
     (city !== "All" ? 1 : 0) + (locality !== "All" ? 1 : 0) + (gender !== "All" ? 1 : 0) +
     roomTypes.length + amenities.length + (priceActive ? 1 : 0);
@@ -690,7 +712,12 @@ export default function FindPGClient() {
         </Section>
 
         <Section title="Monthly Budget">
-          <PriceRangeSlider value={priceRange} onChange={setPriceRange} />
+          <PriceRangeSlider 
+            value={priceRange} 
+            onChange={setPriceRange} 
+            minBound={cityBounds[0]} 
+            maxBound={cityBounds[1]} 
+          />
         </Section>
 
         <Section title="Room Type">
