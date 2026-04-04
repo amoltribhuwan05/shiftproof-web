@@ -7,11 +7,12 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const links = [
-    { href: "#features", label: "Features" },
-    { href: "#how-it-works", label: "How It Works" },
-    { href: "#pricing", label: "Pricing" },
-    { href: "#faq", label: "FAQ" },
+    { href: "/#features", label: "Features" },
+    { href: "/#how-it-works", label: "How It Works" },
+    { href: "/#pricing", label: "Pricing" },
+    { href: "/#faq", label: "FAQ" },
   ];
+
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 bg-white/90 backdrop-blur-md border-b border-violet-100">
@@ -59,9 +60,21 @@ export default function Navbar() {
           ))}
         </ul>
 
+        {/* Find a PG — desktop */}
+        <Link
+          href="/find-pg"
+          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          Find a PG
+        </Link>
+
         {/* Desktop CTA */}
         <a
-          href="#download"
+          href="/#download"
           className="hidden md:inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors"
         >
           <svg
@@ -114,9 +127,16 @@ export default function Navbar() {
               {l.label}
             </a>
           ))}
+          <Link
+            href="/find-pg"
+            className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-700"
+            onClick={() => setMobileOpen(false)}
+          >
+            Find a PG
+          </Link>
           <a
-            href="#download"
-            className="mt-2 inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white"
+            href="/#download"
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white"
             onClick={() => setMobileOpen(false)}
           >
             Download App
