@@ -1,28 +1,32 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   pgListings,
   allCities,
   allAmenities,
+  localitiesForCity,
   type PGListing,
   type Amenity,
   type Gender,
   type RoomType,
 } from "@/lib/pgData";
+import { buildBST } from "@/lib/bst";
+import { haversineKm, fmtDistance } from "@/lib/geo";
+import {
+  PRICE_MIN,
+  PRICE_MAX,
+  PRICE_STEP,
+  CITY_ALIASES,
+  AMENITY_ICONS,
+} from "@/lib/constants";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
-type SortOption = "relevance" | "price_asc" | "price_desc" | "rating";
+type SortOption = "relevance" | "price_asc" | "price_desc" | "rating" | "nearest";
 type ViewMode   = "grid" | "list";
 
-const PRICE_MIN = 3000;
-const PRICE_MAX = 20000;
-const PRICE_STEP = 500;
-
-// Geographic order: North → East → West → South
-const GEO_ORDER = ["Noida", "Kolkata", "Mumbai", "Pune", "Hyderabad", "Chennai", "Bangalore"];
 
 // ─── small icons ─────────────────────────────────────────────────────────────
 
@@ -71,121 +75,162 @@ function availTag(occ: number) {
   return               { label: "Available",     cls: "text-emerald-600 bg-emerald-50" };
 }
 
+// ─── Amenity icon + label ─────────────────────────────────────────────────────
+
+function AmenityIcon({ name }: { name: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 min-w-[44px]">
+      <div className="w-6 h-6 text-slate-500">{AMENITY_ICONS[name]}</div>
+      <span className="text-[9px] text-slate-500 text-center leading-tight whitespace-nowrap">{name}</span>
+    </div>
+  );
+}
+
 // ─── PG Card (grid) ───────────────────────────────────────────────────────────
 
-function PGCard({ pg, saved, onSave }: {
-  pg: PGListing; saved: boolean; onSave: () => void;
+function PGCard({ pg, saved, onSave, distanceKm }: {
+  pg: PGListing; saved: boolean; onSave: () => void; distanceKm?: number;
 }) {
+  const [imgIdx, setImgIdx] = useState(0);
   const avail = availTag(pg.occupancy);
+  const isFillingFast = pg.occupancy >= 90;
 
   return (
-    <div className="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-slate-300 hover:shadow-lg transition-all duration-200 cursor-pointer flex flex-col">
-      {/* Image */}
-      <div className={`relative h-48 bg-gradient-to-br ${pg.gradient} flex-shrink-0 overflow-hidden`}>
-        {/* grid texture */}
-        <div className="absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: "repeating-linear-gradient(0deg,white 0,white 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,white 0,white 1px,transparent 1px,transparent 20px)" }} />
-        {/* building */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <svg width="100" height="82" viewBox="0 0 110 90" fill="none" className="opacity-[0.15]">
-            <rect x="15" y="44" width="80" height="46" rx="4" fill="white" />
-            <polygon points="55,6 8,46 102,46" fill="white" />
-            <rect x="38" y="58" width="34" height="32" rx="3" fill="rgba(0,0,0,0.2)" />
-            <rect x="20" y="52" width="16" height="14" rx="2" fill="rgba(255,255,255,0.45)" />
-            <rect x="74" y="52" width="16" height="14" rx="2" fill="rgba(255,255,255,0.45)" />
-          </svg>
-        </div>
-        {/* top row */}
-        <div className="absolute top-0 inset-x-0 flex items-start justify-between p-3">
-          <div className="flex gap-1.5">
-            {pg.badge && (
-              <span className="rounded-full bg-orange-500 px-2.5 py-0.5 text-[10px] font-bold text-white shadow-sm">
-                {pg.badge}
-              </span>
-            )}
-            <span className="flex items-center gap-0.5 rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-bold text-violet-700 shadow-sm">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="#7c3aed" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>
-              Verified
+    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer flex flex-col">
+
+      {/* ── Image carousel ─────────────────────────────────────────────────── */}
+      <div className="relative h-52 flex-shrink-0 overflow-hidden bg-slate-100">
+        <img
+          src={pg.images[imgIdx]}
+          alt={pg.name}
+          className="w-full h-full object-cover transition-opacity duration-300"
+        />
+
+        {/* Gradient overlay for readability */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-black/10" />
+
+        {/* Top badges */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+          <span className="flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white shadow">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+            Verified
+          </span>
+          {isFillingFast && (
+            <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-orange-500 shadow">
+              🔥 Filling Fast
             </span>
-          </div>
-          <button onClick={(e) => { e.stopPropagation(); onSave(); }}
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-white/95 shadow-sm hover:bg-white transition-colors">
-            <HeartIcon filled={saved} />
+          )}
+        </div>
+
+        {/* Save / heart */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onSave(); }}
+          className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow hover:bg-white transition-colors"
+        >
+          <HeartIcon filled={saved} />
+        </button>
+
+        {/* Carousel dots */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {pg.images.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setImgIdx(i); }}
+              className={`h-1.5 rounded-full transition-all duration-200 ${
+                i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* Prev / next arrows — visible on hover */}
+        {imgIdx > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setImgIdx(imgIdx - 1); }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
           </button>
-        </div>
-        {/* bottom: occupancy */}
-        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/40 to-transparent px-3 pt-6 pb-2.5 flex items-end gap-2">
-          <div className="flex-1 h-[2px] rounded-full bg-white/25">
-            <div className="h-[2px] rounded-full bg-white/80" style={{ width: `${pg.occupancy}%` }} />
-          </div>
-          <span className="text-[10px] font-medium text-white/80 whitespace-nowrap">{pg.occupancy}% filled</span>
-        </div>
+        )}
+        {imgIdx < pg.images.length - 1 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setImgIdx(imgIdx + 1); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
+        )}
       </div>
 
-      {/* Body */}
-      <div className="flex flex-col flex-1 p-4 gap-2.5">
-        {/* Name + gender */}
-        <div className="flex items-start gap-2">
-          <h3 className="flex-1 font-bold text-slate-900 text-[15px] leading-snug line-clamp-1 group-hover:text-violet-700 transition-colors">
+      {/* ── Body ───────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col flex-1 p-4 gap-3">
+
+        {/* Name + rating */}
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-bold text-slate-900 text-[15px] leading-snug line-clamp-1 group-hover:text-violet-700 transition-colors flex-1">
             {pg.name}
           </h3>
-          <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-            pg.gender === "Female" ? "bg-pink-50 text-pink-600"
-            : pg.gender === "Male" ? "bg-sky-50 text-sky-600"
-            : "bg-slate-100 text-slate-500"
-          }`}>
-            {pg.gender}
-          </span>
-        </div>
-
-        {/* Location */}
-        <div className="flex items-center gap-1">
-          <PinIcon />
-          <span className="text-xs text-slate-500 truncate">{pg.location}</span>
-        </div>
-
-        {/* Rating + avail */}
-        <div className="flex items-center gap-2">
-          <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <StarFilled />
-            <span className="text-[11px] font-bold text-amber-700">{pg.rating}</span>
-            <span className="text-[10px] text-amber-600/70">({pg.reviews})</span>
-          </span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${avail.cls}`}>
-            {avail.label}
-          </span>
+            <span className="text-xs font-bold text-slate-800">{pg.rating}</span>
+            <span className="text-[10px] text-slate-400">({pg.reviews})</span>
+          </div>
         </div>
 
-        {/* Room types */}
-        <div className="flex flex-wrap gap-1">
-          {pg.roomTypes.map((rt) => (
-            <span key={rt} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600">
-              {rt} Sharing
-            </span>
-          ))}
+        {/* Location + avail status */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 min-w-0">
+            <PinIcon />
+            <span className="text-xs text-slate-500 truncate">{pg.location}</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {distanceKm !== undefined && (
+              <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full px-2 py-0.5">
+                {fmtDistance(distanceKm)}
+              </span>
+            )}
+            {!isFillingFast && avail.label !== "Available" && (
+              <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${avail.cls}`}>
+                {avail.label}
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* Amenities */}
-        <div className="flex flex-wrap gap-1">
+        {/* Filling Fast row (below location) */}
+        {isFillingFast && (
+          <p className="text-xs font-semibold text-orange-500 flex items-center gap-1">
+            🔥 Filling Fast
+          </p>
+        )}
+
+        {/* Amenity icons */}
+        <div className="flex items-start gap-2 overflow-hidden">
           {pg.amenities.slice(0, 5).map((a) => (
-            <span key={a} className="rounded-md bg-violet-50 px-2 py-0.5 text-[10px] text-violet-600">{a}</span>
+            <AmenityIcon key={a} name={a} />
           ))}
           {pg.amenities.length > 5 && (
-            <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">+{pg.amenities.length - 5}</span>
+            <div className="flex flex-col items-center gap-1 min-w-[44px]">
+              <div className="w-6 h-6 flex items-center justify-center">
+                <span className="text-[10px] font-semibold text-slate-400">+{pg.amenities.length - 5}</span>
+              </div>
+              <span className="text-[9px] text-slate-400">More</span>
+            </div>
           )}
         </div>
 
         {/* Price + CTA */}
-        <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-slate-400">Starting from</p>
+        <div className="mt-auto pt-3 border-t border-slate-100">
+          <p className="text-[10px] text-slate-400 mb-0.5">Starting from</p>
+          <div className="flex items-end justify-between gap-2">
             <p className="text-lg font-extrabold text-slate-900 leading-tight">
               ₹{pg.price.toLocaleString("en-IN")}<span className="text-xs font-normal text-slate-400">/mo</span>
             </p>
+            <Link href={`/find-pg/${pg.id}`} onClick={(e) => e.stopPropagation()}
+              className="rounded-xl bg-violet-600 px-5 py-2 text-xs font-bold text-white hover:bg-violet-700 active:scale-95 transition-all">
+              View Details
+            </Link>
           </div>
-          <button className="rounded-xl bg-violet-600 px-4 py-2 text-xs font-bold text-white hover:bg-violet-700 active:scale-95 transition-all">
-            View Details
-          </button>
         </div>
       </div>
     </div>
@@ -194,32 +239,25 @@ function PGCard({ pg, saved, onSave }: {
 
 // ─── PG Row (list view) ───────────────────────────────────────────────────────
 
-function PGRow({ pg, saved, onSave }: {
-  pg: PGListing; saved: boolean; onSave: () => void;
+function PGRow({ pg, saved, onSave, distanceKm }: {
+  pg: PGListing; saved: boolean; onSave: () => void; distanceKm?: number;
 }) {
   const avail = availTag(pg.occupancy);
   return (
     <div className="group flex bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer">
       {/* Thumbnail */}
-      <div className={`relative w-48 sm:w-56 flex-shrink-0 bg-gradient-to-br ${pg.gradient}`}>
-        <div className="absolute inset-0 opacity-[0.07]"
-          style={{ backgroundImage: "repeating-linear-gradient(0deg,white 0,white 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,white 0,white 1px,transparent 1px,transparent 20px)" }} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <svg width="64" height="52" viewBox="0 0 110 90" fill="none" className="opacity-[0.15]">
-            <rect x="15" y="44" width="80" height="46" rx="4" fill="white" />
-            <polygon points="55,6 8,46 102,46" fill="white" />
-            <rect x="38" y="58" width="34" height="32" rx="3" fill="rgba(0,0,0,0.2)" />
-          </svg>
-        </div>
-        {pg.badge && (
-          <span className="absolute top-3 left-3 rounded-full bg-orange-500 px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">{pg.badge}</span>
+      <div className="relative w-44 sm:w-52 flex-shrink-0 bg-slate-100 overflow-hidden">
+        <img src={pg.images[0]} alt={pg.name} className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+        <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[9px] font-bold text-white shadow">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+          Verified
+        </span>
+        {pg.occupancy >= 90 && (
+          <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-orange-500 shadow">
+            🔥 Filling Fast
+          </span>
         )}
-        <div className="absolute bottom-0 inset-x-0 bg-black/30 px-3 py-1.5 flex items-center gap-2">
-          <div className="flex-1 h-[2px] rounded-full bg-white/25">
-            <div className="h-[2px] rounded-full bg-white/80" style={{ width: `${pg.occupancy}%` }} />
-          </div>
-          <span className="text-[9px] text-white/80">{pg.occupancy}%</span>
-        </div>
       </div>
 
       {/* Info + price */}
@@ -234,10 +272,16 @@ function PGRow({ pg, saved, onSave }: {
             }`}>{pg.gender}</span>
             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${avail.cls}`}>{avail.label}</span>
           </div>
-          <div className="flex items-center gap-1 text-xs text-slate-500">
+          <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
             <PinIcon />{pg.location}
             <span className="mx-1 text-slate-300">·</span>
             <span>{pg.distanceFromMetro} from metro</span>
+            {distanceKm !== undefined && (
+              <>
+                <span className="mx-1 text-slate-300">·</span>
+                <span className="font-semibold text-violet-600">{fmtDistance(distanceKm)} from you</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5">
@@ -264,9 +308,10 @@ function PGRow({ pg, saved, onSave }: {
             <p className="text-xs text-slate-400">per month</p>
           </div>
           <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
-            <button className="flex-1 sm:flex-none rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-700 transition-colors text-center">
+            <Link href={`/find-pg/${pg.id}`} onClick={(e) => e.stopPropagation()}
+              className="flex-1 sm:flex-none rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-700 transition-colors text-center">
               View Details
-            </button>
+            </Link>
             <button onClick={(e) => { e.stopPropagation(); onSave(); }}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all ${
                 saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-violet-200 hover:text-violet-600"
@@ -455,23 +500,35 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// ─── City Tab Slider ──────────────────────────────────────────────────────────
+// ─── Locality Tab Slider ──────────────────────────────────────────────────────
 
-function CitySlider({ city, setCity }: { city: string; setCity: (c: string) => void }) {
+function LocalitySlider({ city, locality, setLocality }: {
+  city: string; locality: string; setLocality: (l: string) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const slide = (dir: "l" | "r") => ref.current?.scrollBy({ left: dir === "r" ? 160 : -160, behavior: "smooth" });
+  const localities = localitiesForCity(city);
   return (
     <div className="flex items-center border-b border-slate-200 bg-white">
       <button onClick={() => slide("l")} className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-r border-slate-100 transition-colors">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
       <div ref={ref} className="flex overflow-x-auto scrollbar-none flex-1">
-        {["All", ...allCities].map((c) => (
-          <button key={c} onClick={() => setCity(c)}
-            className={`flex-shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              city === c ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
+        <button onClick={() => setLocality("All")}
+          className={`flex-shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            locality === "All" ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
+          }`}>
+          {city === "All" ? "All Areas" : `All ${city}`}
+        </button>
+        {localities.map((l) => (
+          <button key={l} onClick={() => setLocality(l)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              locality === l ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}>
-            {c === "All" ? "All Cities" : c}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
+              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            {l}
           </button>
         ))}
       </div>
@@ -485,16 +542,50 @@ function CitySlider({ city, setCity }: { city: string; setCity: (c: string) => v
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function FindPGClient() {
-  const [search,     setSearch]     = useState("");
-  const [city,       setCity]       = useState("All");
-  const [gender,     setGender]     = useState<Gender | "All">("All");
-  const [roomTypes,  setRoomTypes]  = useState<RoomType[]>([]);
-  const [amenities,  setAmenities]  = useState<Amenity[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
-  const [sortBy,     setSortBy]     = useState<SortOption>("relevance");
-  const [viewMode,   setViewMode]   = useState<ViewMode>("grid");
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [savedIds,   setSavedIds]   = useState<Set<string>>(new Set());
+  const [search,            setSearch]            = useState("");
+  const [city,              setCity]              = useState("All");
+  const [locality,          setLocality]          = useState("All");
+  const [gender,            setGender]            = useState<Gender | "All">("All");
+  const [roomTypes,         setRoomTypes]         = useState<RoomType[]>([]);
+  const [amenities,         setAmenities]         = useState<Amenity[]>([]);
+  const [priceRange,        setPriceRange]        = useState<[number, number]>([PRICE_MIN, PRICE_MAX]);
+  const [sortBy,            setSortBy]            = useState<SortOption>("relevance");
+  const [viewMode,          setViewMode]          = useState<ViewMode>("grid");
+  const [filterOpen,        setFilterOpen]        = useState(false);
+  const [savedIds,          setSavedIds]          = useState<Set<string>>(new Set());
+  const [locationDetecting, setLocationDetecting] = useState(true);
+  const [userCoords,        setUserCoords]        = useState<{ lat: number; lng: number } | null>(null);
+  const [outsideIndia,      setOutsideIndia]      = useState(false);
+
+  // Auto-detect user's city + coords from IP on mount
+  useEffect(() => {
+    let cancelled = false;
+    fetch("https://ipapi.co/json/")
+      .then((r) => r.json())
+      .then((data: { city?: string; latitude?: number; longitude?: number; country?: string; region?: string }) => {
+        if (cancelled) return;
+
+        // Country check
+        if (data.country && data.country !== "IN") {
+          setOutsideIndia(true);
+        }
+
+        // Store user coords for distance sort
+        if (data.latitude && data.longitude) {
+          setUserCoords({ lat: data.latitude, lng: data.longitude });
+        }
+
+        // Resolve city — try direct match, then alias, then region fallback
+        const raw = data.city ?? "";
+        const canonical =
+          allCities.find((c) => c.toLowerCase() === raw.toLowerCase()) ??
+          allCities.find((c) => c.toLowerCase() === (CITY_ALIASES[raw] ?? "").toLowerCase());
+        if (canonical) changeCity(canonical);
+      })
+      .catch(() => { /* keep "All" on network failure */ })
+      .finally(() => { if (!cancelled) setLocationDetecting(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const toggle = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, val: T) =>
     setter((p) => p.includes(val) ? p.filter((x) => x !== val) : [...p, val]);
@@ -502,42 +593,45 @@ export default function FindPGClient() {
   const toggleSave = (id: string) =>
     setSavedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  // Changing city always resets locality selection
+  const changeCity = (c: string) => { setCity(c); setLocality("All"); };
+
   const clearAll = () => {
-    setSearch(""); setCity("All"); setGender("All");
+    setSearch(""); setCity("All"); setLocality("All"); setGender("All");
     setRoomTypes([]); setAmenities([]); setPriceRange([PRICE_MIN, PRICE_MAX]); setSortBy("relevance");
   };
 
+  // BST built once from static data; price range query is O(log n + k)
+  const priceBST = useMemo(() => buildBST(pgListings, (pg) => pg.price), []);
+
   const results = useMemo(() => {
-    let list = pgListings.filter((pg) => {
+    let list = priceBST.rangeQuery(priceRange[0], priceRange[1]).filter((pg) => {
       const q = search.trim().toLowerCase();
-      if (q && !pg.name.toLowerCase().includes(q) && !pg.location.toLowerCase().includes(q) && !pg.city.toLowerCase().includes(q)) return false;
+      if (q && !pg.name.toLowerCase().includes(q) && !pg.locality.toLowerCase().includes(q) && !pg.location.toLowerCase().includes(q) && !pg.city.toLowerCase().includes(q)) return false;
       if (city !== "All" && pg.city !== city) return false;
+      if (locality !== "All" && pg.locality !== locality) return false;
       if (gender !== "All" && pg.gender !== gender) return false;
       if (roomTypes.length && !roomTypes.some((rt) => pg.roomTypes.includes(rt))) return false;
       if (amenities.length && !amenities.every((a) => pg.amenities.includes(a))) return false;
-      if (pg.price < priceRange[0] || pg.price > priceRange[1]) return false;
       return true;
     });
     return [...list].sort((a, b) => {
       if (sortBy === "price_asc")  return a.price - b.price;
       if (sortBy === "price_desc") return b.price - a.price;
       if (sortBy === "rating")     return b.rating - a.rating;
+      if (sortBy === "nearest" && userCoords) {
+        const distA = haversineKm(userCoords.lat, userCoords.lng, a.lat, a.lng);
+        const distB = haversineKm(userCoords.lat, userCoords.lng, b.lat, b.lng);
+        return distA - distB;
+      }
       return b.reviews - a.reviews;
     });
-  }, [search, city, gender, roomTypes, amenities, priceRange, sortBy]);
+  }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy, userCoords]);
 
-  // Geographic grouping — only when showing all cities
-  const grouped = useMemo(() => {
-    if (city !== "All") return null;
-    const order = [...GEO_ORDER, ...allCities.filter((c) => !GEO_ORDER.includes(c))];
-    return order
-      .map((c) => ({ city: c, items: results.filter((pg) => pg.city === c) }))
-      .filter((g) => g.items.length > 0);
-  }, [city, results]);
 
   const priceActive = priceRange[0] !== PRICE_MIN || priceRange[1] !== PRICE_MAX;
   const activeCount =
-    (city !== "All" ? 1 : 0) + (gender !== "All" ? 1 : 0) +
+    (city !== "All" ? 1 : 0) + (locality !== "All" ? 1 : 0) + (gender !== "All" ? 1 : 0) +
     roomTypes.length + amenities.length + (priceActive ? 1 : 0);
 
   // ── sidebar content ──────────────────────────────────────────────────────────
@@ -561,6 +655,23 @@ export default function FindPGClient() {
       </div>
 
       <div className="px-5 divide-y divide-slate-100">
+        <Section title="City">
+          <div className="space-y-2.5">
+            {(["All", ...allCities]).map((c) => (
+              <label key={c} onClick={() => changeCity(c)} className="flex items-center gap-2.5 cursor-pointer group">
+                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                  city === c ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
+                }`}>
+                  {city === c && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                </div>
+                <span className="text-sm text-slate-700 group-hover:text-slate-900">
+                  {c === "All" ? "All Cities" : c}
+                </span>
+              </label>
+            ))}
+          </div>
+        </Section>
+
         <Section title="Gender">
           <div className="space-y-2.5">
             {(["All", "Male", "Female", "Mixed"] as const).map((g) => (
@@ -628,13 +739,15 @@ export default function FindPGClient() {
         <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
           <Link href="/" className="hover:text-violet-600 transition-colors">Home</Link>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
-          <span className="text-slate-700 font-medium">Find a PG{city !== "All" ? ` in ${city}` : ""}</span>
+          <span className="text-slate-700 font-medium">
+            Find a PG{city !== "All" ? ` in ${city}` : ""}{locality !== "All" ? ` › ${locality}` : ""}
+          </span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
           <div>
             <h1 className="text-xl font-extrabold text-slate-900">
-              {city !== "All" ? `PGs in ${city}` : "Find a PG"}
+              {locality !== "All" ? `PGs in ${locality}` : city !== "All" ? `PGs in ${city}` : "Find a PG"}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">{results.length} properties found</p>
           </div>
@@ -656,8 +769,8 @@ export default function FindPGClient() {
           </div>
         </div>
 
-        {/* City slider */}
-        <CitySlider city={city} setCity={setCity} />
+        {/* Locality slider */}
+        <LocalitySlider city={city} locality={locality} setLocality={setLocality} />
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
@@ -670,6 +783,26 @@ export default function FindPGClient() {
 
         {/* Results */}
         <div className="flex-1 min-w-0 bg-slate-50 flex flex-col">
+
+          {/* Location detection banner */}
+          {locationDetecting && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-700">
+              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/>
+              </svg>
+              Detecting your location…
+            </div>
+          )}
+
+          {/* Outside India notice */}
+          {!locationDetecting && outsideIndia && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/>
+              </svg>
+              ShiftProof is available in India. Showing all listings.
+            </div>
+          )}
 
           {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-3 bg-white border-b border-slate-200 sticky top-[65px] z-10">
@@ -692,7 +825,8 @@ export default function FindPGClient() {
               <div className="hidden sm:flex flex-wrap gap-1.5">
                 {activeCount > 0 && (
                   <>
-                    {city !== "All" && <Chip label={city} onRemove={() => setCity("All")} />}
+                    {city !== "All" && <Chip label={city} onRemove={() => changeCity("All")} />}
+                    {locality !== "All" && <Chip label={locality} onRemove={() => setLocality("All")} />}
                     {gender !== "All" && <Chip label={gender} onRemove={() => setGender("All")} />}
                     {roomTypes.map((rt) => <Chip key={rt} label={rt} onRemove={() => toggle(setRoomTypes, rt)} />)}
                     {amenities.map((a) => <Chip key={a} label={a} onRemove={() => toggle(setAmenities, a)} />)}
@@ -709,6 +843,7 @@ export default function FindPGClient() {
                 <option value="rating">Top Rated</option>
                 <option value="price_asc">Price: Low → High</option>
                 <option value="price_desc">Price: High → Low</option>
+                {userCoords && <option value="nearest">Nearest to you</option>}
               </select>
 
               {/* View toggle */}
@@ -742,60 +877,18 @@ export default function FindPGClient() {
           {/* Cards */}
           <div className="flex-1 p-4 sm:p-5">
             {results.length > 0 ? (
-              grouped ? (
-                // ── Geographic groups (All Cities) ───────────────────────────
-                <div className="space-y-8">
-                  {grouped.map(({ city: grpCity, items }) => (
-                    <div key={grpCity}>
-                      {/* City header */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="flex items-center gap-2">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round">
-                            <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-                          </svg>
-                          <h2 className="text-base font-extrabold text-slate-800">{grpCity}</h2>
-                        </div>
-                        <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-700">
-                          {items.length} {items.length === 1 ? "PG" : "PGs"}
-                        </span>
-                        <div className="flex-1 h-px bg-slate-100" />
-                        <button
-                          onClick={() => setCity(grpCity)}
-                          className="text-xs text-violet-600 font-medium hover:underline flex-shrink-0"
-                        >
-                          View all →
-                        </button>
-                      </div>
-
-                      {/* Cards */}
-                      {viewMode === "grid" ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                          {items.map((pg) => (
-                            <PGCard key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)} />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-3">
-                          {items.map((pg) => (
-                            <PGRow key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)} />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : viewMode === "grid" ? (
-                // ── Single city grid ────────────────────────────────────────
+              viewMode === "grid" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {results.map((pg) => (
-                    <PGCard key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)} />
+                    <PGCard key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)}
+                      distanceKm={userCoords ? haversineKm(userCoords.lat, userCoords.lng, pg.lat, pg.lng) : undefined} />
                   ))}
                 </div>
               ) : (
-                // ── Single city list ────────────────────────────────────────
                 <div className="flex flex-col gap-4">
                   {results.map((pg) => (
-                    <PGRow key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)} />
+                    <PGRow key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)}
+                      distanceKm={userCoords ? haversineKm(userCoords.lat, userCoords.lng, pg.lat, pg.lng) : undefined} />
                   ))}
                 </div>
               )
