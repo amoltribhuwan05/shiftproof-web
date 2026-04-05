@@ -33,6 +33,7 @@
   --color-accent-500: var(--accent-500);
   --color-accent-600: var(--accent-600);
   --font-sans: var(--font-geist-sans);
+  --font-devanagari: var(--font-devanagari);
 }
 
 html {
@@ -73,3 +74,7 @@ body {
   filter: drop-shadow(-20px 30px 40px rgba(109, 40, 217, 0.45))
           drop-shadow(0px 10px 20px rgba(0, 0, 0, 0.3));
 }
+
+/* ── Hide scrollbar while keeping scroll functionality ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

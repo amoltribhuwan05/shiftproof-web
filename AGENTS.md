@@ -62,13 +62,21 @@ npm run lint         # ESLint check
 ```
 src/
   app/
-    layout.tsx          # Root layout — Navbar + Footer live here (SPA shell)
-    page.tsx            # Landing page (assembles section components)
+    layout.tsx          # Root layout — fonts + globals only (no Navbar/Footer)
     globals.css         # Tailwind v4 theme + global animations
     icon.svg            # Favicon (auto-detected by Next.js App Router)
-    find-pg/
-      page.tsx          # /find-pg route + metadata
-      FindPGClient.tsx  # "use client" — full listing/search/filter UI
+    (marketing)/        # Route group — all public marketing pages
+      layout.tsx        # Adds Navbar + Footer for marketing routes only
+      page.tsx          # Landing page (assembles section components)
+      find-pg/
+        page.tsx        # /find-pg route + metadata
+        FindPGClient.tsx # "use client" — full listing/search/filter UI
+      find-pg/[id]/
+        page.tsx        # /find-pg/[id] — PG detail page
+        PGDetailClient.tsx # "use client" — detail view
+    owner-dashboard/
+      page.tsx          # /owner-dashboard route + metadata
+      OwnerDashboardClient.tsx  # "use client" — full dashboard UI, no Navbar/Footer
   components/           # Landing page sections (server components unless noted)
     Navbar.tsx          # "use client" — sticky nav, mobile hamburger
     Hero.tsx
@@ -124,8 +132,9 @@ Tailwind v4 syntax differs significantly from v3:
 
 ## Key Architectural Decisions
 
-1. **SPA shell** — `Navbar` and `Footer` belong in `src/app/layout.tsx`, not in
-   individual page files. Do not add them inside `page.tsx` files.
+1. **Route groups** — `Navbar` and `Footer` belong in `src/app/(marketing)/layout.tsx`.
+   The root `layout.tsx` is fonts/globals only. The owner dashboard lives outside
+   the `(marketing)` group and gets NO Navbar/Footer — it has its own sidebar.
 
 2. **Anchor links** — all in-page anchor links use `/#section-id` (not `#section-id`)
    so they work correctly when navigating from `/find-pg` back to the landing page.
@@ -178,13 +187,14 @@ Tailwind v4 syntax differs significantly from v3:
 
 | File | Lines | Notes |
 |---|---|---|
-| `src/app/find-pg/FindPGClient.tsx` | ~845 | Main listing/search/filter page — "use client" |
+| `src/app/(marketing)/find-pg/FindPGClient.tsx` | ~845 | Main listing/search/filter page — "use client" |
+| `src/app/owner-dashboard/OwnerDashboardClient.tsx` | ~450 | Full-screen SaaS dashboard — "use client" |
 | `src/lib/pgData.ts` | 226 | 12 mock PG listings + types |
 | `src/lib/bst.ts` | ~80 | Generic BST; used for price-range queries |
-| `src/components/Navbar.tsx` | ~148 | Sticky nav, mobile hamburger — "use client" |
-| `src/app/layout.tsx` | 34 | SPA shell; Navbar + Footer live here |
-| `src/app/page.tsx` | 23 | Landing page — assembles section components |
-| `src/app/find-pg/page.tsx` | 12 | Server component wrapper for FindPGClient |
+| `src/components/Navbar.tsx` | ~160 | Sticky nav, mobile hamburger, Dashboard link — "use client" |
+| `src/app/layout.tsx` | 26 | Root shell — fonts/globals only; NO Navbar/Footer |
+| `src/app/(marketing)/layout.tsx` | 10 | Marketing shell — adds Navbar + Footer |
+| `src/app/(marketing)/page.tsx` | 23 | Landing page — assembles section components |
 
 ### FindPGClient.tsx — key implementation details
 
@@ -230,6 +240,8 @@ function buildBST<T>(items: T[], keyFn: (item: T) => number): BST<T>
 | No `<input type="range">` for price slider | Overlapping thumbs cause z-index bugs |
 | `FindPGClient` kept as one file | Intentional; split only if >400 lines of new feature |
 | Zero runtime deps beyond Next.js + React | Project policy |
+| Owner dashboard uses `slate-950` dark theme | Distinct from marketing site's white/violet |
+| Dashboard charts are inline SVG | No chart library; stays zero-dep |
 
 ---
 
