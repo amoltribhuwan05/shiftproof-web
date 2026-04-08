@@ -1,4 +1,4 @@
-export type Locale = "en" | "hi";
+export type Locale = "en" | "hi" | "mr";
 
 // ─── English ──────────────────────────────────────────────────────────────────
 
@@ -166,6 +166,11 @@ const en: Record<string, string> = {
   "priority.high":        "High",
   "priority.medium":      "Medium",
   "priority.low":         "Low",
+  "priority.critical":    "Critical",
+  "priority.warning":     "Warning",
+  "priority.info":        "Info",
+  "nav.menu":             "Menu",
+  "maint.avg_days":       "3.2 days",
 
   // Alert titles + descriptions
   "alert.a1.title":  "Rent overdue > 7 days",
@@ -369,6 +374,11 @@ const hi: Record<string, string> = {
   "priority.high":        "High",
   "priority.medium":      "Medium",
   "priority.low":         "Low",
+  "priority.critical":    "गंभीर",
+  "priority.warning":     "चेतावनी",
+  "priority.info":        "जानकारी",
+  "nav.menu":             "मेनू",
+  "maint.avg_days":       "3.2 दिन",
 
   // Alert titles + descriptions
   "alert.a1.title":  "किराया 7+ दिन से Overdue",
@@ -405,10 +415,218 @@ const hi: Record<string, string> = {
   "time.4d":        "4 दिन पहले",
 };
 
+// ─── Marathi ──────────────────────────────────────────────────────────────────
+// Natural Marathinglish — English technical terms kept where Marathi speakers use them
+
+const mr: Record<string, string> = {
+  // Nav
+  "nav.overview":     "Overview",
+  "nav.properties":   "Properties",
+  "nav.tenants":      "भाडेकरू",
+  "nav.payments":     "Payments",
+  "nav.maintenance":  "Maintenance",
+  "nav.reports":      "Reports",
+  "nav.back":         "साइटवर परत जा",
+  "nav.owner_badge":  "मालक",
+
+  // Topbar
+  "topbar.title":           "Dashboard Overview",
+  "topbar.date":            "शनिवार, ५ एप्रिल २०२६",
+  "topbar.search":          "शोधा…",
+  "topbar.notif_title":     "Notifications",
+  "topbar.view_all_alerts": "सर्व Alerts पाहा",
+  "topbar.export":          "Export",
+  "topbar.add_property":    "Property जोडा",
+  "topbar.7d":              "७ दिवस",
+  "topbar.30d":             "३० दिवस",
+  "topbar.90d":             "९० दिवस",
+  "topbar.n_new":           "{n} नवीन",
+
+  // Profile
+  "profile.name":       "राजेश कुमार",
+  "profile.sub":        "{n} Properties · {beds} Beds",
+
+  // Greeting
+  "greeting.text":      "शुभ सकाळ, राजेश 👋",
+  "greeting.sub":       "आज तुमच्या Properties मध्ये काय होत आहे.",
+  "greeting.month":     "एप्रिल २०२६",
+
+  // Insights
+  "insights.label":              "Auto Insights",
+  "insights.revenue_up":         "उत्पन्न {pct}% वाढले",
+  "insights.revenue_down":       "उत्पन्न {pct}% कमी झाले",
+  "insights.revenue_desc":       "या महिन्यात ₹{curr}k vs मागील महिना ₹{prev}k",
+  "insights.overdue_title":      "{n} भाडेकरूंचे भाडे थकीत",
+  "insights.overdue_desc":       "Sonia Mehta चे ८ दिवसांपासून भाडे थकीत · आत्ता कारवाई करा",
+  "insights.occ_up":             "Occupancy {n}% वाढली",
+  "insights.occ_down":           "Occupancy {n}% कमी झाली",
+  "insights.occ_desc":           "या महिन्यात {curr}% vs मागील {prev}% · {vacant} Beds रिकामे",
+  "insights.lease_title":        "१ Lease लवकर संपणार",
+  "insights.lease_desc":         "Amit Patel · Royal Residency · २९ दिवस शिल्लक",
+  "insights.maint_title":        "२ High Priority Tickets प्रलंबित",
+  "insights.maint_desc":         "AC + Plumbing अनिर्णित · अंदाजे खर्च ₹{cost}k",
+  "insights.cta.reminders":      "Reminder पाठवा",
+  "insights.cta.renew":          "Lease Renew करा",
+  "insights.cta.assign":         "Assign करा",
+
+  // KPIs
+  "kpi.revenue":          "मासिक उत्पन्न",
+  "kpi.occupancy":        "Occupancy Rate",
+  "kpi.collection":       "Collection Rate",
+  "kpi.pending":          "थकीत भाडे",
+  "kpi.n_occupied":       "{occupied} Occupied",
+  "kpi.n_vacant":         "{vacant} रिकामे",
+  "kpi.paid_month":       "{n} ने या महिन्यात Pay केले",
+  "kpi.overdue_one":      "१ Overdue",
+  "kpi.pending_label":    "Pending",
+  "kpi.overdue_label":    "Overdue",
+  "kpi.n_pending":        "{n} Pending",
+  "kpi.vs_last":          "मागील महिन्याच्या तुलनेत",
+
+  // Chart
+  "chart.title":          "उत्पन्न Overview",
+  "chart.sub":            "मासिक भाडे · सर्व Properties",
+  "chart.prev":           "मागील महिना",
+  "chart.current":        "हा महिना",
+  "chart.glance":         "या महिन्याचा आढावा",
+  "chart.bed_occ":        "Bed Occupancy",
+  "chart.collected":      "Rent Collected",
+  "chart.of_due":         "₹{n}k देय पैकी",
+
+  // Financial
+  "fin.gross":            "Gross उत्पन्न",
+  "fin.gross_sub":        "एकूण Rent Collected",
+  "fin.maint":            "Maintenance खर्च",
+  "fin.maint_sub":        "{n} Issues सोडवले",
+  "fin.net":              "Net उत्पन्न",
+  "fin.net_sub":          "Maintenance वजा केल्यानंतर",
+  "fin.per_bed":          "प्रति Bed उत्पन्न",
+  "fin.per_bed_sub":      "{n} Occupied Beds मधून",
+
+  // Alerts
+  "alerts.title":         "Alerts",
+  "alerts.n_active":      "{n} सक्रिय",
+  "alerts.view_all":      "सर्व Alerts पाहा",
+  "alerts.group.all":     "सर्व",
+  "alerts.group.financial":    "Financial",
+  "alerts.group.maintenance":  "Maintenance",
+  "alerts.group.lease":        "Lease",
+
+  // Properties
+  "props.title":          "Property तुलना",
+  "props.top":            "Top Performer",
+  "props.manage":         "सर्व Manage करा",
+  "props.rank":           "Rank",
+  "props.property":       "Property",
+  "props.occupancy":      "Occupancy",
+  "props.revenue":        "उत्पन्न",
+  "props.rev_bed":        "उत्पन्न/Bed",
+  "props.maint":          "Maint. खर्च",
+
+  // Transactions
+  "tx.title":             "Rent Transactions",
+  "tx.send_reminder":     "Reminder पाठवा ({n})",
+  "tx.all":               "सर्व",
+  "tx.paid":              "Paid",
+  "tx.pending":           "Pending",
+  "tx.overdue":           "Overdue",
+  "tx.tenant":            "भाडेकरू",
+  "tx.property_room":     "Property · Room",
+  "tx.amount":            "रक्कम",
+  "tx.date":              "तारीख",
+  "tx.overdue_col":       "Overdue",
+  "tx.status":            "Status",
+  "tx.n_days_overdue":    "{n} दिवस Overdue",
+
+  // Maintenance
+  "maint.title":          "Maintenance Tickets",
+  "maint.n_open":         "{n} Open",
+  "maint.n_resolved":     "{n} Resolved",
+  "maint.analytics":      "Maintenance Analytics",
+  "maint.total_cost":     "एकूण खर्च (या महिन्यात)",
+  "maint.avg_time":       "सरासरी Resolution Time",
+  "maint.target":         "Target: < २ दिवस",
+  "maint.categories":     "Category-wise Issues",
+  "maint.free":           "मोफत",
+  "maint.resolved_badge": "Resolved",
+  "maint.show_resolved":  "Resolved Tickets दाखवा ({n})",
+  "maint.hide_resolved":  "Resolved Tickets लपवा",
+  "maint.up_vs_last":     "↑ ₹{n} मागील महिन्यापेक्षा",
+
+  // Tenants
+  "tenants.title":        "भाडेकरू",
+  "tenants.add":          "भाडेकरू जोडा",
+  "tenants.tenant":       "भाडेकरू",
+  "tenants.lease_end":    "Lease End",
+  "tenants.last3":        "मागील ३ महिने",
+  "tenants.risk":         "Risk",
+  "tenants.status":       "Status",
+  "tenants.renew_soon":   "लवकर Renew करा",
+  "tenants.show_all":     "सर्व {n} भाडेकरू दाखवा",
+  "tenants.collapse":     "कमी दाखवा",
+
+  // Activity
+  "activity.title":       "Activity",
+  "activity.all":         "सर्व",
+  "activity.summary":     "आजचा सारांश",
+  "activity.summary_text":"५ Payments मिळाले · १ नवीन समस्या · १ नवीन भाडेकरू",
+  "activity.show_all":    "सर्व दाखवा",
+  "activity.collapse":    "कमी दाखवा",
+
+  // Status / Risk
+  "status.paid":          "Paid",
+  "status.pending":       "Pending",
+  "status.overdue":       "Overdue",
+  "risk.late":            "उशीर करणारा",
+  "risk.expiring":        "Lease संपणार",
+  "priority.high":        "High",
+  "priority.medium":      "Medium",
+  "priority.low":         "Low",
+  "priority.critical":    "गंभीर",
+  "priority.warning":     "इशारा",
+  "priority.info":        "माहिती",
+  "nav.menu":             "मेन्यू",
+  "maint.avg_days":       "3.2 दिवस",
+
+  // Alert titles + descriptions
+  "alert.a1.title":  "भाडे ७+ दिवस Overdue",
+  "alert.a1.desc":   "Sonia Mehta · Royal Residency · ₹9,500",
+  "alert.a2.title":  "२ Payments Pending आहेत",
+  "alert.a2.desc":   "Neha Gupta + Kiran Rao · एकूण ₹18,500",
+  "alert.a3.title":  "२ High Priority Tickets",
+  "alert.a3.desc":   "AC बिघडले + Tap गळती · अंदाजे खर्च ₹3,000",
+  "alert.a4.title":  "Avg Resolution ३ दिवसांपेक्षा जास्त",
+  "alert.a4.desc":   "मागील आठवड्यापासून ४ Tickets खुले आहेत",
+  "alert.a5.title":  "Lease २९ दिवसांत संपणार",
+  "alert.a5.desc":   "Amit Patel · Royal Residency · Room 2A",
+  "alert.a6.title":  "९० दिवसांत ३ Leases Due",
+  "alert.a6.desc":   "Neha Gupta, Kiran Rao, Sonia Mehta",
+  "alert.action.reminder": "Reminder पाठवा",
+  "alert.action.view":     "पाहा",
+  "alert.action.assign":   "Assign करा",
+  "alert.action.review":   "Review करा",
+  "alert.action.renew":    "Renew करा",
+  "alert.action.plan":     "Plan करा",
+
+  // Activity feed text + relative time
+  "act.paid":       "{name} ने {month} चे ₹{amount} Pay केले",
+  "act.maint_req":  "{property} मध्ये नवीन Maintenance Request ({issue})",
+  "act.onboarded":  "{name} चे {property} मध्ये Onboarding झाले",
+  "act.overdue":    "{name} चे {days} दिवसांपासून भाडे थकीत आहे",
+  "act.repaired":   "{property} मध्ये {item} दुरुस्त केले (Room {room})",
+  "act.lease_due":  "{name} ची Lease {days} दिवसांत Renew होणार",
+  "time.2h":        "२ तासांपूर्वी",
+  "time.5h":        "५ तासांपूर्वी",
+  "time.yesterday": "काल",
+  "time.2d":        "२ दिवसांपूर्वी",
+  "time.3d":        "३ दिवसांपूर्वी",
+  "time.4d":        "४ दिवसांपूर्वी",
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export function createT(locale: Locale) {
-  const dict = locale === "hi" ? hi : en;
+  const dict = locale === "hi" ? hi : locale === "mr" ? mr : en;
   return function t(key: string, vars?: Record<string, string | number>): string {
     let s = dict[key] ?? en[key] ?? key;
     if (vars) {
@@ -422,7 +640,8 @@ export function createT(locale: Locale) {
 
 /** Indian number formatting: 1,84,000 */
 export function fmtINR(n: number, locale: Locale = "en"): string {
-  const fmt = new Intl.NumberFormat(locale === "hi" ? "hi-IN" : "en-IN");
+  const intlLocale = locale === "hi" ? "hi-IN" : locale === "mr" ? "mr-IN" : "en-IN";
+  const fmt = new Intl.NumberFormat(intlLocale);
   return `₹${fmt.format(Math.round(n))}`;
 }
 

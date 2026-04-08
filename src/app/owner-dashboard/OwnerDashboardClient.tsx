@@ -331,7 +331,7 @@ export default function OwnerDashboardClient() {
         </div>
 
         <div className="px-4 pt-5 pb-2">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Menu</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{t("nav.menu")}</p>
         </div>
         <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
           {NAV_IDS.map(id => (
@@ -391,13 +391,20 @@ export default function OwnerDashboardClient() {
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
             {/* Language switcher */}
-            <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
-              {(["en","hi"] as Locale[]).map(l => (
-                <button key={l} onClick={() => setLocale(l)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${locale === l ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>
-                  {l === "en" ? "EN" : "हि"}
-                </button>
-              ))}
+            <div className="flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 shrink-0">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+              </svg>
+              <div className="flex items-center bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                {(["en","hi","mr"] as Locale[]).map(l => (
+                  <button key={l} onClick={() => setLocale(l)}
+                    title={l === "en" ? "English" : l === "hi" ? "हिन्दी" : "मराठी"}
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${locale === l ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}>
+                    {l === "en" ? "EN" : l === "hi" ? "हि" : "म"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Search */}
@@ -647,7 +654,7 @@ export default function OwnerDashboardClient() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-semibold text-slate-800">{t(a.titleKey)}</p>
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${alertPriorityStyle[a.priority]}`}>{a.priority}</span>
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${alertPriorityStyle[a.priority]}`}>{t(`priority.${a.priority}`)}</span>
                       </div>
                       <p className="text-[11px] text-slate-400 mt-0.5">{t(a.descKey)}</p>
                     </div>
@@ -807,7 +814,7 @@ export default function OwnerDashboardClient() {
                 </div>
                 <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
                   <p className="text-[11px] text-slate-500 font-medium">{t("maint.avg_time")}</p>
-                  <p className="text-xl font-bold text-slate-900 mt-1">3.2 days</p>
+                  <p className="text-xl font-bold text-slate-900 mt-1">{t("maint.avg_days")}</p>
                   <p className="text-[11px] text-amber-600 mt-0.5">{t("maint.target")}</p>
                 </div>
                 <div>

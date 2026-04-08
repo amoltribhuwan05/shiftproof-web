@@ -125,6 +125,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {/* Save / heart */}
         <button
           onClick={(e) => { e.stopPropagation(); onSave(); }}
+          aria-label={saved ? "Remove from saved" : "Save PG"}
           className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow hover:bg-white transition-colors"
         >
           <HeartIcon filled={saved} />
@@ -136,6 +137,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
             <button
               key={i}
               onClick={(e) => { e.stopPropagation(); setImgIdx(i); }}
+              aria-label={`Go to photo ${i + 1}`}
               className={`h-1.5 rounded-full transition-all duration-200 ${
                 i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"
               }`}
@@ -147,6 +149,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {imgIdx > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setImgIdx(imgIdx - 1); }}
+            aria-label="Previous photo"
             className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -155,6 +158,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {imgIdx < pg.images.length - 1 && (
           <button
             onClick={(e) => { e.stopPropagation(); setImgIdx(imgIdx + 1); }}
+            aria-label="Next photo"
             className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
@@ -516,7 +520,7 @@ function LocalitySlider({ city, locality, setLocality }: {
   const localities = localitiesForCity(city);
   return (
     <div className="flex items-center border-b border-slate-200 bg-white">
-      <button onClick={() => slide("l")} className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-r border-slate-100 transition-colors">
+      <button onClick={() => slide("l")} aria-label="Scroll areas left" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-r border-slate-100 transition-colors">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
       <div ref={ref} className="flex overflow-x-auto scrollbar-none flex-1">
@@ -538,7 +542,7 @@ function LocalitySlider({ city, locality, setLocality }: {
           </button>
         ))}
       </div>
-      <button onClick={() => slide("r")} className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-l border-slate-100 transition-colors">
+      <button onClick={() => slide("r")} aria-label="Scroll areas right" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-l border-slate-100 transition-colors">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
       </button>
     </div>
@@ -789,7 +793,7 @@ export default function FindPGClient() {
               className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white transition-colors"
             />
             {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             )}
@@ -877,6 +881,7 @@ export default function FindPGClient() {
               <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
                 {(["grid", "list"] as ViewMode[]).map((m) => (
                   <button key={m} onClick={() => setViewMode(m)}
+                    aria-label={m === "grid" ? "Grid view" : "List view"}
                     className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${m === viewMode ? "bg-white shadow-sm text-violet-700" : "text-slate-400 hover:text-slate-600"}`}>
                     {m === "grid" ? (
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
