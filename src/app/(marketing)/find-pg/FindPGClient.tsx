@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  Search, X, Heart, MapPin, ChevronDown, ChevronLeft, ChevronRight,
+  LayoutGrid, List, SlidersHorizontal, ArrowRight, Home,
+  CheckCircle2, Check, Loader2, Info,
+} from "lucide-react";
 import {
   pgListings,
   allCities,
@@ -30,39 +36,10 @@ type ViewMode   = "grid" | "list";
 
 // ─── small icons ─────────────────────────────────────────────────────────────
 
-function ChevronDown({ className = "" }: { className?: string }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2.5" strokeLinecap="round" className={className}>
-      <path d="M6 9l6 6 6-6" />
-    </svg>
-  );
-}
-
-function PinIcon() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      strokeWidth="2" strokeLinecap="round" className="text-slate-400 flex-shrink-0">
-      <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
-    </svg>
-  );
-}
-
 function StarFilled() {
   return (
     <svg width="11" height="11" viewBox="0 0 24 24" fill="#f59e0b" stroke="none">
       <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-
-function HeartIcon({ filled }: { filled: boolean }) {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24"
-      fill={filled ? "#ef4444" : "none"}
-      stroke={filled ? "#ef4444" : "#94a3b8"}
-      strokeWidth="2" strokeLinecap="round">
-      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
 }
@@ -91,12 +68,16 @@ function AmenityIcon({ name }: { name: string }) {
 function PGCard({ pg, saved, onSave, distanceKm }: {
   pg: PGListing; saved: boolean; onSave: () => void; distanceKm?: number;
 }) {
+  const router = useRouter();
   const [imgIdx, setImgIdx] = useState(0);
   const avail = availTag(pg.occupancy);
   const isFillingFast = pg.occupancy >= 90;
 
   return (
-    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer flex flex-col">
+    <div
+      onClick={() => router.push(`/find-pg/${pg.id}`)}
+      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 cursor-pointer flex flex-col"
+    >
 
       {/* ── Image carousel ─────────────────────────────────────────────────── */}
       <div className="relative h-52 flex-shrink-0 overflow-hidden bg-slate-100">
@@ -112,7 +93,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {/* Top badges */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
           <span className="flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white shadow">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+            <CheckCircle2 size={9} strokeWidth={2} />
             Verified
           </span>
           {isFillingFast && (
@@ -128,7 +109,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
           aria-label={saved ? "Remove from saved" : "Save PG"}
           className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/95 shadow hover:bg-white transition-colors"
         >
-          <HeartIcon filled={saved} />
+          <Heart size={15} strokeWidth={1.75} fill={saved ? "#ef4444" : "none"} className={saved ? "text-red-500" : "text-slate-400"} />
         </button>
 
         {/* Carousel dots */}
@@ -152,7 +133,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
             aria-label="Previous photo"
             className="absolute left-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+            <ChevronLeft size={12} strokeWidth={2.5} />
           </button>
         )}
         {imgIdx < pg.images.length - 1 && (
@@ -161,7 +142,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
             aria-label="Next photo"
             className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
+            <ChevronRight size={12} strokeWidth={2.5} />
           </button>
         )}
       </div>
@@ -184,7 +165,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {/* Location + avail status */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1 min-w-0">
-            <PinIcon />
+            <MapPin size={11} strokeWidth={1.5} className="text-slate-400 flex-shrink-0" />
             <span className="text-xs text-slate-500 truncate">{pg.location}</span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -200,13 +181,6 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
             )}
           </div>
         </div>
-
-        {/* Filling Fast row (below location) */}
-        {isFillingFast && (
-          <p className="text-xs font-semibold text-orange-500 flex items-center gap-1">
-            🔥 Filling Fast
-          </p>
-        )}
 
         {/* Amenity icons */}
         <div className="flex items-start gap-2 overflow-hidden">
@@ -254,7 +228,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
         <img src={pg.images[0]} alt={pg.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
         <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[9px] font-bold text-white shadow">
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+          <CheckCircle2 size={8} strokeWidth={2} />
           Verified
         </span>
         {pg.occupancy >= 90 && (
@@ -277,7 +251,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${avail.cls}`}>{avail.label}</span>
           </div>
           <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
-            <PinIcon />{pg.location}
+            <MapPin size={11} strokeWidth={1.5} className="text-slate-400 flex-shrink-0" />{pg.location}
             <span className="mx-1 text-slate-300">·</span>
             <span>{pg.distanceFromMetro} from metro</span>
             {distanceKm !== undefined && (
@@ -320,7 +294,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
               className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all ${
                 saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-violet-200 hover:text-violet-600"
               }`}>
-              <HeartIcon filled={saved} />{saved ? "Saved" : "Save"}
+              <Heart size={15} strokeWidth={1.75} fill={saved ? "#ef4444" : "none"} className={saved ? "text-red-500" : "text-slate-400"} />{saved ? "Saved" : "Save"}
             </button>
           </div>
         </div>
@@ -503,7 +477,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <button onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 hover:text-violet-700 transition-colors mb-0">
         {title}
-        <ChevronDown className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
+        <ChevronDown size={14} strokeWidth={2} className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
       </button>
       {open && <div className="mt-3">{children}</div>}
     </div>
@@ -521,7 +495,7 @@ function LocalitySlider({ city, locality, setLocality }: {
   return (
     <div className="flex items-center border-b border-slate-200 bg-white">
       <button onClick={() => slide("l")} aria-label="Scroll areas left" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-r border-slate-100 transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M15 18l-6-6 6-6" /></svg>
+        <ChevronLeft size={14} strokeWidth={2} />
       </button>
       <div ref={ref} className="flex overflow-x-auto scrollbar-none flex-1">
         <button onClick={() => setLocality("All")}
@@ -535,15 +509,13 @@ function LocalitySlider({ city, locality, setLocality }: {
             className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               locality === l ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0">
-              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-            </svg>
+            <MapPin size={10} strokeWidth={1.5} className="flex-shrink-0" />
             {l}
           </button>
         ))}
       </div>
       <button onClick={() => slide("r")} aria-label="Scroll areas right" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-l border-slate-100 transition-colors">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+        <ChevronRight size={14} strokeWidth={2} />
       </button>
     </div>
   );
@@ -732,7 +704,7 @@ export default function FindPGClient() {
                   roomTypes.includes(rt) ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
                 }`}>
                   {roomTypes.includes(rt) && (
-                    <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="2 6 5 9 10 3" /></svg>
+                    <Check size={9} strokeWidth={2.5} color="white" />
                   )}
                 </div>
                 <span className="text-sm text-slate-700 group-hover:text-slate-900">{rt} Sharing</span>
@@ -749,7 +721,7 @@ export default function FindPGClient() {
                   amenities.includes(a) ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
                 }`}>
                   {amenities.includes(a) && (
-                    <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><polyline points="2 6 5 9 10 3" /></svg>
+                    <Check size={9} strokeWidth={2.5} color="white" />
                   )}
                 </div>
                 <span className="text-sm text-slate-700 group-hover:text-slate-900">{a}</span>
@@ -768,8 +740,8 @@ export default function FindPGClient() {
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 pt-5 pb-0">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
-          <Link href="/" className="hover:text-violet-600 transition-colors">Home</Link>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6" /></svg>
+          <Link href="/" className="hover:text-violet-600 transition-colors flex items-center gap-1"><Home size={11} strokeWidth={1.75} />Home</Link>
+          <ChevronRight size={12} strokeWidth={2} />
           <span className="text-slate-700 font-medium">
             Find a PG{city !== "All" ? ` in ${city}` : ""}{locality !== "All" ? ` › ${locality}` : ""}
           </span>
@@ -785,16 +757,14 @@ export default function FindPGClient() {
 
           {/* Search */}
           <div className="relative w-full sm:w-80">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-            </svg>
+            <Search size={14} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="Search city, locality, PG name…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white transition-colors"
             />
             {search && (
               <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                <X size={13} strokeWidth={2} />
               </button>
             )}
           </div>
@@ -818,9 +788,7 @@ export default function FindPGClient() {
           {/* Location detection banner */}
           {locationDetecting && (
             <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-700">
-              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round"/>
-              </svg>
+              <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
               Detecting your location…
             </div>
           )}
@@ -828,9 +796,7 @@ export default function FindPGClient() {
           {/* Outside India notice */}
           {!locationDetecting && outsideIndia && (
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/>
-              </svg>
+              <Info size={13} strokeWidth={1.75} />
               ShiftProof is available in India. Showing all listings.
             </div>
           )}
@@ -841,9 +807,7 @@ export default function FindPGClient() {
               {/* Mobile filter toggle */}
               <button onClick={() => setFilterOpen(!filterOpen)}
                 className="lg:hidden flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-violet-700 transition-colors">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                  <line x1="4" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="16" y2="12" /><line x1="11" y1="18" x2="13" y2="18" />
-                </svg>
+                <SlidersHorizontal size={15} strokeWidth={1.75} />
                 Filters
                 {activeCount > 0 && (
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white">
@@ -884,14 +848,9 @@ export default function FindPGClient() {
                     aria-label={m === "grid" ? "Grid view" : "List view"}
                     className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${m === viewMode ? "bg-white shadow-sm text-violet-700" : "text-slate-400 hover:text-slate-600"}`}>
                     {m === "grid" ? (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
-                        <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-                      </svg>
+                      <LayoutGrid size={14} strokeWidth={1.75} />
                     ) : (
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                        <rect x="3" y="5" width="18" height="4" rx="1" /><rect x="3" y="11" width="18" height="4" rx="1" /><rect x="3" y="17" width="18" height="4" rx="1" />
-                      </svg>
+                      <List size={14} strokeWidth={1.75} />
                     )}
                   </button>
                 ))}
@@ -927,10 +886,7 @@ export default function FindPGClient() {
             ) : (
               <div className="flex flex-col items-center justify-center h-96 text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-violet-50 mb-4">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeLinecap="round">
-                    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-                    <line x1="11" y1="8" x2="11" y2="14" /><circle cx="11" cy="16.5" r="0.5" fill="#7c3aed" />
-                  </svg>
+                  <Search size={26} strokeWidth={1.5} className="text-violet-600" />
                 </div>
                 <p className="font-bold text-slate-800">No PGs match your filters</p>
                 <p className="text-sm text-slate-500 mt-1">Try adjusting your search or filters.</p>
@@ -943,6 +899,24 @@ export default function FindPGClient() {
               <p className="text-center text-xs text-slate-400 pt-6 pb-2">
                 Showing {results.length} of {pgListings.length} properties
               </p>
+            )}
+
+            {/* Owner acquisition block — shown to tenants at end of search */}
+            {results.length > 0 && (
+              <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4 shadow-lg shadow-violet-200">
+                <div className="flex-1 text-center sm:text-left">
+                  <p className="text-xs font-semibold text-violet-200 uppercase tracking-wide mb-1">Own a PG in {city !== "All" ? city : "your city"}?</p>
+                  <p className="text-base font-bold text-white">List your property free — reach 15,000+ tenants searching right now</p>
+                  <p className="text-xs text-violet-200 mt-1">14-day free trial · No credit card · Setup in 5 minutes</p>
+                </div>
+                <a
+                  href="/#pricing"
+                  className="shrink-0 inline-flex items-center gap-2 rounded-full bg-white text-violet-700 font-semibold text-sm px-5 py-2.5 hover:bg-violet-50 transition-colors shadow"
+                >
+                  List My PG
+                  <ArrowRight size={14} strokeWidth={2} />
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -958,9 +932,7 @@ function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
     <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 border border-violet-200 px-2.5 py-0.5 text-xs font-medium text-violet-700">
       {label}
       <button onClick={onRemove} className="hover:text-violet-900 ml-0.5">
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+        <X size={10} strokeWidth={2.5} />
       </button>
     </span>
   );

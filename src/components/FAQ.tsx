@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
@@ -20,8 +21,8 @@ const faqs = [
     a: "Absolutely. ShiftProof supports both shared PG rooms (with bed-level tracking) and full flat/apartment rentals. You configure each property type independently.",
   },
   {
-    q: "Is ShiftProof available on iPhone (iOS)?",
-    a: "ShiftProof is currently available on Android (Google Play). An iOS version is in the works — sign up to be notified when it launches.",
+    q: "How secure is my rent and tenant data?",
+    a: "All data is encrypted in transit (TLS 1.3) and at rest. Rent payments are processed via RBI-compliant payment gateways — we never store card or UPI credentials. Your tenant data is yours: you can export or delete it at any time.",
   },
   {
     q: "How are maintenance requests handled?",
@@ -38,7 +39,7 @@ const faqs = [
 ];
 
 export default function FAQ() {
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(0);
 
   return (
     <section id="faq" className="py-16 sm:py-24 bg-slate-50">
@@ -66,18 +67,10 @@ export default function FAQ() {
                   {item.q}
                 </span>
                 <span className={`flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center transition-colors ${open === i ? "bg-violet-100 text-violet-600" : "bg-slate-100 text-slate-400"}`}>
-                  <svg
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
+                  <ChevronDown
+                    size={16} strokeWidth={2}
                     className={`transition-transform duration-200 ${open === i ? "rotate-180" : ""}`}
-                  >
-                    <polyline points="6 9 12 15 18 9" />
-                  </svg>
+                  />
                 </span>
               </button>
 
