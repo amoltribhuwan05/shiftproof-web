@@ -10,6 +10,7 @@ const en: Record<string, string> = {
   "nav.payments":     "Payments",
   "nav.maintenance":  "Maintenance",
   "nav.reports":      "Reports",
+  "nav.subscription": "Subscription",
   "nav.back":         "Back to site",
   "nav.owner_badge":  "Owner",
 
@@ -218,6 +219,7 @@ const hi: Record<string, string> = {
   "nav.payments":     "Payments",
   "nav.maintenance":  "Maintenance",
   "nav.reports":      "Reports",
+  "nav.subscription": "Subscription",
   "nav.back":         "Site पर वापस जाएँ",
   "nav.owner_badge":  "Owner",
 
@@ -426,6 +428,7 @@ const mr: Record<string, string> = {
   "nav.payments":     "Payments",
   "nav.maintenance":  "Maintenance",
   "nav.reports":      "Reports",
+  "nav.subscription": "Subscription",
   "nav.back":         "साइटवर परत जा",
   "nav.owner_badge":  "मालक",
 

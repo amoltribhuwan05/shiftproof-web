@@ -80,7 +80,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
     >
 
       {/* ── Image carousel ─────────────────────────────────────────────────── */}
-      <div className="relative h-52 flex-shrink-0 overflow-hidden bg-slate-100">
+      <div className="relative h-52 flex-shrink-0 overflow-hidden bg-[color:var(--background)]">
         <img
           src={pg.images[imgIdx]}
           alt={pg.name}
@@ -92,12 +92,12 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
 
         {/* Top badges */}
         <div className="absolute top-3 left-3 flex items-center gap-1.5">
-          <span className="flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-1 text-[10px] font-bold text-white shadow">
+          <span className="flex items-center gap-1 rounded-full bg-accent-500 px-2.5 py-1 text-[10px] font-bold text-white shadow">
             <CheckCircle2 size={9} strokeWidth={2} />
             Verified
           </span>
           {isFillingFast && (
-            <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-orange-500 shadow">
+            <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-accent-500 shadow">
               🔥 Filling Fast
             </span>
           )}
@@ -152,7 +152,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
 
         {/* Name + rating */}
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-bold text-slate-900 text-[15px] leading-snug line-clamp-1 group-hover:text-violet-700 transition-colors flex-1">
+          <h3 className="font-bold text-[color:var(--foreground)] text-[15px] leading-snug line-clamp-1 group-hover:text-accent-600 transition-colors flex-1">
             {pg.name}
           </h3>
           <div className="flex items-center gap-1 flex-shrink-0">
@@ -170,7 +170,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {distanceKm !== undefined && (
-              <span className="text-[10px] font-semibold text-violet-600 bg-violet-50 rounded-full px-2 py-0.5">
+              <span className="text-[10px] font-semibold text-accent-500 bg-accent-50 rounded-full px-2 py-0.5">
                 {fmtDistance(distanceKm)}
               </span>
             )}
@@ -198,14 +198,14 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         </div>
 
         {/* Price + CTA */}
-        <div className="mt-auto pt-3 border-t border-slate-100">
+        <div className="mt-auto pt-3 border-t border-[color:var(--background)]">
           <p className="text-[10px] text-slate-400 mb-0.5">Starting from</p>
           <div className="flex items-end justify-between gap-2">
-            <p className="text-lg font-extrabold text-slate-900 leading-tight">
+            <p className="text-lg font-semibold text-[color:var(--foreground)] leading-tight">
               ₹{pg.price.toLocaleString("en-IN")}<span className="text-xs font-normal text-slate-400">/mo</span>
             </p>
             <Link href={`/find-pg/${pg.id}`} onClick={(e) => e.stopPropagation()}
-              className="rounded-xl bg-violet-600 px-5 py-2 text-xs font-bold text-white hover:bg-violet-700 active:scale-95 transition-all">
+              className="rounded-xl bg-accent-500 px-5 py-2 text-xs font-bold text-white hover:bg-accent-600 active:scale-95 transition-all">
               View Details
             </Link>
           </div>
@@ -222,17 +222,17 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
 }) {
   const avail = availTag(pg.occupancy);
   return (
-    <div className="group flex bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+    <div className="group flex bg-white rounded-2xl overflow-hidden border border-[color:var(--background)] hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer">
       {/* Thumbnail */}
-      <div className="relative w-44 sm:w-52 flex-shrink-0 bg-slate-100 overflow-hidden">
+      <div className="relative w-44 sm:w-52 flex-shrink-0 bg-[color:var(--background)] overflow-hidden">
         <img src={pg.images[0]} alt={pg.name} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
-        <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-violet-600 px-2 py-0.5 text-[9px] font-bold text-white shadow">
+        <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-accent-500 px-2 py-0.5 text-[9px] font-bold text-white shadow">
           <CheckCircle2 size={8} strokeWidth={2} />
           Verified
         </span>
         {pg.occupancy >= 90 && (
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-orange-500 shadow">
+          <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-accent-500 shadow">
             🔥 Filling Fast
           </span>
         )}
@@ -242,11 +242,11 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
       <div className="flex flex-1 flex-col sm:flex-row min-w-0">
         <div className="flex-1 p-4 flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-slate-900 text-base group-hover:text-violet-700 transition-colors">{pg.name}</h3>
+            <h3 className="font-bold text-[color:var(--foreground)] text-base group-hover:text-accent-600 transition-colors">{pg.name}</h3>
             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${
               pg.gender === "Female" ? "bg-pink-50 text-pink-600"
               : pg.gender === "Male" ? "bg-sky-50 text-sky-600"
-              : "bg-slate-100 text-slate-500"
+              : "bg-[color:var(--background)] text-slate-500"
             }`}>{pg.gender}</span>
             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${avail.cls}`}>{avail.label}</span>
           </div>
@@ -257,7 +257,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
             {distanceKm !== undefined && (
               <>
                 <span className="mx-1 text-slate-300">·</span>
-                <span className="font-semibold text-violet-600">{fmtDistance(distanceKm)} from you</span>
+                <span className="font-semibold text-accent-500">{fmtDistance(distanceKm)} from you</span>
               </>
             )}
           </div>
@@ -270,29 +270,29 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
           </div>
           <div className="flex flex-wrap gap-1.5">
             {pg.roomTypes.map((rt) => (
-              <span key={rt} className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600">{rt} Sharing</span>
+              <span key={rt} className="rounded-md border border-slate-200 bg-[color:var(--background)] px-2 py-0.5 text-xs font-medium text-slate-600">{rt} Sharing</span>
             ))}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {pg.amenities.map((a) => (
-              <span key={a} className="rounded-md bg-violet-50 px-2 py-0.5 text-[11px] text-violet-600">{a}</span>
+              <span key={a} className="rounded-md bg-accent-50 px-2 py-0.5 text-[11px] text-accent-500">{a}</span>
             ))}
           </div>
         </div>
-        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 px-4 pb-4 sm:py-4 sm:border-l border-slate-100 sm:w-40 flex-shrink-0">
+        <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3 px-4 pb-4 sm:py-4 sm:border-l border-[color:var(--background)] sm:w-40 flex-shrink-0">
           <div className="sm:text-right">
             <p className="text-[10px] text-slate-400">Starting from</p>
-            <p className="text-xl font-extrabold text-slate-900">₹{pg.price.toLocaleString("en-IN")}</p>
+            <p className="text-xl font-semibold text-[color:var(--foreground)]">₹{pg.price.toLocaleString("en-IN")}</p>
             <p className="text-xs text-slate-400">per month</p>
           </div>
           <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
             <Link href={`/find-pg/${pg.id}`} onClick={(e) => e.stopPropagation()}
-              className="flex-1 sm:flex-none rounded-xl bg-violet-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-violet-700 transition-colors text-center">
+              className="flex-1 sm:flex-none rounded-xl bg-accent-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-accent-600 transition-colors text-center">
               View Details
             </Link>
             <button onClick={(e) => { e.stopPropagation(); onSave(); }}
               className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all ${
-                saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-violet-200 hover:text-violet-600"
+                saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-accent-200 hover:text-accent-500"
               }`}>
               <Heart size={15} strokeWidth={1.75} fill={saved ? "#ef4444" : "none"} className={saved ? "text-red-500" : "text-slate-400"} />{saved ? "Saved" : "Save"}
             </button>
@@ -383,12 +383,12 @@ function PriceRangeSlider({
       <div className="flex items-baseline justify-between">
         <div className="text-center">
           <p className="text-[10px] text-slate-400">Min</p>
-          <p className="text-sm font-bold text-violet-700">₹{lo.toLocaleString("en-IN")}</p>
+          <p className="text-sm font-bold text-accent-600">₹{lo.toLocaleString("en-IN")}</p>
         </div>
         <div className="h-px flex-1 mx-2 bg-slate-200" />
         <div className="text-center">
           <p className="text-[10px] text-slate-400">Max</p>
-          <p className="text-sm font-bold text-violet-700">₹{hi.toLocaleString("en-IN")}</p>
+          <p className="text-sm font-bold text-accent-600">₹{hi.toLocaleString("en-IN")}</p>
         </div>
       </div>
 
@@ -399,7 +399,7 @@ function PriceRangeSlider({
         className="relative h-6 flex items-center cursor-pointer mx-2"
       >
         {/* Background rail */}
-        <div className="absolute inset-x-0 h-[6px] rounded-full bg-slate-100" />
+        <div className="absolute inset-x-0 h-[6px] rounded-full bg-[color:var(--background)]" />
         {/* Unfilled left */}
         <div
           className="absolute h-[6px] rounded-l-full bg-slate-200"
@@ -407,7 +407,7 @@ function PriceRangeSlider({
         />
         {/* Active fill */}
         <div
-          className="absolute h-[6px] bg-violet-500"
+          className="absolute h-[6px] bg-accent-500"
           style={{ left: `${pct(lo)}%`, width: `${pct(hi) - pct(lo)}%` }}
         />
         {/* Unfilled right */}
@@ -420,20 +420,20 @@ function PriceRangeSlider({
         <div
           onMouseDown={startDrag("lo")}
           onTouchStart={startDrag("lo")}
-          className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-violet-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
+          className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-accent-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
           style={{ left: `${pct(lo)}%`, zIndex: lo > (maxBound + minBound) / 2 ? 3 : 2 }}
         >
-          <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+          <div className="h-1.5 w-1.5 rounded-full bg-accent-500" />
         </div>
 
         {/* Hi handle */}
         <div
           onMouseDown={startDrag("hi")}
           onTouchStart={startDrag("hi")}
-          className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-violet-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
+          className="absolute flex h-5 w-5 -translate-x-1/2 cursor-grab items-center justify-center rounded-full bg-white shadow-md ring-2 ring-accent-500 transition-transform duration-75 hover:scale-110 active:scale-110 active:cursor-grabbing"
           style={{ left: `${pct(hi)}%`, zIndex: hi < (maxBound + minBound) / 2 ? 3 : 2 }}
         >
-          <div className="h-1.5 w-1.5 rounded-full bg-violet-500" />
+          <div className="h-1.5 w-1.5 rounded-full bg-accent-500" />
         </div>
       </div>
 
@@ -456,8 +456,8 @@ function PriceRangeSlider({
             onClick={() => onChange([p.lo, p.hi])}
             className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium border transition-colors ${
               lo === p.lo && hi === p.hi
-                ? "bg-violet-600 text-white border-violet-600"
-                : "bg-white text-slate-500 border-slate-200 hover:border-violet-300 hover:text-violet-700"
+                ? "bg-accent-500 text-white border-accent-500"
+                : "bg-white text-slate-500 border-slate-200 hover:border-accent-200 hover:text-accent-600"
             }`}
           >
             {p.label}
@@ -473,9 +473,9 @@ function PriceRangeSlider({
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(true);
   return (
-    <div className="py-4 border-b border-slate-100 last:border-0">
+    <div className="py-4 border-b border-[color:var(--background)] last:border-0">
       <button onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 hover:text-violet-700 transition-colors mb-0">
+        className="flex w-full items-center justify-between text-sm font-semibold text-slate-700 hover:text-accent-600 transition-colors mb-0">
         {title}
         <ChevronDown size={14} strokeWidth={2} className={`transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
       </button>
@@ -494,27 +494,27 @@ function LocalitySlider({ city, locality, setLocality }: {
   const localities = localitiesForCity(city);
   return (
     <div className="flex items-center border-b border-slate-200 bg-white">
-      <button onClick={() => slide("l")} aria-label="Scroll areas left" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-r border-slate-100 transition-colors">
+      <button onClick={() => slide("l")} aria-label="Scroll areas left" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-accent-500 border-r border-[color:var(--background)] transition-colors">
         <ChevronLeft size={14} strokeWidth={2} />
       </button>
       <div ref={ref} className="flex overflow-x-auto scrollbar-none flex-1">
         <button onClick={() => setLocality("All")}
           className={`flex-shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            locality === "All" ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
+            locality === "All" ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
           }`}>
           {city === "All" ? "All Areas" : `All ${city}`}
         </button>
         {localities.map((l) => (
           <button key={l} onClick={() => setLocality(l)}
             className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              locality === l ? "border-violet-600 text-violet-700" : "border-transparent text-slate-500 hover:text-slate-800"
+              locality === l ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
             }`}>
             <MapPin size={10} strokeWidth={1.5} className="flex-shrink-0" />
             {l}
           </button>
         ))}
       </div>
-      <button onClick={() => slide("r")} aria-label="Scroll areas right" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-violet-600 border-l border-slate-100 transition-colors">
+      <button onClick={() => slide("r")} aria-label="Scroll areas right" className="flex-shrink-0 px-2 py-3 text-slate-400 hover:text-accent-500 border-l border-[color:var(--background)] transition-colors">
         <ChevronRight size={14} strokeWidth={2} />
       </button>
     </div>
@@ -636,33 +636,33 @@ export default function FindPGClient() {
   const sidebar = (
     <div className="bg-white border-r border-slate-200 h-full overflow-y-auto">
       {/* header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-        <span className="font-bold text-slate-900 text-sm">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--background)]">
+        <span className="font-bold text-[color:var(--foreground)] text-sm">
           Filters
           {activeCount > 0 && (
-            <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white">
+            <span className="ml-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-accent-500 text-[10px] font-bold text-white">
               {activeCount}
             </span>
           )}
         </span>
         {activeCount > 0 && (
-          <button onClick={clearAll} className="text-xs text-violet-600 font-semibold hover:text-violet-800 transition-colors">
+          <button onClick={clearAll} className="text-xs text-accent-500 font-semibold hover:text-accent-700 transition-colors">
             Clear all
           </button>
         )}
       </div>
 
-      <div className="px-5 divide-y divide-slate-100">
+      <div className="px-5 divide-y divide-[color:var(--background)]">
         <Section title="City">
           <div className="space-y-2.5">
             {(["All", ...allCities]).map((c) => (
               <label key={c} onClick={() => changeCity(c)} className="flex items-center gap-2.5 cursor-pointer group">
                 <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  city === c ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
+                  city === c ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
                 }`}>
                   {city === c && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                 </div>
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">
+                <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">
                   {c === "All" ? "All Cities" : c}
                 </span>
               </label>
@@ -675,11 +675,11 @@ export default function FindPGClient() {
             {(["All", "Male", "Female", "Mixed"] as const).map((g) => (
               <label key={g} onClick={() => setGender(g)} className="flex items-center gap-2.5 cursor-pointer group">
                 <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  gender === g ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
+                  gender === g ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
                 }`}>
                   {gender === g && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                 </div>
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">
+                <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">
                   {g === "All" ? "Any" : g + " Only"}
                 </span>
               </label>
@@ -701,13 +701,13 @@ export default function FindPGClient() {
             {(["Single", "Double", "Triple"] as RoomType[]).map((rt) => (
               <label key={rt} onClick={() => toggle(setRoomTypes, rt)} className="flex items-center gap-2.5 cursor-pointer group">
                 <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                  roomTypes.includes(rt) ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
+                  roomTypes.includes(rt) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
                 }`}>
                   {roomTypes.includes(rt) && (
                     <Check size={9} strokeWidth={2.5} color="white" />
                   )}
                 </div>
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">{rt} Sharing</span>
+                <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">{rt} Sharing</span>
               </label>
             ))}
           </div>
@@ -718,13 +718,13 @@ export default function FindPGClient() {
             {allAmenities.map((a) => (
               <label key={a} onClick={() => toggle(setAmenities, a)} className="flex items-center gap-2.5 cursor-pointer group">
                 <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                  amenities.includes(a) ? "border-violet-600 bg-violet-600" : "border-slate-300 group-hover:border-violet-400"
+                  amenities.includes(a) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
                 }`}>
                   {amenities.includes(a) && (
                     <Check size={9} strokeWidth={2.5} color="white" />
                   )}
                 </div>
-                <span className="text-sm text-slate-700 group-hover:text-slate-900">{a}</span>
+                <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">{a}</span>
               </label>
             ))}
           </div>
@@ -736,41 +736,83 @@ export default function FindPGClient() {
   return (
     <div className="flex flex-col" style={{ minHeight: "calc(100vh - 65px)" }}>
 
-      {/* ── Top bar ──────────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 pt-5 pb-0">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
-          <Link href="/" className="hover:text-violet-600 transition-colors flex items-center gap-1"><Home size={11} strokeWidth={1.75} />Home</Link>
-          <ChevronRight size={12} strokeWidth={2} />
-          <span className="text-slate-700 font-medium">
-            Find a PG{city !== "All" ? ` in ${city}` : ""}{locality !== "All" ? ` › ${locality}` : ""}
-          </span>
+      {/* ── Hero banner ─────────────────────────────────────────────────────── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 pt-10 pb-12 px-4 sm:px-6 lg:px-8">
+        {/* Background elements */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+          <div className="absolute -top-32 -right-32 h-64 w-64 rounded-full bg-accent-500/20 blur-3xl" />
+          <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-accent-500/20 blur-3xl" />
+          <svg className="absolute inset-0 h-full w-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="find-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="1.5" cy="1.5" r="1" fill="white" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#find-dots)" />
+          </svg>
         </div>
 
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4">
-          <div>
-            <h1 className="text-xl font-extrabold text-slate-900">
-              {locality !== "All" ? `PGs in ${locality}` : city !== "All" ? `PGs in ${city}` : "Find a PG"}
-            </h1>
-            <p className="text-xs text-slate-400 mt-0.5">{results.length} properties found</p>
+        <div className="relative mx-auto max-w-3xl text-center">
+          {/* Breadcrumb */}
+          <div className="flex items-center justify-center gap-1.5 text-xs text-accent-200/70 mb-5">
+            <Link href="/" className="hover:text-accent-200 transition-colors flex items-center gap-1">
+              <Home size={11} strokeWidth={1.75} /> Home
+            </Link>
+            <ChevronRight size={11} strokeWidth={2} />
+            <span className="text-accent-200">
+              Find a PG{city !== "All" ? ` in ${city}` : ""}{locality !== "All" ? ` › ${locality}` : ""}
+            </span>
           </div>
 
-          {/* Search */}
-          <div className="relative w-full sm:w-80">
-            <Search size={14} strokeWidth={1.75} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+          <h1 className="text-3xl sm:text-4xl text-white mb-2 tracking-tight">
+            {locality !== "All"
+              ? `PGs in ${locality}`
+              : city !== "All"
+              ? `Find a PG in ${city}`
+              : "Find Your Perfect PG"}
+          </h1>
+          <p className="text-accent-200/80 text-sm sm:text-base mb-8">
+            {results.length} verified properties · filters applied {activeCount > 0 ? `(${activeCount})` : ""}
+          </p>
+
+          {/* Search bar */}
+          <div className="relative max-w-xl mx-auto">
+            <Search size={16} strokeWidth={2} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search city, locality, PG name…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-8 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:bg-white transition-colors"
+              className="w-full rounded-2xl border-0 bg-white/95 backdrop-blur pl-11 pr-10 py-4 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 shadow-xl"
             />
             {search && (
-              <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                <X size={13} strokeWidth={2} />
+              <button onClick={() => setSearch("")} aria-label="Clear search" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} strokeWidth={2} />
               </button>
             )}
           </div>
-        </div>
 
-        {/* Locality slider */}
+          {/* City quick-filter pills */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
+            {(["All", ...allCities]).map((c) => (
+              <button
+                key={c}
+                onClick={() => changeCity(c)}
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                  city === c
+                    ? "bg-white text-accent-600 shadow-md"
+                    : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/10"
+                }`}
+              >
+                {c === "All" ? "All Cities" : c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Locality / area tabs ─────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-slate-200">
         <LocalitySlider city={city} locality={locality} setLocality={setLocality} />
       </div>
 
@@ -783,11 +825,11 @@ export default function FindPGClient() {
         </aside>
 
         {/* Results */}
-        <div className="flex-1 min-w-0 bg-slate-50 flex flex-col">
+        <div className="flex-1 min-w-0 bg-[color:var(--background)] flex flex-col">
 
           {/* Location detection banner */}
           {locationDetecting && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-700">
+            <div className="flex items-center gap-2 px-4 py-2 bg-accent-50 border-b border-accent-100 text-xs text-accent-600">
               <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
               Detecting your location…
             </div>
@@ -806,11 +848,11 @@ export default function FindPGClient() {
             <div className="flex items-center gap-3">
               {/* Mobile filter toggle */}
               <button onClick={() => setFilterOpen(!filterOpen)}
-                className="lg:hidden flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-violet-700 transition-colors">
+                className="lg:hidden flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-accent-600 transition-colors">
                 <SlidersHorizontal size={15} strokeWidth={1.75} />
                 Filters
                 {activeCount > 0 && (
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-[9px] font-bold text-white">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent-500 text-[9px] font-bold text-white">
                     {activeCount}
                   </span>
                 )}
@@ -833,7 +875,7 @@ export default function FindPGClient() {
 
             <div className="flex items-center gap-2 ml-auto">
               <select value={sortBy} onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-violet-400 cursor-pointer">
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-accent-500 cursor-pointer">
                 <option value="relevance">Relevance</option>
                 <option value="rating">Top Rated</option>
                 <option value="price_asc">Price: Low → High</option>
@@ -842,11 +884,11 @@ export default function FindPGClient() {
               </select>
 
               {/* View toggle */}
-              <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+              <div className="flex items-center rounded-lg border border-slate-200 bg-[color:var(--background)] p-0.5">
                 {(["grid", "list"] as ViewMode[]).map((m) => (
                   <button key={m} onClick={() => setViewMode(m)}
                     aria-label={m === "grid" ? "Grid view" : "List view"}
-                    className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${m === viewMode ? "bg-white shadow-sm text-violet-700" : "text-slate-400 hover:text-slate-600"}`}>
+                    className={`flex items-center justify-center rounded-md p-1.5 transition-colors ${m === viewMode ? "bg-white shadow-sm text-accent-600" : "text-slate-400 hover:text-slate-600"}`}>
                     {m === "grid" ? (
                       <LayoutGrid size={14} strokeWidth={1.75} />
                     ) : (
@@ -885,12 +927,12 @@ export default function FindPGClient() {
               )
             ) : (
               <div className="flex flex-col items-center justify-center h-96 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-violet-50 mb-4">
-                  <Search size={26} strokeWidth={1.5} className="text-violet-600" />
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-50 mb-4">
+                  <Search size={26} strokeWidth={1.5} className="text-accent-500" />
                 </div>
                 <p className="font-bold text-slate-800">No PGs match your filters</p>
                 <p className="text-sm text-slate-500 mt-1">Try adjusting your search or filters.</p>
-                <button onClick={clearAll} className="mt-4 rounded-xl bg-violet-600 px-5 py-2 text-sm font-bold text-white hover:bg-violet-700 transition-colors">
+                <button onClick={clearAll} className="mt-4 rounded-xl bg-accent-500 px-5 py-2 text-sm font-bold text-white hover:bg-accent-600 transition-colors">
                   Reset filters
                 </button>
               </div>
@@ -903,15 +945,15 @@ export default function FindPGClient() {
 
             {/* Owner acquisition block — shown to tenants at end of search */}
             {results.length > 0 && (
-              <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-gradient-to-br from-violet-600 to-indigo-600 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4 shadow-lg shadow-violet-200">
+              <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-500 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4 shadow-lg shadow-accent-200">
                 <div className="flex-1 text-center sm:text-left">
-                  <p className="text-xs font-semibold text-violet-200 uppercase tracking-wide mb-1">Own a PG in {city !== "All" ? city : "your city"}?</p>
-                  <p className="text-base font-bold text-white">List your property free — reach 15,000+ tenants searching right now</p>
-                  <p className="text-xs text-violet-200 mt-1">14-day free trial · No credit card · Setup in 5 minutes</p>
+                  <p className="text-xs font-semibold text-accent-200 uppercase tracking-wide mb-1">Own a PG in {city !== "All" ? city : "your city"}?</p>
+                  <p className="text-base font-bold text-white">List your property free — reach tenants actively searching right now</p>
+                  <p className="text-xs text-accent-200 mt-1">14-day free trial · No credit card · Setup in 5 minutes</p>
                 </div>
                 <a
-                  href="/#pricing"
-                  className="shrink-0 inline-flex items-center gap-2 rounded-full bg-white text-violet-700 font-semibold text-sm px-5 py-2.5 hover:bg-violet-50 transition-colors shadow"
+                  href="/signup?plan=growth"
+                  className="shrink-0 inline-flex items-center gap-2 rounded-full bg-white text-accent-600 font-semibold text-sm px-5 py-2.5 hover:bg-accent-50 transition-colors shadow"
                 >
                   List My PG
                   <ArrowRight size={14} strokeWidth={2} />
@@ -929,9 +971,9 @@ export default function FindPGClient() {
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 border border-violet-200 px-2.5 py-0.5 text-xs font-medium text-violet-700">
+    <span className="inline-flex items-center gap-1 rounded-full bg-accent-100 border border-accent-200 px-2.5 py-0.5 text-xs font-medium text-accent-600">
       {label}
-      <button onClick={onRemove} className="hover:text-violet-900 ml-0.5">
+      <button onClick={onRemove} className="hover:text-accent-700 ml-0.5">
         <X size={10} strokeWidth={2.5} />
       </button>
     </span>

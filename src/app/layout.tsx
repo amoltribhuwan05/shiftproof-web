@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Noto_Sans_Devanagari } from "next/font/google";
+import { DM_Sans, DM_Serif_Display, Noto_Sans_Devanagari } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+const dmSerif = DM_Serif_Display({
+  variable: "--font-dm-serif",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 const notoDevanagari = Noto_Sans_Devanagari({
@@ -14,9 +21,9 @@ const notoDevanagari = Noto_Sans_Devanagari({
 });
 
 export const metadata: Metadata = {
-  title: "ShiftProof — Property Management & Tenant Portal",
+  title: "ShiftProof — Rent collected. Paper handled. Sunday back.",
   description:
-    "ShiftProof simplifies PG and rental property management for owners while giving tenants a seamless experience to find, join, and pay — all from one app.",
+    "ShiftProof runs your PG on autopilot. Rent reminders, payment tracking, tenant onboarding, maintenance — one dashboard, built for Indian landlords.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
@@ -27,8 +34,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${geistSans.variable} ${notoDevanagari.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${dmSans.variable} ${dmSerif.variable} ${notoDevanagari.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-[color:var(--background)] text-[color:var(--foreground)]">
         {children}
       </body>
     </html>

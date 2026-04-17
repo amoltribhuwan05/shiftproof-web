@@ -151,7 +151,7 @@ function BedMatrix({ pg }: { pg: PGListing }) {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-base font-extrabold text-slate-900">Bed Availability Matrix</h2>
+          <h2 className="text-base font-semibold text-[color:var(--foreground)]">Bed Availability Matrix</h2>
           <p className="text-xs text-slate-400 mt-0.5">
             {counts.available} of {allBeds.length} beds available across {rooms.length} rooms
           </p>
@@ -160,8 +160,8 @@ function BedMatrix({ pg }: { pg: PGListing }) {
           onClick={() => { setOwnerMode(!ownerMode); setActiveBed(null); }}
           className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all ${
             ownerMode
-              ? "bg-violet-600 text-white border-violet-600 shadow"
-              : "bg-white text-slate-600 border-slate-200 hover:border-violet-400"
+              ? "bg-accent-500 text-white border-accent-500 shadow"
+              : "bg-white text-slate-600 border-slate-200 hover:border-accent-500"
           }`}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -176,11 +176,11 @@ function BedMatrix({ pg }: { pg: PGListing }) {
 
       {/* Owner mode notice */}
       {ownerMode && (
-        <div className="mb-4 flex items-start gap-2 rounded-xl bg-violet-50 border border-violet-100 px-4 py-3">
+        <div className="mb-4 flex items-start gap-2 rounded-xl bg-accent-50 border border-accent-100 px-4 py-3">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" className="mt-0.5 flex-shrink-0">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="0.5" fill="#7c3aed"/>
           </svg>
-          <p className="text-xs text-violet-700">
+          <p className="text-xs text-accent-600">
             <strong>Owner Mode (demo)</strong> — Click any bed to change its status. Add or remove rooms below.
             In production, owner changes status in the Android app → API writes to DB → tenants see it on next page load. No WebSocket needed.
           </p>
@@ -193,7 +193,7 @@ function BedMatrix({ pg }: { pg: PGListing }) {
           const m = STATUS_META[s];
           return (
             <div key={s} className={`rounded-xl px-3 py-2.5 text-center ${m.bg}`}>
-              <p className={`text-lg font-extrabold ${m.text}`}>{counts[s]}</p>
+              <p className={`text-lg font-semibold ${m.text}`}>{counts[s]}</p>
               <p className={`text-[10px] font-medium ${m.text} opacity-80`}>{m.label}</p>
             </div>
           );
@@ -216,13 +216,13 @@ function BedMatrix({ pg }: { pg: PGListing }) {
           <div key={floor}>
             <div className="flex items-center gap-2 mb-3">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Floor {floor}</span>
-              <div className="flex-1 h-px bg-slate-100" />
+              <div className="flex-1 h-px bg-[color:var(--background)]" />
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
               {rooms.filter((r) => r.floor === floor).map((room) => (
                 <div key={room.id}
-                  className="rounded-xl border border-slate-200 bg-slate-50 p-3 relative group/room">
+                  className="rounded-xl border border-slate-200 bg-[color:var(--background)] p-3 relative group/room">
                   {/* Room label */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold text-slate-700">{room.name}</span>
@@ -259,7 +259,7 @@ function BedMatrix({ pg }: { pg: PGListing }) {
                                 return (
                                   <button key={s}
                                     onClick={() => updateBedStatus(room.id, bed.id, s)}
-                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors ${
+                                    className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-[color:var(--background)] transition-colors ${
                                       bed.status === s ? "font-bold" : ""
                                     }`}
                                   >
@@ -300,13 +300,13 @@ function BedMatrix({ pg }: { pg: PGListing }) {
 
       {/* Add room (owner mode) */}
       {ownerMode && (
-        <div className="mt-5 pt-5 border-t border-slate-100">
+        <div className="mt-5 pt-5 border-t border-[color:var(--background)]">
           <p className="text-xs font-semibold text-slate-500 mb-2">Add a new room</p>
           <div className="flex flex-wrap gap-2">
             {(["Single", "Double", "Triple"] as RoomType[]).map((type) => (
               <button key={type}
                 onClick={() => addRoom(type)}
-                className="flex items-center gap-1.5 rounded-xl border border-dashed border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-100 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl border border-dashed border-accent-200 bg-accent-50 px-3 py-1.5 text-xs font-semibold text-accent-600 hover:bg-accent-100 transition-colors"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -340,17 +340,17 @@ export default function PGDetailClient({
   const genderColor =
     pg.gender === "Female" ? "bg-pink-50 text-pink-600 border-pink-100"
     : pg.gender === "Male"   ? "bg-sky-50 text-sky-600 border-sky-100"
-    : "bg-slate-50 text-slate-600 border-slate-200";
+    : "bg-[color:var(--background)] text-slate-600 border-slate-200";
 
   return (
-    <main className="bg-slate-50 min-h-screen">
+    <main className="bg-[color:var(--background)] min-h-screen">
 
       {/* ── Breadcrumb ───────────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 lg:px-8 py-3">
         <nav className="flex items-center gap-1.5 text-xs text-slate-400 max-w-7xl mx-auto">
-          <Link href="/" className="hover:text-violet-600 transition-colors">Home</Link>
+          <Link href="/" className="hover:text-accent-500 transition-colors">Home</Link>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
-          <Link href="/find-pg" className="hover:text-violet-600 transition-colors">Find a PG</Link>
+          <Link href="/find-pg" className="hover:text-accent-500 transition-colors">Find a PG</Link>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
           <span className="text-slate-700 font-medium truncate">{pg.name}</span>
         </nav>
@@ -372,12 +372,12 @@ export default function PGDetailClient({
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span className="flex items-center gap-1 rounded-full bg-violet-600 px-2.5 py-0.5 text-[11px] font-bold text-white">
+                    <span className="flex items-center gap-1 rounded-full bg-accent-500 px-2.5 py-0.5 text-[11px] font-bold text-white">
                       <svg width="9" height="9" viewBox="0 0 24 24" fill="white" stroke="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
                       Verified
                     </span>
                     {isFillingFast && (
-                      <span className="rounded-full bg-orange-50 border border-orange-100 px-2.5 py-0.5 text-[11px] font-bold text-orange-500">
+                      <span className="rounded-full bg-accent-50 border border-accent-100 px-2.5 py-0.5 text-[11px] font-bold text-accent-500">
                         🔥 Filling Fast — {pg.occupancy}% occupied
                       </span>
                     )}
@@ -385,7 +385,7 @@ export default function PGDetailClient({
                       {pg.gender === "Mixed" ? "Co-ed" : `${pg.gender} Only`}
                     </span>
                   </div>
-                  <h1 className="text-2xl font-extrabold text-slate-900 leading-tight">{pg.name}</h1>
+                  <h1 className="text-2xl font-semibold text-[color:var(--foreground)] leading-tight">{pg.name}</h1>
                   <div className="flex items-center gap-1.5 mt-1.5 text-sm text-slate-500">
                     <PinIcon />
                     <span>{pg.location}</span>
@@ -394,7 +394,7 @@ export default function PGDetailClient({
                   </div>
                 </div>
                 <button onClick={() => setSaved(!saved)}
-                  className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white hover:border-violet-300 transition-colors shadow-sm">
+                  className="flex-shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white hover:border-accent-200 transition-colors shadow-sm">
                   <svg width="18" height="18" viewBox="0 0 24 24"
                     fill={saved ? "#ef4444" : "none"} stroke={saved ? "#ef4444" : "#94a3b8"} strokeWidth="2" strokeLinecap="round">
                     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
@@ -403,7 +403,7 @@ export default function PGDetailClient({
               </div>
 
               {/* Rating bar */}
-              <div className="mt-4 flex items-center gap-4 pt-4 border-t border-slate-100">
+              <div className="mt-4 flex items-center gap-4 pt-4 border-t border-[color:var(--background)]">
                 <div className="flex items-center gap-1.5">
                   <div className="flex">
                     {[1,2,3,4,5].map((s) => (
@@ -413,7 +413,7 @@ export default function PGDetailClient({
                       </svg>
                     ))}
                   </div>
-                  <span className="font-bold text-slate-900">{pg.rating}</span>
+                  <span className="font-bold text-[color:var(--foreground)]">{pg.rating}</span>
                   <span className="text-sm text-slate-400">({pg.reviews} reviews)</span>
                 </div>
                 <div className="h-4 w-px bg-slate-200" />
@@ -421,7 +421,7 @@ export default function PGDetailClient({
                 {pg.badge && (
                   <>
                     <div className="h-4 w-px bg-slate-200" />
-                    <span className="text-sm font-semibold text-orange-500">{pg.badge}</span>
+                    <span className="text-sm font-semibold text-accent-500">{pg.badge}</span>
                   </>
                 )}
               </div>
@@ -429,17 +429,17 @@ export default function PGDetailClient({
 
             {/* About */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-base font-extrabold text-slate-900 mb-3">About this PG</h2>
+              <h2 className="text-base font-semibold text-[color:var(--foreground)] mb-3">About this PG</h2>
               <p className="text-sm text-slate-600 leading-relaxed">{pg.description}</p>
             </div>
 
             {/* Amenities */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-base font-extrabold text-slate-900 mb-4">Amenities</h2>
+              <h2 className="text-base font-semibold text-[color:var(--foreground)] mb-4">Amenities</h2>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
                 {pg.amenities.map((a) => (
-                  <div key={a} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className="w-7 h-7 text-violet-600">{AMENITY_ICONS[a]}</div>
+                  <div key={a} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-[color:var(--background)] border border-[color:var(--background)]">
+                    <div className="w-7 h-7 text-accent-500">{AMENITY_ICONS[a]}</div>
                     <span className="text-[11px] font-medium text-slate-600 text-center leading-tight">{a}</span>
                   </div>
                 ))}
@@ -448,18 +448,18 @@ export default function PGDetailClient({
 
             {/* Room types & pricing */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-base font-extrabold text-slate-900 mb-4">Room Types & Pricing</h2>
+              <h2 className="text-base font-semibold text-[color:var(--foreground)] mb-4">Room Types & Pricing</h2>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {pg.roomTypes.map((rt) => (
                   <div key={rt}
                     onClick={() => setSelectedRoom(rt)}
                     className={`rounded-xl border-2 p-4 cursor-pointer transition-all ${
                       selectedRoom === rt
-                        ? "border-violet-600 bg-violet-50"
-                        : "border-slate-200 bg-white hover:border-violet-300"
+                        ? "border-accent-500 bg-accent-50"
+                        : "border-slate-200 bg-white hover:border-accent-200"
                     }`}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-bold text-slate-900 text-sm">{rt} Room</span>
+                      <span className="font-bold text-[color:var(--foreground)] text-sm">{rt} Room</span>
                       {selectedRoom === rt && (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="#7c3aed" stroke="none">
                           <path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/>
@@ -467,7 +467,7 @@ export default function PGDetailClient({
                       )}
                     </div>
                     <p className="text-[11px] text-slate-500 mb-3 leading-snug">{ROOM_DESCRIPTIONS[rt]}</p>
-                    <p className="text-lg font-extrabold text-violet-700">
+                    <p className="text-lg font-semibold text-accent-600">
                       ₹{roomPrice(pg.price, rt).toLocaleString("en-IN")}
                       <span className="text-xs font-normal text-slate-400">/mo</span>
                     </p>
@@ -481,7 +481,7 @@ export default function PGDetailClient({
 
             {/* House rules */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-base font-extrabold text-slate-900 mb-4">House Rules</h2>
+              <h2 className="text-base font-semibold text-[color:var(--foreground)] mb-4">House Rules</h2>
               <ul className="space-y-2.5">
                 {DEFAULT_HOUSE_RULES.map((rule) => (
                   <li key={rule} className="flex items-start gap-2.5 text-sm text-slate-600">
@@ -496,10 +496,10 @@ export default function PGDetailClient({
 
             {/* Location placeholder */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h2 className="text-base font-extrabold text-slate-900 mb-1">Location</h2>
+              <h2 className="text-base font-semibold text-[color:var(--foreground)] mb-1">Location</h2>
               <p className="text-xs text-slate-400 mb-4">{pg.location}</p>
-              <div className="h-52 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
+              <div className="h-52 rounded-xl bg-[color:var(--background)] border border-slate-200 flex flex-col items-center justify-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-100">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round">
                     <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
                   </svg>
@@ -515,7 +515,7 @@ export default function PGDetailClient({
                   { label: "Metro station", value: pg.distanceFromMetro, icon: "🚇" },
                   { label: "City centre", value: "~" + (Math.round(haversineKm(pg.lat, pg.lng, pg.lat - 0.05, pg.lng - 0.05) * 10) / 10) + " km", icon: "🏙️" },
                 ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3">
+                  <div key={item.label} className="flex items-center gap-3 rounded-xl bg-[color:var(--background)] border border-[color:var(--background)] px-4 py-3">
                     <span className="text-xl">{item.icon}</span>
                     <div>
                       <p className="text-xs text-slate-400">{item.label}</p>
@@ -532,15 +532,15 @@ export default function PGDetailClient({
             <div className="sticky top-[80px] bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
 
               {/* Price header */}
-              <div className="bg-gradient-to-br from-violet-900 via-violet-800 to-indigo-900 px-6 py-5">
-                <p className="text-violet-300 text-xs font-medium mb-0.5">Starting from</p>
+              <div className="bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 px-6 py-5">
+                <p className="text-accent-200 text-xs font-medium mb-0.5">Starting from</p>
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-3xl font-extrabold text-white">
+                  <span className="text-3xl font-semibold text-white">
                     ₹{roomPrice(pg.price, selectedRoom).toLocaleString("en-IN")}
                   </span>
-                  <span className="text-violet-300 text-sm">/month</span>
+                  <span className="text-accent-200 text-sm">/month</span>
                 </div>
-                <p className="text-violet-300 text-xs mt-1">{selectedRoom} room · {ROOM_DESCRIPTIONS[selectedRoom]}</p>
+                <p className="text-accent-200 text-xs mt-1">{selectedRoom} room · {ROOM_DESCRIPTIONS[selectedRoom]}</p>
               </div>
 
               <div className="p-5 space-y-4">
@@ -552,8 +552,8 @@ export default function PGDetailClient({
                       <button key={rt} onClick={() => setSelectedRoom(rt)}
                         className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-all ${
                           selectedRoom === rt
-                            ? "bg-violet-600 text-white border-violet-600"
-                            : "bg-white text-slate-600 border-slate-200 hover:border-violet-400"
+                            ? "bg-accent-500 text-white border-accent-500"
+                            : "bg-white text-slate-600 border-slate-200 hover:border-accent-500"
                         }`}>
                         {rt}
                       </button>
@@ -570,10 +570,10 @@ export default function PGDetailClient({
                 </div>
 
                 {/* CTAs */}
-                <button className="w-full rounded-xl bg-violet-600 py-3 text-sm font-bold text-white hover:bg-violet-700 active:scale-[0.98] transition-all shadow-sm">
+                <button className="w-full rounded-xl bg-accent-500 py-3 text-sm font-bold text-white hover:bg-accent-600 active:scale-[0.98] transition-all shadow-sm">
                   Contact Owner
                 </button>
-                <button className="w-full rounded-xl border-2 border-violet-600 py-3 text-sm font-bold text-violet-700 hover:bg-violet-50 transition-colors">
+                <button className="w-full rounded-xl border-2 border-accent-500 py-3 text-sm font-bold text-accent-600 hover:bg-accent-50 transition-colors">
                   Schedule a Visit
                 </button>
 
@@ -583,7 +583,7 @@ export default function PGDetailClient({
                 </p>
 
                 {/* Quick stats */}
-                <div className="pt-2 border-t border-slate-100 grid grid-cols-2 gap-3 text-center">
+                <div className="pt-2 border-t border-[color:var(--background)] grid grid-cols-2 gap-3 text-center">
                   {[
                     { label: "Rating", value: `${pg.rating} ★` },
                     { label: "Reviews", value: pg.reviews },
@@ -591,7 +591,7 @@ export default function PGDetailClient({
                     { label: "Metro", value: pg.distanceFromMetro },
                   ].map((s) => (
                     <div key={s.label}>
-                      <p className="text-base font-extrabold text-slate-900">{s.value}</p>
+                      <p className="text-base font-semibold text-[color:var(--foreground)]">{s.value}</p>
                       <p className="text-[10px] text-slate-400">{s.label}</p>
                     </div>
                   ))}
@@ -604,24 +604,24 @@ export default function PGDetailClient({
         {/* ── Similar PGs ───────────────────────────────────────────────────── */}
         {similar.length > 0 && (
           <section className="mt-10">
-            <h2 className="text-lg font-extrabold text-slate-900 mb-4">
+            <h2 className="text-lg font-semibold text-[color:var(--foreground)] mb-4">
               More PGs in {pg.city}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {similar.map((s) => (
                 <Link key={s.id} href={`/find-pg/${s.id}`}
                   className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow cursor-pointer">
-                  <div className="relative h-40 bg-slate-100">
+                  <div className="relative h-40 bg-[color:var(--background)]">
                     <img src={s.images[0]} alt={s.name} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                     {s.occupancy >= 90 && (
-                      <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-orange-500">
+                      <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-accent-500">
                         🔥 Filling Fast
                       </span>
                     )}
                   </div>
                   <div className="p-3">
-                    <h3 className="font-bold text-slate-900 text-sm group-hover:text-violet-700 transition-colors line-clamp-1">
+                    <h3 className="font-bold text-[color:var(--foreground)] text-sm group-hover:text-accent-600 transition-colors line-clamp-1">
                       {s.name}
                     </h3>
                     <div className="flex items-center gap-1 mt-0.5 text-xs text-slate-500">
@@ -632,7 +632,7 @@ export default function PGDetailClient({
                         <StarFilled />
                         <span className="text-xs font-bold text-slate-800">{s.rating}</span>
                       </div>
-                      <p className="text-sm font-extrabold text-violet-700">
+                      <p className="text-sm font-semibold text-accent-600">
                         ₹{s.price.toLocaleString("en-IN")}
                         <span className="text-[10px] font-normal text-slate-400">/mo</span>
                       </p>
@@ -645,14 +645,14 @@ export default function PGDetailClient({
         )}
 
         {/* ── Improvement plan ──────────────────────────────────────────────── */}
-        <section className="mt-10 bg-white rounded-2xl p-6 shadow-sm border border-violet-100">
+        <section className="mt-10 bg-white rounded-2xl p-6 shadow-sm border border-accent-100">
           <div className="flex items-center gap-2 mb-4">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-100">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round">
                 <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
               </svg>
             </div>
-            <h2 className="text-base font-extrabold text-slate-900">Roadmap — what this page can become</h2>
+            <h2 className="text-base font-semibold text-[color:var(--foreground)]">Roadmap — what this page can become</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
@@ -664,8 +664,8 @@ export default function PGDetailClient({
               },
               {
                 phase: "Phase 2 · Google Maps",
-                color: "bg-violet-50 border-violet-200 text-violet-700",
-                dot: "bg-violet-500",
+                color: "bg-accent-50 border-accent-200 text-accent-600",
+                dot: "bg-accent-500",
                 items: ["Interactive map with PG pin", "Nearby metro / colleges / hospitals", "Commute time from your office", "Street View of neighbourhood", "Radius search from this PG"],
               },
               {

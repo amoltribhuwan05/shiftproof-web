@@ -79,7 +79,7 @@ export const STATUS_META: Record<BedStatus, { label: string; bg: string; text: s
   available:   { label: "Available",   bg: "bg-emerald-50",  text: "text-emerald-700", dot: "bg-emerald-500" },
   occupied:    { label: "Occupied",    bg: "bg-red-50",      text: "text-red-600",     dot: "bg-red-500"     },
   reserved:    { label: "Reserved",    bg: "bg-amber-50",    text: "text-amber-700",   dot: "bg-amber-400"   },
-  maintenance: { label: "Maintenance", bg: "bg-slate-100",   text: "text-slate-500",   dot: "bg-slate-400"   },
+  maintenance: { label: "Maintenance", bg: "bg-[color:var(--background)]",   text: "text-slate-500",   dot: "bg-slate-400"   },
 };
 
 export const BED_STATUSES: BedStatus[] = ["available", "occupied", "reserved", "maintenance"];

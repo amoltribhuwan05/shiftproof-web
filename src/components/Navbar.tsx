@@ -1,114 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Search, ArrowRight, LayoutDashboard, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const links = [
     { href: "/#features",     label: "Features"    },
-    { href: "/#how-it-works", label: "How It Works" },
-    { href: "/#pricing",      label: "Pricing"      },
-    { href: "/#faq",          label: "FAQ"          },
+    { href: "/#how-it-works", label: "How it works" },
+    { href: "/#pricing",      label: "Pricing"     },
+    { href: "/find-pg",       label: "Find a PG"   },
   ];
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/90 backdrop-blur-md border-b border-violet-100">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+        scrolled
+          ? "bg-[color:var(--background)]/90 backdrop-blur-md border-b border-[color:var(--line)]"
+          : "bg-[color:var(--background)]/70 backdrop-blur-sm"
+      }`}
+    >
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5">
-          <svg width="36" height="36" viewBox="0 0 512 512" fill="none">
-            <defs>
-              <linearGradient id="nb-bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#7c3aed"/>
-                <stop offset="100%" stopColor="#2e1065"/>
-              </linearGradient>
-              <linearGradient id="nb-door" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#fb923c"/>
-                <stop offset="100%" stopColor="#c2410c"/>
-              </linearGradient>
-            </defs>
-            <rect width="512" height="512" rx="114" fill="url(#nb-bg)"/>
-            <rect x="118" y="252" width="276" height="180" rx="8" fill="white"/>
-            <polygon points="256,92 96,260 416,260" fill="white"/>
-            <path d="M 208,432 L 208,318 A 48,48 0 0,1 304,318 L 304,432 Z" fill="url(#nb-door)"/>
-            <rect x="138" y="274" width="60" height="52" rx="10" fill="#ddd6fe" opacity="0.6"/>
-            <rect x="314" y="274" width="60" height="52" rx="10" fill="#ddd6fe" opacity="0.6"/>
-            <circle cx="374" cy="392" r="36" fill="#f97316"/>
-            <path d="M 356,392 L 369,406 L 394,376" stroke="white" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+        <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
+          <svg width="30" height="30" viewBox="0 0 512 512" fill="none" aria-hidden>
+            <rect width="512" height="512" rx="114" fill="#1A1A18"/>
+            <rect x="118" y="252" width="276" height="180" rx="8" fill="#F7F6F2"/>
+            <polygon points="256,92 96,260 416,260" fill="#F7F6F2"/>
+            <path d="M 208,432 L 208,318 A 48,48 0 0,1 304,318 L 304,432 Z" fill="#2D6A4F"/>
           </svg>
-          <span className="text-xl font-extrabold tracking-tight">
-            <span className="text-violet-950">Shift</span><span className="text-violet-600">Proof</span>
+          <span className="text-lg font-semibold tracking-tight text-[color:var(--foreground)]">
+            ShiftProof
           </span>
         </Link>
 
-        {/* Desktop nav */}
-        <ul className="hidden md:flex items-center gap-8">
+        {/* Desktop links */}
+        <ul className="hidden lg:flex items-center gap-8">
           {links.map((l) => (
             <li key={l.href}>
-              <a href={l.href} className="text-sm font-medium text-slate-600 hover:text-violet-700 transition-colors">
+              <a
+                href={l.href}
+                className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+              >
                 {l.label}
               </a>
             </li>
           ))}
         </ul>
 
-        {/* Find a PG */}
-        <Link href="/find-pg"
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-semibold text-violet-700 hover:bg-violet-100 transition-colors">
-          <Search size={13} strokeWidth={1.75} />
-          Find a PG
-        </Link>
+        {/* Desktop actions — one CTA, one sign-in */}
+        <div className="hidden lg:flex items-center gap-3">
+          <Link
+            href="/owner-dashboard"
+            className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/signup?plan=growth"
+            className="inline-flex items-center rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-5 py-2.5 text-sm font-semibold text-white transition-colors"
+          >
+            Start free
+          </Link>
+        </div>
 
-        {/* Owner Dashboard */}
-        <Link href="/owner-dashboard"
-          className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
-          <LayoutDashboard size={13} strokeWidth={1.75} />
-          Dashboard
-        </Link>
-
-        {/* Primary CTA */}
-        <a href="/#pricing"
-          className="hidden md:inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-orange-600 transition-colors">
-          Start Free
-          <ArrowRight size={14} strokeWidth={2} />
-        </a>
-
-        {/* Mobile hamburger */}
-        <button className="md:hidden p-2 rounded-lg text-slate-600 hover:bg-violet-50"
-          onClick={() => setMobileOpen(!mobileOpen)} aria-label="Toggle menu">
-          {mobileOpen ? <X size={22} strokeWidth={1.75} /> : <Menu size={22} strokeWidth={1.75} />}
+        {/* Mobile hamburger — 44px target */}
+        <button
+          className="lg:hidden h-11 w-11 flex items-center justify-center rounded-xl text-[color:var(--foreground)] hover:bg-[color:var(--line)]/50 transition-colors"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
         </button>
       </nav>
 
       {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-violet-100 bg-white px-6 py-4 flex flex-col gap-4">
+        <div className="lg:hidden border-t border-[color:var(--line)] bg-[color:var(--background)] px-5 py-5 flex flex-col gap-1">
           {links.map((l) => (
-            <a key={l.href} href={l.href}
-              className="text-sm font-medium text-slate-700 hover:text-violet-700"
-              onClick={() => setMobileOpen(false)}>
+            <a
+              key={l.href}
+              href={l.href}
+              className="py-3 text-base font-medium text-[color:var(--foreground)]"
+              onClick={() => setMobileOpen(false)}
+            >
               {l.label}
             </a>
           ))}
-          <Link href="/find-pg"
-            className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-5 py-2.5 text-sm font-semibold text-violet-700"
-            onClick={() => setMobileOpen(false)}>
-            Find a PG
+          <div className="h-px bg-[color:var(--line)] my-2" />
+          <Link
+            href="/owner-dashboard"
+            className="py-3 text-base text-[color:var(--muted)]"
+            onClick={() => setMobileOpen(false)}
+          >
+            Sign in
           </Link>
-          <Link href="/owner-dashboard"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-700"
-            onClick={() => setMobileOpen(false)}>
-            Dashboard
+          <Link
+            href="/signup?plan=growth"
+            className="mt-2 inline-flex items-center justify-center rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-5 py-3.5 text-base font-semibold text-white transition-colors"
+            onClick={() => setMobileOpen(false)}
+          >
+            Start free
           </Link>
-          <a href="/#pricing"
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white"
-            onClick={() => setMobileOpen(false)}>
-            Start Free Trial
-          </a>
         </div>
       )}
     </header>

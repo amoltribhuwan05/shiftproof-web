@@ -1,38 +1,87 @@
 @import "tailwindcss";
 
+/*
+ * SEMANTIC COLOR CONTRAST RULES — do not violate:
+ * --success and --warning FAIL AA on cream background and under white text.
+ *   → Always use -700 shade for text. Always use tint chips (bg-*-50 + text-*-700),
+ *     never solid bg-success / bg-warning with white text.
+ * --error and --trust pass AA anywhere — solid or text, on cream or white.
+ * --foreground (#1A1A18) stays for headings, CTAs, primary labels.
+ * Body copy uses warmer #2A2A26 — see body rule below.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #1e1b4b;
+  /* Brand tokens — ShiftProof */
+  --background: #F7F6F2;   /* warm cream */
+  --foreground: #1A1A18;   /* near-black */
+  --muted: #6B6B66;        /* warm grey */
+  --line: #E7E4DC;         /* hairline */
 
-  --brand-50: #f5f3ff;
-  --brand-100: #ede9fe;
-  --brand-200: #ddd6fe;
-  --brand-400: #a78bfa;
-  --brand-500: #8b5cf6;
-  --brand-600: #7c3aed;
-  --brand-700: #6d28d9;
-  --brand-800: #5b21b6;
-  --brand-900: #4c1d95;
+  /* Forest green — single brand accent */
+  --accent-50:  #E8F1EC;
+  --accent-100: #D0E3D6;
+  --accent-200: #A2C7AD;
+  --accent-500: #2D6A4F;
+  --accent-600: #245A41;
+  --accent-700: #1B4432;
 
-  --accent-500: #f97316;
-  --accent-600: #ea580c;
+  /* Amber — reserved only for urgency */
+  --warn-500: #D97706;
+
+  /* Semantic — success (paid, confirmed) */
+  --success-50:  #DCFCE7;
+  --success:     #16A34A;
+  --success-700: #15803D;
+
+  /* Semantic — warning (pending, due-soon) */
+  --warning-50:  #FFFBEB;
+  --warning:     #D97706;
+  --warning-700: #92400E;
+
+  /* Semantic — error (overdue, failed) */
+  --error-50:    #FEF2F2;
+  --error:       #B91C1C;
+  --error-700:   #991B1B;
+
+  /* Trust — payment security, login forms */
+  --trust-50:    #EFF6FF;
+  --trust:       #1E40AF;
+  --trust-700:   #1E3A8A;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-brand-50: var(--brand-50);
-  --color-brand-100: var(--brand-100);
-  --color-brand-200: var(--brand-200);
-  --color-brand-400: var(--brand-400);
-  --color-brand-500: var(--brand-500);
-  --color-brand-600: var(--brand-600);
-  --color-brand-700: var(--brand-700);
-  --color-brand-800: var(--brand-800);
-  --color-brand-900: var(--brand-900);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
   --color-accent-500: var(--accent-500);
   --color-accent-600: var(--accent-600);
-  --font-sans: var(--font-geist-sans);
+  --color-accent-700: var(--accent-700);
+
+  --color-warn-500: var(--warn-500);
+
+  --color-success-50:  var(--success-50);
+  --color-success:     var(--success);
+  --color-success-700: var(--success-700);
+
+  --color-warning-50:  var(--warning-50);
+  --color-warning:     var(--warning);
+  --color-warning-700: var(--warning-700);
+
+  --color-error-50:  var(--error-50);
+  --color-error:     var(--error);
+  --color-error-700: var(--error-700);
+
+  --color-trust-50:  var(--trust-50);
+  --color-trust:     var(--trust);
+  --color-trust-700: var(--trust-700);
+
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-dm-serif);
   --font-devanagari: var(--font-devanagari);
 }
 
@@ -42,39 +91,29 @@ html {
 
 body {
   background: var(--background);
+  color: #2A2A26;
+  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+h1, h2, .serif {
+  font-family: var(--font-dm-serif), ui-serif, Georgia, serif;
+  letter-spacing: -0.01em;
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
-/* ── 3D floating animation for HowItWorks step circles ── */
-@keyframes float3d {
-  0%   { transform: perspective(600px) translateZ(0px)  translateY(0px)  rotateX(0deg); }
-  33%  { transform: perspective(600px) translateZ(18px) translateY(-10px) rotateX(4deg); }
-  66%  { transform: perspective(600px) translateZ(8px)  translateY(-4px)  rotateX(-2deg); }
-  100% { transform: perspective(600px) translateZ(0px)  translateY(0px)  rotateX(0deg); }
-}
-
-.float-3d {
-  animation: float3d 3.6s ease-in-out infinite;
-  will-change: transform;
-}
-
-/* ── Smooth scale-up on section entry ── */
+/* Fade-in section entry */
 @keyframes fadeUpIn {
-  from { opacity: 0; transform: translateY(24px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)    scale(1); }
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUpIn 0.55s ease both; }
+
+/* Soft depth shadow for phone mock */
+.phone-shadow {
+  filter: drop-shadow(0 24px 40px rgba(26, 26, 24, 0.18))
+          drop-shadow(0 6px 12px rgba(26, 26, 24, 0.08));
 }
 
-.fade-up {
-  animation: fadeUpIn 0.55s ease both;
-}
-
-/* ── 3D depth shadow on phone hero ── */
-.phone-3d-shadow {
-  filter: drop-shadow(-20px 30px 40px rgba(109, 40, 217, 0.45))
-          drop-shadow(0px 10px 20px rgba(0, 0, 0, 0.3));
-}
-
-/* ── Hide scrollbar while keeping scroll functionality ── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
