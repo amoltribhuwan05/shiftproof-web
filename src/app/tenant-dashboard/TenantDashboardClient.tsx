@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Home, CreditCard, Wrench, Bell, ChevronLeft, Menu,
   CheckCircle2, Clock, IndianRupee, Calendar,
@@ -688,6 +689,7 @@ function NoticesSection() {
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 export default function TenantDashboardClient() {
+  const router = useRouter();
   const [activeNav,   setActiveNav]   = useState<NavId>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -736,7 +738,7 @@ export default function TenantDashboardClient() {
               onClick={() => { setActiveNav(id); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                 activeNav === id
-                  ? "bg-success text-white shadow-sm "
+                  ? "bg-success-700 text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-800 hover:bg-[color:var(--background)]"
               }`}
             >
@@ -772,6 +774,13 @@ export default function TenantDashboardClient() {
               <p className="text-xs font-bold text-slate-800 truncate">{TENANT.name}</p>
               <p className="text-[11px] text-slate-400">Room {TENANT.room} · {TENANT.pg}</p>
             </div>
+            <button
+              onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); }}
+              className="text-[11px] text-slate-400 hover:text-error-700 transition-colors shrink-0"
+              title="Sign out"
+            >
+              Out
+            </button>
           </div>
         </div>
       </aside>

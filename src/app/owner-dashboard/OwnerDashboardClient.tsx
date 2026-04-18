@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   LayoutGrid, List, Home, Users, CreditCard, Wrench, BarChart3,
   X, Upload, Trash2, Pencil, Bell, Globe, Search, Download, Plus, Menu,
@@ -682,7 +683,7 @@ function PropertiesSection({ locale }: { locale: Locale; t: (key: string, vars?:
             </div>
             <div className="flex items-center gap-3 px-5 py-4 border-t border-[color:var(--background)] bg-[color:var(--background)]/60">
               <button onClick={() => setShowBulkReminder(false)} className="flex-1 text-xs font-medium border border-slate-200 text-slate-600 rounded-lg py-2 hover:bg-[color:var(--background)] transition-colors">Cancel</button>
-              <button onClick={() => setShowBulkReminder(false)} className="flex-1 text-xs font-semibold bg-success hover:bg-success-700 text-white rounded-lg py-2 flex items-center justify-center gap-1.5 transition-colors">
+              <button onClick={() => setShowBulkReminder(false)} className="flex-1 text-xs font-semibold bg-success-700 hover:bg-[color:var(--success)] text-white rounded-lg py-2 flex items-center justify-center gap-1.5 transition-colors">
                 <Phone size={11} strokeWidth={2} />
                 Send via WhatsApp
               </button>
@@ -2169,6 +2170,7 @@ function SubscriptionView() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function OwnerDashboardClient() {
+  const router = useRouter();
   const [locale,        setLocale]        = useState<Locale>("en");
   const [activeNav,     setActiveNav]     = useState("overview");
   const [sidebarOpen,   setSidebarOpen]   = useState(false);
@@ -2376,6 +2378,13 @@ export default function OwnerDashboardClient() {
               <p className="text-xs font-bold text-slate-800 truncate">{t("profile.name")}</p>
               <p className="text-[11px] text-slate-400">{t("profile.sub", { n: 3, beds: TOTAL_BEDS })}</p>
             </div>
+            <button
+              onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); }}
+              className="text-[11px] text-slate-400 hover:text-error-700 transition-colors shrink-0"
+              title="Sign out"
+            >
+              Out
+            </button>
           </div>
         </div>
       </aside>
