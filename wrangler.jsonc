@@ -1,7 +1,16 @@
 {
-  // https://developers.cloudflare.com/pages/
+  // https://opennext.js.org/cloudflare
   "name": "shiftproof-web",
-  "pages_build_output_dir": ".vercel/output/static",
+
+  // Entry point produced by `npx @opennextjs/cloudflare build`
+  "main": ".open-next/worker.js",
+
   "compatibility_date": "2025-04-18",
-  "compatibility_flags": ["nodejs_compat"]
+  "compatibility_flags": ["nodejs_compat"],
+
+  // Static assets served via Workers Assets binding
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  }
 }
