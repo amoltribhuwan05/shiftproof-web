@@ -1,0 +1,5 @@
+# Cloudflare Pages redirect rules
+# Format: source  destination  status_code
+
+# Redirect bare apex → www (uncomment if using apex domain alongside dev.)
+# https://shiftproof.in/*  https://dev.shiftproof.in/:splat  301
