@@ -1,3 +1,6 @@
 // Config for @opennextjs/cloudflare — https://opennext.js.org/cloudflare
-// The adapter reads this default export at build time (runs via npx, not installed).
-export default {};
+// `default` is the server function config — required, must not be empty.
+export default {
+  default: {},
+};
+
