@@ -6,7 +6,20 @@ export const metadata: Metadata = {
   title: "Sign in — ShiftProof",
 };
 
-export default function LoginPage() {
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { parseSession, SESSION_COOKIE } from "@/lib/users";
+
+export default async function LoginPage() {
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(SESSION_COOKIE)?.value;
+  const session = parseSession(raw);
+
+  if (session) {
+    const dest = session.role === "owner" ? "/owner-dashboard" : "/tenant-dashboard";
+    redirect(dest);
+  }
+
   return (
     <div className="min-h-screen bg-[color:var(--background)] flex items-center justify-center px-5">
       <div className="w-full max-w-sm">
