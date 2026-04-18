@@ -12,15 +12,7 @@ export default {
     },
   },
   edgeExternals: ["node:crypto"],
-  middleware: {
-    external: false,
-    override: {
-      wrapper: "cloudflare-edge",
-      converter: "edge",
-      proxyExternalRequest: "fetch",
-      incrementalCache: "dummy",
-      tagCache: "dummy",
-      queue: "dummy",
-    },
+  cloudflare: {
+    dangerousDisableConfigValidation: true,
   },
 };
