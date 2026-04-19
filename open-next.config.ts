@@ -5,14 +5,21 @@ export default {
       wrapper: "cloudflare-node",
       converter: "edge",
       proxyExternalRequest: "fetch",
-      // No ISR/caching/queuing needed for this site
       incrementalCache: "dummy",
       tagCache: "dummy",
       queue: "dummy",
     },
   },
   edgeExternals: ["node:crypto"],
-  cloudflare: {
-    dangerousDisableConfigValidation: true,
+  middleware: {
+    external: true,
+    override: {
+      wrapper: "cloudflare-edge",
+      converter: "edge",
+      proxyExternalRequest: "fetch",
+      incrementalCache: "dummy",
+      tagCache: "dummy",
+      queue: "dummy",
+    },
   },
 };
