@@ -23,13 +23,11 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 sm:py-28 bg-white border-y border-[color:var(--line)]">
+    <section id="how-it-works" className="py-14 sm:py-20 bg-white border-y border-[color:var(--line)]">
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
 
         <div className="mx-auto max-w-2xl text-center mb-14 sm:mb-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--muted)] mb-6">
-            How it works
-          </span>
+          <p className="text-xs tracking-wide uppercase text-[color:var(--muted)] mb-5">How it works</p>
           <h2 className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] text-[color:var(--foreground)]">
             Up and running
             <br />
@@ -45,10 +43,10 @@ export default function HowItWorks() {
             const Icon = step.icon;
             return (
               <div key={step.number} className="relative flex flex-col items-center text-center md:items-start md:text-left">
-                <div className="relative z-10 flex h-16 w-16 items-center justify-center rounded-2xl bg-[color:var(--accent-100)] ring-1 ring-[color:var(--accent-500)]/30 text-[color:var(--accent-600)] mb-6">
-                  <Icon size={24} strokeWidth={2} />
+                <div className="relative z-10 mb-6 text-[color:var(--accent-600)]">
+                  <Icon size={28} strokeWidth={1.5} />
                 </div>
-                <div className="text-xs font-medium text-[color:var(--muted)] mb-2 tracking-widest">
+                <div className="text-xs font-medium text-[color:var(--muted)] mb-2 tracking-wide">
                   STEP {step.number}
                 </div>
                 <h3 className="text-xl font-semibold text-[color:var(--foreground)] mb-2">

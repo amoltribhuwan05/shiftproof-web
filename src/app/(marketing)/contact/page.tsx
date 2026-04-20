@@ -68,15 +68,9 @@ export default function ContactPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-accent-700 to-accent-700 pt-28 pb-16 px-4">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]">
-          <svg width="100%" height="100%"><defs><pattern id="ct-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="white"/></pattern></defs><rect width="100%" height="100%" fill="url(#ct-dots)"/></svg>
-        </div>
-        <div className="relative mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-slate-200 mb-5">
-            Get in Touch
-          </span>
-          <h1 className="text-3xl sm:text-4xl text-white mb-4">We would love to hear from you</h1>
+      <div className="bg-[#1A1A18] pt-28 pb-16 px-4">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="text-3xl sm:text-4xl text-white mb-4">Get in touch</h1>
           <p className="text-slate-300/80 text-sm">
             Whether you have a question about features, pricing, or just need a hand getting started — we are here.
           </p>
@@ -91,7 +85,7 @@ export default function ContactPage() {
             <h2 className="text-lg font-bold text-[color:var(--foreground)] mb-6">Reach us directly</h2>
 
             <div className="space-y-4 mb-10">
-              {contactChannels.map((c) => {
+              {contactChannels.map((c, ci) => {
                 const Icon = c.icon;
                 return (
                   <a
@@ -99,9 +93,15 @@ export default function ContactPage() {
                     href={c.href}
                     className={`flex items-start gap-4 p-4 rounded-2xl border ${c.border} ${c.bg} hover:shadow-sm transition-shadow group`}
                   >
-                    <div className={`w-9 h-9 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center shrink-0`}>
-                      <Icon size={16} className={c.color} />
-                    </div>
+                    {ci % 2 === 0 ? (
+                      <div className={`w-9 h-9 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center shrink-0`}>
+                        <Icon size={16} className={c.color} />
+                      </div>
+                    ) : (
+                      <div className={`shrink-0 pt-0.5 ${c.color}`}>
+                        <Icon size={18} strokeWidth={1.5} />
+                      </div>
+                    )}
                     <div>
                       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{c.title}</p>
                       <p className={`text-sm font-bold ${c.color} group-hover:underline`}>{c.value}</p>
@@ -161,7 +161,7 @@ export default function ContactPage() {
                       value={form.name}
                       onChange={handleChange}
                       placeholder="Ravi Kumar"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-[color:var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-[color:var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition-colors"
                     />
                   </div>
                   <div>
@@ -174,7 +174,7 @@ export default function ContactPage() {
                       value={form.email}
                       onChange={handleChange}
                       placeholder="ravi@example.com"
-                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-[color:var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition"
+                      className="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-[color:var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition-colors"
                     />
                   </div>
                 </div>

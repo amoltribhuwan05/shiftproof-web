@@ -14,10 +14,7 @@ export default function Hero() {
 
           {/* Copy */}
           <div className="flex flex-col items-center text-center lg:items-start lg:text-left gap-7">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-white/60 px-3.5 py-1.5 text-xs font-medium text-[color:var(--muted)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--foreground)]" />
-              Built for Indian landlords
-            </span>
+            <p className="text-xs tracking-wide uppercase text-[color:var(--muted)]">Built for Indian landlords</p>
 
             <h1 className="text-[2.75rem] sm:text-6xl md:text-7xl leading-[1.02] tracking-tight text-[color:var(--foreground)]">
               Rent collected.

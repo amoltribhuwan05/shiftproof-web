@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, Mail, Phone, MessageSquare } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ChevronRight, Mail, Phone, MessageSquare, Rocket, CreditCard, Home, Wrench, FileText, Lock } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Help Center — ShiftProof",
@@ -11,7 +12,7 @@ type Article = { q: string; a: string };
 type Category = {
   id: string;
   title: string;
-  icon: string;
+  icon: LucideIcon;
   color: string;
   bg: string;
   border: string;
@@ -22,7 +23,7 @@ const categories: Category[] = [
   {
     id: "getting-started",
     title: "Getting Started",
-    icon: "🚀",
+    icon: Rocket,
     color: "text-accent-600",
     bg: "bg-accent-50",
     border: "border-accent-200",
@@ -48,7 +49,7 @@ const categories: Category[] = [
   {
     id: "payments",
     title: "Payments & Billing",
-    icon: "💳",
+    icon: CreditCard,
     color: "text-emerald-700",
     bg: "bg-emerald-50",
     border: "border-emerald-200",
@@ -74,7 +75,7 @@ const categories: Category[] = [
   {
     id: "rent-management",
     title: "Rent Management",
-    icon: "🏠",
+    icon: Home,
     color: "text-accent-600",
     bg: "bg-accent-50",
     border: "border-accent-200",
@@ -100,7 +101,7 @@ const categories: Category[] = [
   {
     id: "maintenance",
     title: "Maintenance",
-    icon: "🔧",
+    icon: Wrench,
     color: "text-amber-700",
     bg: "bg-amber-50",
     border: "border-amber-200",
@@ -122,7 +123,7 @@ const categories: Category[] = [
   {
     id: "agreements",
     title: "Agreements & Documents",
-    icon: "📄",
+    icon: FileText,
     color: "text-rose-700",
     bg: "bg-rose-50",
     border: "border-rose-200",
@@ -144,7 +145,7 @@ const categories: Category[] = [
   {
     id: "account",
     title: "Account & Security",
-    icon: "🔐",
+    icon: Lock,
     color: "text-slate-700",
     bg: "bg-[color:var(--background)]",
     border: "border-slate-200",
@@ -169,14 +170,8 @@ export default function HelpPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 pt-28 pb-16 px-4">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]">
-          <svg width="100%" height="100%"><defs><pattern id="hc-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="white"/></pattern></defs><rect width="100%" height="100%" fill="url(#hc-dots)"/></svg>
-        </div>
-        <div className="relative mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-accent-200 mb-5">
-            Help Center
-          </span>
+      <div className="bg-accent-700 pt-28 pb-16 px-4">
+        <div className="mx-auto max-w-2xl text-center">
           <h1 className="text-3xl sm:text-4xl text-white mb-4">How can we help?</h1>
           <p className="text-accent-200/80 text-sm mb-8">
             Browse answers below, or contact us directly if you need more help.
@@ -197,24 +192,29 @@ export default function HelpPage() {
 
         {/* Category nav pills */}
         <div className="flex flex-wrap gap-2 mb-12">
-          {categories.map((cat) => (
-            <a
-              key={cat.id}
-              href={`#${cat.id}`}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:border-accent-200 hover:text-accent-500 transition-colors"
-            >
-              <span>{cat.icon}</span> {cat.title}
-            </a>
-          ))}
+          {categories.map((cat) => {
+            const NavIcon = cat.icon;
+            return (
+              <a
+                key={cat.id}
+                href={`#${cat.id}`}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:border-accent-200 hover:text-accent-500 transition-colors"
+              >
+                <NavIcon size={12} className={cat.color} /> {cat.title}
+              </a>
+            );
+          })}
         </div>
 
         {/* Categories */}
         <div className="space-y-14 mb-16">
-          {categories.map((cat) => (
+          {categories.map((cat) => {
+            const CatIcon = cat.icon;
+            return (
             <div key={cat.id} id={cat.id} className="scroll-mt-24">
               <div className="flex items-center gap-3 mb-6">
-                <div className={`w-10 h-10 rounded-2xl ${cat.bg} border ${cat.border} flex items-center justify-center text-lg`}>
-                  {cat.icon}
+                <div className={`w-10 h-10 rounded-2xl ${cat.bg} border ${cat.border} flex items-center justify-center`}>
+                  <CatIcon size={18} className={cat.color} />
                 </div>
                 <h2 className={`text-lg font-bold ${cat.color}`}>{cat.title}</h2>
               </div>
@@ -232,27 +232,28 @@ export default function HelpPage() {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Still need help */}
-        <div className="rounded-3xl bg-gradient-to-br from-[color:var(--background)] to-[color:var(--background)] border border-slate-200 p-8 mb-4">
+        <div className="rounded-3xl bg-[color:var(--background)] border border-slate-200 p-8 mb-4">
           <div className="text-center mb-8">
             <h2 className="text-xl text-[color:var(--foreground)] mb-2">Still need help?</h2>
             <p className="text-sm text-slate-500">Our support team is online Monday – Friday, 10 AM – 6 PM IST.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
-            <a href="mailto:support@shiftproof.app" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 hover:shadow-sm transition-all text-center">
+            <a href="mailto:support@shiftproof.app" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
               <Mail size={20} className="text-accent-500" />
               <p className="text-sm font-bold text-slate-800">Email</p>
               <p className="text-xs text-slate-400">support@shiftproof.app</p>
             </a>
-            <a href="tel:+918045678900" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 hover:shadow-sm transition-all text-center">
+            <a href="tel:+918045678900" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
               <Phone size={20} className="text-emerald-600" />
               <p className="text-sm font-bold text-slate-800">Phone</p>
               <p className="text-xs text-slate-400">+91 80 4567 8900</p>
             </a>
-            <Link href="/contact" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 hover:shadow-sm transition-all text-center">
+            <Link href="/contact" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
               <MessageSquare size={20} className="text-accent-500" />
               <p className="text-sm font-bold text-slate-800">Contact Form</p>
               <p className="text-xs text-slate-400">We reply in 2 business days</p>

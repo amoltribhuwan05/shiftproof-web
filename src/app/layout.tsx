@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display, Noto_Sans_Devanagari } from "next/font/google";
+import Providers from "@/components/Providers";
 import "./globals.css";
 
 const dmSans = DM_Sans({
@@ -40,7 +41,7 @@ export default function RootLayout({
       className={`${dmSans.variable} ${dmSerif.variable} ${notoDevanagari.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[color:var(--background)] text-[color:var(--foreground)]">
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

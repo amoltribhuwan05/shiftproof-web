@@ -176,11 +176,8 @@ export default function TermsPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-br from-slate-950 via-[color:var(--foreground)] to-accent-700 pt-28 pb-14 px-4">
+      <div className="bg-[#1A1A18] pt-28 pb-14 px-4">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-slate-200 mb-5">
-            Legal
-          </span>
           <h1 className="text-3xl sm:text-4xl text-white mb-4">Terms of Service</h1>
           <p className="text-slate-300/80 text-sm">
             Last updated: {LAST_UPDATED} · Effective: {EFFECTIVE_DATE}

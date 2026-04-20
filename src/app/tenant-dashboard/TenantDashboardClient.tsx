@@ -162,8 +162,8 @@ function OverviewSection({ onNav }: { onNav: (id: NavId) => void }) {
   return (
     <div className="space-y-6">
       {/* Greeting banner */}
-      <div className="bg-gradient-to-r from-accent-500 to-accent-500 rounded-2xl p-5 text-white">
-        <p className="text-xs font-semibold opacity-75 mb-1">Good morning 👋</p>
+      <div className="bg-accent-500 rounded-2xl p-5 text-white">
+        <p className="text-xs font-semibold opacity-75 mb-1">Good morning</p>
         <p className="text-lg font-semibold">{TENANT.name}</p>
         <p className="text-xs opacity-75 mt-0.5">{TENANT.pg} · Room {TENANT.room} · {TENANT.type}</p>
       </div>
@@ -420,7 +420,7 @@ function PaymentsSection() {
         <div className="flex items-center justify-between">
           <div>
             <p className={`text-xs font-semibold mb-1 ${currentMonth.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
-              {currentMonth.status === "paid" ? "✓ April rent paid" : "⚠ April rent due"}
+              {currentMonth.status === "paid" ? "April rent paid" : "April rent due"}
             </p>
             <p className="text-2xl font-semibold text-[color:var(--foreground)]">₹{currentMonth.amount.toLocaleString("en-IN")}</p>
             <p className={`text-[11px] mt-0.5 ${currentMonth.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
@@ -716,7 +716,7 @@ export default function TenantDashboardClient() {
       <aside className={`fixed inset-y-0 left-0 z-40 flex flex-col w-52 bg-white border-r border-[color:var(--background)] shadow-sm transition-transform duration-200 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0`}>
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 h-14 border-b border-[color:var(--background)] shrink-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-7 h-7 rounded-lg bg-accent-500 flex items-center justify-center shrink-0">
             <Home size={13} strokeWidth={2} color="white" />
           </div>
           <span className="font-semibold text-sm text-[color:var(--foreground)] tracking-tight">ShiftProof</span>
@@ -727,7 +727,7 @@ export default function TenantDashboardClient() {
 
         {/* Nav label */}
         <div className="px-4 pt-5 pb-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Menu</p>
+          <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">Menu</p>
         </div>
 
         {/* Nav items */}
@@ -736,7 +736,7 @@ export default function TenantDashboardClient() {
             <button
               key={id}
               onClick={() => { setActiveNav(id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                 activeNav === id
                   ? "bg-success-700 text-white shadow-sm"
                   : "text-slate-500 hover:text-slate-800 hover:bg-[color:var(--background)]"
@@ -767,7 +767,7 @@ export default function TenantDashboardClient() {
         {/* Profile footer */}
         <div className="px-4 py-4 border-t border-[color:var(--background)] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-xs font-bold text-success-700 shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-accent-100 flex items-center justify-center text-xs font-bold text-success-700 shrink-0">
               {TENANT.initials}
             </div>
             <div className="flex-1 min-w-0">
@@ -812,7 +812,7 @@ export default function TenantDashboardClient() {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error" />
               )}
             </button>
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center text-xs font-bold text-success-700 border border-[color:var(--success)]/30">
+            <div className="w-8 h-8 rounded-xl bg-accent-100 flex items-center justify-center text-xs font-bold text-success-700 border border-[color:var(--success)]/30">
               {TENANT.initials}
             </div>
           </div>

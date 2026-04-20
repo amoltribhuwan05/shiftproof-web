@@ -152,7 +152,7 @@ function OverviewTab() {
                 </span>
               )}
             </div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[color:var(--muted)] mb-1">{k.label}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1">{k.label}</p>
             <p className="text-2xl font-bold text-[color:var(--foreground)]">{k.value}</p>
             <p className="text-xs text-[color:var(--muted)] mt-1">{k.sub}</p>
           </div>
@@ -246,11 +246,11 @@ function OverviewTab() {
           <table className="w-full text-left">
             <thead>
               <tr className="bg-[color:var(--background)]">
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Tenant</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)] hidden sm:table-cell">Property · Room</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)] text-right">Amount</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)] hidden md:table-cell">Date</th>
-                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Status</th>
+                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Tenant</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] hidden sm:table-cell">Property · Room</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] text-right">Amount</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] hidden md:table-cell">Date</th>
+                <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--line)]">
@@ -329,11 +329,11 @@ function TenantsTab() {
         <table className="w-full text-left">
           <thead>
             <tr className="bg-[color:var(--background)]">
-              <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Tenant</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)] hidden sm:table-cell">Property · Room</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)] hidden md:table-cell">Lease End</th>
-              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Payment</th>
-              <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">Risk</th>
+              <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Tenant</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] hidden sm:table-cell">Property · Room</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] hidden md:table-cell">Lease End</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Payment</th>
+              <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Risk</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--line)]">
@@ -368,7 +368,7 @@ function PaymentsTab() {
           { label: "Overdue",         value: "₹17,000",   color: "error" },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[color:var(--muted)] mb-2">{s.label}</p>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-2">{s.label}</p>
             <p className={`text-2xl font-bold ${
               s.color === "success" ? "text-[color:var(--success-700)]" :
               s.color === "warning" ? "text-[color:var(--warning-700)]" :
@@ -389,7 +389,7 @@ function PaymentsTab() {
             <thead>
               <tr className="bg-[color:var(--background)]">
                 {["Tenant", "Property · Room", "Amount", "Date", "Status"].map((h) => (
-                  <th key={h} className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[color:var(--muted)]">{h}</th>
+                  <th key={h} className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -573,7 +573,7 @@ export default function OwnerDashboardClient() {
       {/* FAB */}
       <button
         onClick={() => setActiveNav("properties")}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 z-50 lg:flex hidden"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white rounded-full shadow-xl flex items-center justify-center transition-colors z-50 lg:flex hidden"
         title="Add Property"
       >
         <Plus size={22} strokeWidth={2} />

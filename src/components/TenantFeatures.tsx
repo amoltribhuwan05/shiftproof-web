@@ -84,9 +84,7 @@ export default function TenantFeatures() {
 
           {/* Copy */}
           <div className="order-1 lg:order-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/70 mb-6">
-              For tenants
-            </span>
+            <p className="text-xs tracking-wide uppercase text-white/50 mb-5">For tenants</p>
             <h2 className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] tracking-tight text-white mb-6">
               Your rent, your records,
               <br />
@@ -97,13 +95,19 @@ export default function TenantFeatures() {
             </p>
 
             <ul className="space-y-6">
-              {features.map((f) => {
+              {features.map((f, i) => {
                 const Icon = f.icon;
                 return (
                   <li key={f.title} className="flex items-start gap-4">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[color:var(--accent-200)]">
-                      <Icon size={18} strokeWidth={2} />
-                    </div>
+                    {i % 2 === 0 ? (
+                      <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-[color:var(--accent-200)]">
+                        <Icon size={18} strokeWidth={2} />
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 w-10 flex justify-start pt-0.5 text-[color:var(--accent-200)]/60">
+                        <Icon size={20} strokeWidth={1.5} />
+                      </div>
+                    )}
                     <div>
                       <h3 className="text-base font-semibold text-white mb-0.5">{f.title}</h3>
                       <p className="text-sm text-white/60 leading-relaxed">{f.desc}</p>

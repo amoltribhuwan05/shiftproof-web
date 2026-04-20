@@ -158,7 +158,7 @@ function BedMatrix({ pg }: { pg: PGListing }) {
         </div>
         <button
           onClick={() => { setOwnerMode(!ownerMode); setActiveBed(null); }}
-          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition-all ${
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold border transition-colors ${
             ownerMode
               ? "bg-accent-500 text-white border-accent-500 shadow"
               : "bg-white text-slate-600 border-slate-200 hover:border-accent-500"
@@ -240,8 +240,8 @@ function BedMatrix({ pg }: { pg: PGListing }) {
                         <div key={bed.id} className="relative">
                           <button
                             onClick={() => ownerMode && setActiveBed(activeBed === key ? null : key)}
-                            className={`rounded-lg px-2.5 py-1.5 text-[10px] font-bold border transition-all ${m.bg} ${m.text} border-current/20 ${
-                              ownerMode ? "cursor-pointer hover:scale-105 hover:shadow-sm" : "cursor-default"
+                            className={`rounded-lg px-2.5 py-1.5 text-[10px] font-bold border transition-colors ${m.bg} ${m.text} border-current/20 ${
+                              ownerMode ? "cursor-pointer" : "cursor-default"
                             }`}
                           >
                             <div className={`inline-block w-2 h-2 rounded-full mr-1 ${m.dot}`} />
@@ -378,7 +378,7 @@ export default function PGDetailClient({
                     </span>
                     {isFillingFast && (
                       <span className="rounded-full bg-accent-50 border border-accent-100 px-2.5 py-0.5 text-[11px] font-bold text-accent-500">
-                        🔥 Filling Fast — {pg.occupancy}% occupied
+                        Filling Fast — {pg.occupancy}% occupied
                       </span>
                     )}
                     <span className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${genderColor}`}>
@@ -453,7 +453,7 @@ export default function PGDetailClient({
                 {pg.roomTypes.map((rt) => (
                   <div key={rt}
                     onClick={() => setSelectedRoom(rt)}
-                    className={`rounded-xl border-2 p-4 cursor-pointer transition-all ${
+                    className={`rounded-xl border-2 p-4 cursor-pointer transition-colors ${
                       selectedRoom === rt
                         ? "border-accent-500 bg-accent-50"
                         : "border-slate-200 bg-white hover:border-accent-200"
@@ -512,11 +512,10 @@ export default function PGDetailClient({
               {/* Quick nearby stats */}
               <div className="mt-4 grid grid-cols-2 gap-3">
                 {[
-                  { label: "Metro station", value: pg.distanceFromMetro, icon: "🚇" },
-                  { label: "City centre", value: "~" + (Math.round(haversineKm(pg.lat, pg.lng, pg.lat - 0.05, pg.lng - 0.05) * 10) / 10) + " km", icon: "🏙️" },
+                  { label: "Metro station", value: pg.distanceFromMetro },
+                  { label: "City centre", value: "~" + (Math.round(haversineKm(pg.lat, pg.lng, pg.lat - 0.05, pg.lng - 0.05) * 10) / 10) + " km" },
                 ].map((item) => (
                   <div key={item.label} className="flex items-center gap-3 rounded-xl bg-[color:var(--background)] border border-[color:var(--background)] px-4 py-3">
-                    <span className="text-xl">{item.icon}</span>
                     <div>
                       <p className="text-xs text-slate-400">{item.label}</p>
                       <p className="text-sm font-bold text-slate-800">{item.value}</p>
@@ -532,7 +531,7 @@ export default function PGDetailClient({
             <div className="sticky top-[80px] bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
 
               {/* Price header */}
-              <div className="bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 px-6 py-5">
+              <div className="bg-accent-700 px-6 py-5">
                 <p className="text-accent-200 text-xs font-medium mb-0.5">Starting from</p>
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-3xl font-semibold text-white">
@@ -550,7 +549,7 @@ export default function PGDetailClient({
                   <div className="flex flex-wrap gap-2">
                     {pg.roomTypes.map((rt) => (
                       <button key={rt} onClick={() => setSelectedRoom(rt)}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-all ${
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold border transition-colors ${
                           selectedRoom === rt
                             ? "bg-accent-500 text-white border-accent-500"
                             : "bg-white text-slate-600 border-slate-200 hover:border-accent-500"
@@ -563,14 +562,14 @@ export default function PGDetailClient({
 
                 {/* Availability */}
                 <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
                   <span className="text-sm font-semibold text-emerald-700">
                     {100 - pg.occupancy}% rooms available
                   </span>
                 </div>
 
                 {/* CTAs */}
-                <button className="w-full rounded-xl bg-accent-500 py-3 text-sm font-bold text-white hover:bg-accent-600 active:scale-[0.98] transition-all shadow-sm">
+                <button className="w-full rounded-xl bg-accent-500 py-3 text-sm font-bold text-white hover:bg-accent-600 transition-colors">
                   Contact Owner
                 </button>
                 <button className="w-full rounded-xl border-2 border-accent-500 py-3 text-sm font-bold text-accent-600 hover:bg-accent-50 transition-colors">
@@ -579,7 +578,7 @@ export default function PGDetailClient({
 
                 {/* Safety note */}
                 <p className="text-center text-[10px] text-slate-400 leading-relaxed">
-                  🔒 Your enquiry is sent securely via ShiftProof. We never share your number without consent.
+                  Your enquiry is sent securely via ShiftProof. We never share your number without consent.
                 </p>
 
                 {/* Quick stats */}
@@ -616,7 +615,7 @@ export default function PGDetailClient({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
                     {s.occupancy >= 90 && (
                       <span className="absolute top-2 left-2 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-accent-500">
-                        🔥 Filling Fast
+                        Filling Fast
                       </span>
                     )}
                   </div>

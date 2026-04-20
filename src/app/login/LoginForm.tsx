@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const didReset = params.get("reset") === "1";
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -45,6 +47,11 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      {didReset && (
+        <p className="text-xs text-[color:var(--success-700)] bg-[color:var(--success-50)] rounded-lg px-3 py-2" role="status">
+          Password reset successfully. Sign in with your new password.
+        </p>
+      )}
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="email">
           Email
@@ -62,9 +69,14 @@ export default function LoginForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="password">
-          Password
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="password">
+            Password
+          </label>
+          <Link href="/auth/forgot" className="text-xs text-[color:var(--accent-600)] hover:underline">
+            Forgot password?
+          </Link>
+        </div>
         <input
           id="password"
           type="password"
@@ -93,7 +105,7 @@ export default function LoginForm() {
 
       {/* Quick-fill demo credentials */}
       <div className="mt-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] p-4">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-[color:var(--muted)] mb-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted)] mb-3">
           Demo accounts
         </p>
         <div className="grid grid-cols-2 gap-2">

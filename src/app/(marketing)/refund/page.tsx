@@ -31,13 +31,10 @@ export default function RefundPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-br from-emerald-950 via-teal-900 to-accent-700 pt-28 pb-14 px-4">
+      <div className="bg-accent-700 pt-28 pb-14 px-4">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-emerald-200 mb-5">
-            Legal
-          </span>
           <h1 className="text-3xl sm:text-4xl text-white mb-4">Refund &amp; Cancellation Policy</h1>
-          <p className="text-emerald-200/80 text-sm">Last updated: {LAST_UPDATED}</p>
+          <p className="text-accent-200/80 text-sm">Last updated: {LAST_UPDATED}</p>
         </div>
       </div>
 

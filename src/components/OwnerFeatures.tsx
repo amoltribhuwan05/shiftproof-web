@@ -35,13 +35,11 @@ const features = [
 
 export default function OwnerFeatures() {
   return (
-    <section id="features" className="py-20 sm:py-28 border-t border-[color:var(--line)]">
+    <section id="features" className="py-24 sm:py-32 border-t border-[color:var(--line)]">
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
 
         <div className="mx-auto max-w-2xl text-center mb-14 sm:mb-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--muted)] mb-6">
-            For owners
-          </span>
+          <p className="text-xs tracking-wide uppercase text-[color:var(--muted)] mb-5">For owners</p>
           <h2 className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] text-[color:var(--foreground)]">
             Everything you did by hand.
             <br />
@@ -50,16 +48,22 @@ export default function OwnerFeatures() {
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-[color:var(--line)] rounded-3xl overflow-hidden border border-[color:var(--line)]">
-          {features.map((f) => {
+          {features.map((f, i) => {
             const Icon = f.icon;
             return (
               <div
                 key={f.title}
                 className="group bg-[color:var(--background)] p-8 transition-colors hover:bg-white"
               >
-                <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--accent-100)] text-[color:var(--accent-600)] group-hover:bg-[color:var(--accent-200)] group-hover:text-[color:var(--accent-700)] transition-colors">
-                  <Icon size={20} strokeWidth={2} />
-                </div>
+                {i % 2 === 0 ? (
+                  <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--accent-100)] text-[color:var(--accent-600)] group-hover:bg-[color:var(--accent-200)] group-hover:text-[color:var(--accent-700)] transition-colors">
+                    <Icon size={20} strokeWidth={2} />
+                  </div>
+                ) : (
+                  <div className="mb-5 text-[color:var(--muted)] group-hover:text-[color:var(--accent-600)] transition-colors">
+                    <Icon size={22} strokeWidth={1.5} />
+                  </div>
+                )}
                 <h3 className="text-lg font-semibold text-[color:var(--foreground)] mb-1.5 leading-snug">
                   {f.title}
                 </h3>

@@ -42,7 +42,7 @@ export default function FAQ() {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <section id="faq" className="py-20 sm:py-28 border-t border-[color:var(--line)]">
+    <section id="faq" className="py-14 sm:py-20 border-t border-[color:var(--line)]">
       <div className="mx-auto max-w-3xl px-5 sm:px-6">
 
         <div className="text-center mb-14">
@@ -67,7 +67,7 @@ export default function FAQ() {
                     {item.q}
                   </span>
                   <span
-                    className={`flex-shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-all ${
+                    className={`flex-shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
                       isOpen
                         ? "bg-[color:var(--foreground)] text-white rotate-180"
                         : "bg-[color:var(--background)] text-[color:var(--muted)]"
@@ -88,17 +88,15 @@ export default function FAQ() {
           })}
         </div>
 
-        <div className="mt-10 text-center">
-          <p className="text-sm text-[color:var(--muted)] mb-4">
-            Still have questions?
-          </p>
+        <p className="mt-10 text-center text-sm text-[color:var(--muted)]">
+          Still have questions?{" "}
           <a
             href="mailto:support@shiftproof.app"
-            className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-white hover:bg-[color:var(--background)] px-6 py-3 text-sm font-medium text-[color:var(--foreground)] transition-colors"
+            className="text-[color:var(--foreground)] underline underline-offset-2 hover:text-[color:var(--accent-500)] transition-colors"
           >
-            Email support
+            Email us
           </a>
-        </div>
+        </p>
       </div>
     </section>
   );

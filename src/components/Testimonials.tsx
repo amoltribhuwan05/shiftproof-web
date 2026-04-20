@@ -53,7 +53,7 @@ const testimonials = [
 
 export default function Testimonials() {
   return (
-    <section className="py-20 sm:py-28 border-t border-[color:var(--line)]">
+    <section className="py-14 sm:py-20 border-t border-[color:var(--line)]">
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
 
         <div className="mx-auto max-w-2xl text-center mb-14">
@@ -70,13 +70,13 @@ export default function Testimonials() {
             {/* before / after */}
             <div className="flex lg:flex-col gap-3 lg:min-w-[220px]">
               <div className="flex-1 rounded-2xl bg-[color:var(--background)] p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[color:var(--muted)] mb-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted)] mb-1.5">
                   Before
                 </p>
                 <p className="text-base font-medium text-[color:var(--foreground)]">{featured.before}</p>
               </div>
               <div className="flex-1 rounded-2xl bg-[color:var(--accent-100)] p-4 text-[color:var(--accent-700)]">
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[color:var(--accent-700)]/60 mb-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--accent-700)]/60 mb-1.5">
                   After
                 </p>
                 <p className="text-base font-medium">{featured.after}</p>
@@ -103,17 +103,27 @@ export default function Testimonials() {
 
         {/* grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {testimonials.map((t) => (
+          {testimonials.map((t, i) => (
             <div
               key={t.name}
-              className="flex flex-col rounded-3xl bg-white border border-[color:var(--line)] p-6"
+              className={`flex flex-col rounded-3xl bg-white border border-[color:var(--line)] p-6 ${
+                i === 0 ? "lg:col-span-2" : ""
+              }`}
             >
               <div className="flex items-start justify-between mb-4">
-                <span className="text-[11px] font-medium text-[color:var(--accent-600)] bg-[color:var(--accent-100)] px-2.5 py-1 rounded-full">
-                  {t.metric}
-                </span>
+                {i <= 1 ? (
+                  <span className="text-[11px] font-medium text-[color:var(--accent-600)] bg-[color:var(--accent-100)] px-2.5 py-1 rounded-full">
+                    {t.metric}
+                  </span>
+                ) : (
+                  <span className="text-[11px] font-semibold text-[color:var(--accent-600)]">
+                    {t.metric}
+                  </span>
+                )}
               </div>
-              <p className="flex-1 text-sm text-[color:var(--foreground)] leading-relaxed mb-6">
+              <p className={`flex-1 text-[color:var(--foreground)] leading-relaxed mb-6 ${
+                i === 0 ? "text-base" : "text-sm"
+              }`}>
                 &ldquo;{t.quote}&rdquo;
               </p>
               <div className="flex items-center gap-3 pt-4 border-t border-[color:var(--line)]">

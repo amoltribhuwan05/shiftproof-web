@@ -98,7 +98,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
           </span>
           {isFillingFast && (
             <span className="rounded-full bg-white/95 px-2.5 py-1 text-[10px] font-bold text-accent-500 shadow">
-              🔥 Filling Fast
+              Filling Fast
             </span>
           )}
         </div>
@@ -205,7 +205,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
               ₹{pg.price.toLocaleString("en-IN")}<span className="text-xs font-normal text-slate-400">/mo</span>
             </p>
             <Link href={`/find-pg/${pg.id}`} onClick={(e) => e.stopPropagation()}
-              className="rounded-xl bg-accent-500 px-5 py-2 text-xs font-bold text-white hover:bg-accent-600 active:scale-95 transition-all">
+              className="rounded-xl bg-accent-500 px-5 py-2 text-xs font-bold text-white hover:bg-accent-600 transition-colors">
               View Details
             </Link>
           </div>
@@ -222,7 +222,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
 }) {
   const avail = availTag(pg.occupancy);
   return (
-    <div className="group flex bg-white rounded-2xl overflow-hidden border border-[color:var(--background)] hover:border-slate-300 hover:shadow-md transition-all duration-200 cursor-pointer">
+    <div className="group flex bg-white rounded-2xl overflow-hidden border border-[color:var(--background)] hover:border-slate-300 hover:shadow-md transition-[border-color,box-shadow] duration-200 cursor-pointer">
       {/* Thumbnail */}
       <div className="relative w-44 sm:w-52 flex-shrink-0 bg-[color:var(--background)] overflow-hidden">
         <img src={pg.images[0]} alt={pg.name} className="w-full h-full object-cover" />
@@ -233,7 +233,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
         </span>
         {pg.occupancy >= 90 && (
           <span className="absolute bottom-3 left-3 rounded-full bg-white/95 px-2 py-0.5 text-[9px] font-bold text-accent-500 shadow">
-            🔥 Filling Fast
+            Filling Fast
           </span>
         )}
       </div>
@@ -291,7 +291,7 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
               View Details
             </Link>
             <button onClick={(e) => { e.stopPropagation(); onSave(); }}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-all ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-colors ${
                 saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-accent-200 hover:text-accent-500"
               }`}>
               <Heart size={15} strokeWidth={1.75} fill={saved ? "#ef4444" : "none"} className={saved ? "text-red-500" : "text-slate-400"} />{saved ? "Saved" : "Save"}
@@ -737,20 +737,7 @@ export default function FindPGClient() {
     <div className="flex flex-col" style={{ minHeight: "calc(100vh - 65px)" }}>
 
       {/* ── Hero banner ─────────────────────────────────────────────────────── */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 pt-10 pb-12 px-4 sm:px-6 lg:px-8">
-        {/* Background elements */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-32 -right-32 h-64 w-64 rounded-full bg-accent-500/20 blur-3xl" />
-          <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-accent-500/20 blur-3xl" />
-          <svg className="absolute inset-0 h-full w-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="find-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-                <circle cx="1.5" cy="1.5" r="1" fill="white" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#find-dots)" />
-          </svg>
-        </div>
+      <div className="bg-accent-700 pt-10 pb-12 px-4 sm:px-6 lg:px-8">
 
         <div className="relative mx-auto max-w-3xl text-center">
           {/* Breadcrumb */}
@@ -798,7 +785,7 @@ export default function FindPGClient() {
               <button
                 key={c}
                 onClick={() => changeCity(c)}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
                   city === c
                     ? "bg-white text-accent-600 shadow-md"
                     : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/10"
@@ -945,7 +932,7 @@ export default function FindPGClient() {
 
             {/* Owner acquisition block — shown to tenants at end of search */}
             {results.length > 0 && (
-              <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-gradient-to-br from-accent-500 to-accent-500 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4 shadow-lg shadow-accent-200">
+              <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-accent-500 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex-1 text-center sm:text-left">
                   <p className="text-xs font-semibold text-accent-200 uppercase tracking-wide mb-1">Own a PG in {city !== "All" ? city : "your city"}?</p>
                   <p className="text-base font-bold text-white">List your property free — reach tenants actively searching right now</p>

@@ -174,11 +174,8 @@ export default function PrivacyPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 pt-28 pb-14 px-4">
+      <div className="bg-accent-700 pt-28 pb-14 px-4">
         <div className="mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-accent-200 mb-5">
-            Legal
-          </span>
           <h1 className="text-3xl sm:text-4xl text-white mb-4">Privacy Policy</h1>
           <p className="text-accent-200/80 text-sm">
             Last updated: {LAST_UPDATED} · Effective immediately

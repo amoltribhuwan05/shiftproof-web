@@ -58,28 +58,24 @@ const team = [
     role: "Co-founder & CEO",
     bio: "Ex-Razorpay, IIT Bombay. Spent 4 years building payment infrastructure before betting on PG management.",
     avatar: "AS",
-    gradient: "from-accent-500 to-accent-500",
   },
   {
     name: "Priya Nair",
     role: "Co-founder & CTO",
     bio: "Ex-Freshworks, NIT Trichy. Brings deep SaaS architecture experience and a mission to modernise Indian real estate.",
     avatar: "PN",
-    gradient: "from-emerald-500 to-teal-600",
   },
   {
     name: "Rahul Kumar",
     role: "Head of Product",
     bio: "Ex-MakeMyTrip, MDI Gurgaon. Led consumer product at scale; now building tools that actually serve both sides of the rental market.",
     avatar: "RK",
-    gradient: "from-accent-500 to-rose-500",
   },
   {
     name: "Sneha Rao",
     role: "Head of Growth",
     bio: "Ex-NoBroker. Understands what makes PG owners adopt new software — and what kills adoption before day three.",
     avatar: "SR",
-    gradient: "from-amber-400 to-accent-500",
   },
 ];
 
@@ -94,16 +90,10 @@ export default function AboutPage() {
   return (
     <div className="bg-white min-h-screen">
       {/* Header */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 pt-28 pb-20 px-4">
-        <div className="pointer-events-none absolute inset-0 opacity-[0.06]">
-          <svg width="100%" height="100%"><defs><pattern id="ab-dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="white"/></pattern></defs><rect width="100%" height="100%" fill="url(#ab-dots)"/></svg>
-        </div>
-        <div className="relative mx-auto max-w-3xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-accent-200 mb-5">
-            Our Story
-          </span>
+      <div className="bg-accent-700 pt-28 pb-20 px-4">
+        <div className="mx-auto max-w-3xl text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl text-white mb-6">
-            We are fixing how <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-500 to-amber-300">India rents</span>
+            We are fixing how <span className="text-accent-300">India rents</span>
           </h1>
           <p className="text-accent-200/80 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto">
             ShiftProof was born from a simple frustration: rent receipt screenshots on WhatsApp, security deposits paid in cash, maintenance requests lost in group chats. We built the infrastructure that was always missing.
@@ -131,7 +121,7 @@ export default function AboutPage() {
         <div className="mb-20">
           <div className="grid md:grid-cols-2 gap-10 items-center">
             <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-accent-500 mb-3 block">Our Mission</span>
+              <span className="text-xs font-bold uppercase tracking-wide text-accent-500 mb-3 block">Our Mission</span>
               <h2 className="text-2xl sm:text-3xl text-[color:var(--foreground)] mb-6 leading-snug">
                 Make every rental relationship provably fair
               </h2>
@@ -148,12 +138,12 @@ export default function AboutPage() {
                 Browse PG listings <ArrowRight size={14} />
               </Link>
             </div>
-            <div className="rounded-3xl bg-gradient-to-br from-accent-50 to-accent-50 border border-accent-100 p-8">
+            <div className="rounded-3xl bg-accent-50 border border-accent-100 p-8">
               <blockquote className="text-sm text-slate-700 leading-relaxed italic mb-6">
                 "I used to spend the 5th of every month chasing 20 tenants for rent confirmations. ShiftProof made that a non-problem. Everything is recorded, every payment auto-confirmed."
               </blockquote>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-accent-500 to-accent-500 flex items-center justify-center text-white text-sm font-bold">VK</div>
+                <div className="w-10 h-10 rounded-full bg-accent-100 text-accent-700 flex items-center justify-center text-sm font-bold">VK</div>
                 <div>
                   <p className="text-sm font-semibold text-slate-800">Vikram Khanna</p>
                   <p className="text-xs text-slate-500">Owner, 3 PGs in Bengaluru</p>
@@ -166,17 +156,23 @@ export default function AboutPage() {
         {/* Values */}
         <div className="mb-20">
           <div className="text-center mb-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-accent-500 mb-3 block">What We Stand For</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-accent-500 mb-3 block">What We Stand For</span>
             <h2 className="text-2xl sm:text-3xl text-[color:var(--foreground)]">Our values</h2>
           </div>
           <div className="grid sm:grid-cols-2 gap-5">
-            {values.map((v) => {
+            {values.map((v, i) => {
               const Icon = v.icon;
               return (
                 <div key={v.title} className={`p-6 rounded-2xl border ${v.border} ${v.bg}`}>
-                  <div className={`w-10 h-10 rounded-xl ${v.bg} border ${v.border} flex items-center justify-center mb-4`}>
-                    <Icon size={20} className={v.color} />
-                  </div>
+                  {i % 2 === 0 ? (
+                    <div className={`w-10 h-10 rounded-xl ${v.bg} border ${v.border} flex items-center justify-center mb-4`}>
+                      <Icon size={20} className={v.color} />
+                    </div>
+                  ) : (
+                    <div className={`mb-4 ${v.color}`}>
+                      <Icon size={22} strokeWidth={1.5} />
+                    </div>
+                  )}
                   <h3 className="text-base font-bold text-[color:var(--foreground)] mb-2">{v.title}</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">{v.description}</p>
                 </div>
@@ -188,7 +184,7 @@ export default function AboutPage() {
         {/* Timeline */}
         <div className="mb-20">
           <div className="text-center mb-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-accent-500 mb-3 block">Journey</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-accent-500 mb-3 block">Journey</span>
             <h2 className="text-2xl sm:text-3xl text-[color:var(--foreground)]">From idea to infrastructure</h2>
           </div>
           <div className="relative pl-6 border-l-2 border-accent-100 space-y-8">
@@ -207,13 +203,13 @@ export default function AboutPage() {
         {/* Team */}
         <div className="mb-20">
           <div className="text-center mb-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-accent-500 mb-3 block">The Team</span>
+            <span className="text-xs font-bold uppercase tracking-wide text-accent-500 mb-3 block">The Team</span>
             <h2 className="text-2xl sm:text-3xl text-[color:var(--foreground)]">People behind ShiftProof</h2>
           </div>
           <div className="grid sm:grid-cols-2 gap-6">
             {team.map((t) => (
-              <div key={t.name} className="flex gap-4 p-5 rounded-2xl border border-slate-200 hover:border-accent-200 hover:shadow-sm transition-all">
-                <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${t.gradient} flex items-center justify-center text-white text-sm shrink-0`}>
+              <div key={t.name} className="flex gap-4 p-5 rounded-2xl border border-slate-200 hover:border-accent-200 transition-colors">
+                <div className="w-12 h-12 rounded-2xl bg-accent-100 text-accent-700 flex items-center justify-center text-sm font-semibold shrink-0">
                   {t.avatar}
                 </div>
                 <div>
@@ -227,23 +223,18 @@ export default function AboutPage() {
         </div>
 
         {/* CTA */}
-        <div className="rounded-3xl bg-gradient-to-br from-accent-700 via-accent-700 to-accent-700 p-10 text-center relative overflow-hidden">
-          <div className="pointer-events-none absolute inset-0 opacity-[0.06]">
-            <svg width="100%" height="100%"><defs><pattern id="ab-cta-dots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="1" fill="white"/></pattern></defs><rect width="100%" height="100%" fill="url(#ab-cta-dots)"/></svg>
-          </div>
-          <div className="relative">
-            <h2 className="text-2xl sm:text-3xl text-white mb-4">Join our growing community</h2>
-            <p className="text-accent-200/80 text-sm mb-8 max-w-md mx-auto">
-              Whether you are an owner managing 1 PG or 100, ShiftProof gives you the infrastructure to run it like a business.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/signup?plan=growth" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-500 hover:bg-accent-600 px-7 py-3 text-sm font-bold text-white transition-colors shadow-lg shadow-accent-500/30">
-                Start Free Trial <ArrowRight size={14} />
-              </Link>
-              <Link href="/contact" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-7 py-3 text-sm font-semibold text-white transition-colors">
-                Contact Us
-              </Link>
-            </div>
+        <div className="rounded-3xl bg-accent-700 p-10 text-center">
+          <h2 className="text-2xl sm:text-3xl text-white mb-4">14 days free. No card required.</h2>
+          <p className="text-accent-200/80 text-sm mb-8 max-w-md mx-auto">
+            Whether you manage 1 PG or 10, ShiftProof runs the operations so you don&rsquo;t have to.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/signup?plan=growth" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-500 hover:bg-accent-600 px-7 py-3 text-sm font-bold text-white transition-colors">
+              Try it free <ArrowRight size={14} />
+            </Link>
+            <Link href="/contact" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-7 py-3 text-sm font-semibold text-white transition-colors">
+              Contact us
+            </Link>
           </div>
         </div>
 

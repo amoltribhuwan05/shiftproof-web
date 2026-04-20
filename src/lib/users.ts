@@ -62,10 +62,31 @@ export const MOCK_USERS: MockUser[] = [
   },
 ];
 
+// Runtime store — starts with seed data, accepts new registrations (resets on server restart)
+export const USER_STORE: MockUser[] = [...MOCK_USERS];
+let _nextId = USER_STORE.length + 1;
+
 export function findUser(email: string, password: string): MockUser | undefined {
-  return MOCK_USERS.find(
+  return USER_STORE.find(
     (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
   );
+}
+
+export function findUserByEmail(email: string): MockUser | undefined {
+  return USER_STORE.find((u) => u.email.toLowerCase() === email.toLowerCase());
+}
+
+export function addUser(data: Omit<MockUser, "id">): MockUser {
+  const user: MockUser = { id: `u${_nextId++}`, ...data };
+  USER_STORE.push(user);
+  return user;
+}
+
+export function updatePassword(email: string, newPassword: string): boolean {
+  const user = USER_STORE.find((u) => u.email.toLowerCase() === email.toLowerCase());
+  if (!user) return false;
+  user.password = newPassword;
+  return true;
 }
 
 export function parseSession(raw: string | undefined): Session | null {

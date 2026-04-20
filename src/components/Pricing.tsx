@@ -65,9 +65,6 @@ export default function Pricing() {
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
 
         <div className="mx-auto max-w-2xl text-center mb-12">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[color:var(--line)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--muted)] mb-6">
-            Pricing for owners
-          </span>
           <h2 className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] text-[color:var(--foreground)]">
             ₹499 a month.
             <br />
@@ -185,10 +182,6 @@ export default function Pricing() {
           })}
         </div>
 
-        {/* Free-for-tenants line */}
-        <p className="mt-10 text-center text-sm text-[color:var(--muted)]">
-          Tenants never pay us. Not a rupee, not ever.
-        </p>
       </div>
     </section>
   );

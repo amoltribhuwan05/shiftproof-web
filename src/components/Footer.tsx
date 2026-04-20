@@ -13,8 +13,6 @@ export default function Footer() {
   const companyLinks = [
     { label: "About",   href: "/about"   },
     { label: "Contact", href: "/contact" },
-  ];
-  const supportLinks = [
     { label: "Help",    href: "/help"    },
     { label: "Privacy", href: "/privacy" },
     { label: "Terms",   href: "/terms"   },
@@ -32,7 +30,7 @@ export default function Footer() {
             <span className="text-[color:var(--accent-200)]">Starting tonight.</span>
           </h2>
           <p className="mt-5 text-base sm:text-lg text-white/60">
-            14 days free. No card. Free forever for tenants.
+            14 days free. Free forever for tenants.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -49,8 +47,8 @@ export default function Footer() {
 
       {/* Links */}
       <div className="mx-auto max-w-7xl px-5 sm:px-6 py-12 sm:py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-          <div className="sm:col-span-2 lg:col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-10">
+          <div>
             <div className="flex items-center gap-2.5 mb-4">
               <svg width="32" height="32" viewBox="0 0 512 512" fill="none" aria-hidden>
                 <rect width="512" height="512" rx="114" fill="#F7F6F2"/>
@@ -71,7 +69,6 @@ export default function Footer() {
 
           <FooterCol title="Product" links={productLinks} />
           <FooterCol title="Company" links={companyLinks} />
-          <FooterCol title="Support" links={supportLinks} />
         </div>
 
         <div className="mt-14 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-white/10 pt-8">
