@@ -8,6 +8,8 @@ import {
   Bell, Search, Settings, Plus, LogOut, Menu, X,
   TrendingUp, TrendingDown, AlertCircle, Clock, CheckCircle2,
   ChevronRight, Download, IndianRupee, BedDouble, Home,
+  ArrowLeft, MapPin, Edit3, Camera, Wifi, Car, Dumbbell, Phone, Mail,
+  ChevronDown, FileText, CalendarDays, Banknote, UserX, ShieldCheck,
 } from "lucide-react";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -57,9 +59,113 @@ const TENANTS = [
 ];
 
 const PROPERTIES = [
-  { id: "p1", name: "Sunshine PG",     address: "Koramangala, Bangalore", beds: 12, occupied: 10, rent: 8500,  pending: 1 },
-  { id: "p2", name: "Green Haven",     address: "Indiranagar, Bangalore",  beds: 8,  occupied: 7,  rent: 10000, pending: 1 },
-  { id: "p3", name: "Royal Residency", address: "HSR Layout, Bangalore",   beds: 10, occupied: 8,  rent: 9500,  pending: 1 },
+  { id: "p1", name: "Sunshine PG",     address: "Koramangala, Bangalore", beds: 12, occupied: 10, rent: 8500,  pending: 1, image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&h=240&fit=crop&q=80" },
+  { id: "p2", name: "Green Haven",     address: "Indiranagar, Bangalore",  beds: 8,  occupied: 7,  rent: 10000, pending: 1, image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&h=240&fit=crop&q=80" },
+  { id: "p3", name: "Royal Residency", address: "HSR Layout, Bangalore",   beds: 10, occupied: 8,  rent: 9500,  pending: 1, image: null },
+];
+
+const PROPERTY_ROOMS: Record<string, { id: string; number: string; type: string; tenant: string | null; rent: number; status: "occupied" | "vacant" }[]> = {
+  p1: [
+    { id: "r1",  number: "101", type: "Single", tenant: "Rahul Sharma",  rent: 8500,  status: "occupied" },
+    { id: "r2",  number: "102", type: "Single", tenant: "Neha Gupta",    rent: 8500,  status: "occupied" },
+    { id: "r3",  number: "103", type: "Double", tenant: "Arjun Singh",   rent: 8500,  status: "occupied" },
+    { id: "r4",  number: "104", type: "Single", tenant: "Divya Nair",    rent: 8500,  status: "occupied" },
+    { id: "r5",  number: "105", type: "Double", tenant: "Suresh Babu",   rent: 8500,  status: "occupied" },
+    { id: "r6",  number: "106", type: "Single", tenant: "Lakshmi Iyer",  rent: 8500,  status: "occupied" },
+    { id: "r7",  number: "107", type: "Single", tenant: "Mohan Das",     rent: 8500,  status: "occupied" },
+    { id: "r8",  number: "108", type: "Double", tenant: "Kavya Reddy",   rent: 8500,  status: "occupied" },
+    { id: "r9",  number: "109", type: "Single", tenant: "Vikram Joshi",  rent: 8500,  status: "occupied" },
+    { id: "r10", number: "110", type: "Single", tenant: "Anita Desai",   rent: 8500,  status: "occupied" },
+    { id: "r11", number: "111", type: "Single", tenant: null,            rent: 8500,  status: "vacant"   },
+    { id: "r12", number: "112", type: "Double", tenant: null,            rent: 8500,  status: "vacant"   },
+  ],
+  p2: [
+    { id: "r13", number: "A1", type: "Single", tenant: "Priya Verma",   rent: 10000, status: "occupied" },
+    { id: "r14", number: "A2", type: "Double", tenant: "Kiran Rao",     rent: 10000, status: "occupied" },
+    { id: "r15", number: "A3", type: "Single", tenant: "Ritu Sharma",   rent: 10000, status: "occupied" },
+    { id: "r16", number: "A4", type: "Single", tenant: "Deepak Menon",  rent: 10000, status: "occupied" },
+    { id: "r17", number: "A5", type: "Double", tenant: "Sneha Pillai",  rent: 10000, status: "occupied" },
+    { id: "r18", number: "A6", type: "Single", tenant: "Rahul Nair",    rent: 10000, status: "occupied" },
+    { id: "r19", number: "A7", type: "Single", tenant: "Pooja Verma",   rent: 10000, status: "occupied" },
+    { id: "r20", number: "A8", type: "Double", tenant: null,            rent: 10000, status: "vacant"   },
+  ],
+  p3: [
+    { id: "r21", number: "201", type: "Single", tenant: "Amit Patel",    rent: 9500, status: "occupied" },
+    { id: "r22", number: "202", type: "Double", tenant: "Sonia Mehta",   rent: 9500, status: "occupied" },
+    { id: "r23", number: "203", type: "Single", tenant: "Rajesh Kumar",  rent: 9500, status: "occupied" },
+    { id: "r24", number: "204", type: "Single", tenant: "Meera Pillai",  rent: 9500, status: "occupied" },
+    { id: "r25", number: "205", type: "Double", tenant: "Anil Shetty",   rent: 9500, status: "occupied" },
+    { id: "r26", number: "206", type: "Single", tenant: "Zara Khan",     rent: 9500, status: "occupied" },
+    { id: "r27", number: "207", type: "Double", tenant: "Sunil Sharma",  rent: 9500, status: "occupied" },
+    { id: "r28", number: "208", type: "Single", tenant: "Nisha Gupta",   rent: 9500, status: "occupied" },
+    { id: "r29", number: "209", type: "Single", tenant: null,            rent: 9500, status: "vacant"   },
+    { id: "r30", number: "210", type: "Double", tenant: null,            rent: 9500, status: "vacant"   },
+  ],
+};
+
+const PROPERTY_AMENITIES: Record<string, string[]> = {
+  p1: ["WiFi", "Parking", "Gym", "CCTV", "Laundry", "Power Backup"],
+  p2: ["WiFi", "Parking", "CCTV", "AC Rooms", "Housekeeping", "Water Purifier"],
+  p3: ["WiFi", "Gym", "Parking", "CCTV", "Laundry", "Cafeteria", "Power Backup"],
+};
+
+const TENANTS_EXT: Record<string, {
+  phone: string; email: string; moveIn: string;
+  deposit: number; depositPaid: boolean; noticeGiven: boolean;
+  idType: string; idVerified: boolean; agreementSigned: boolean;
+  emergencyName: string; emergencyPhone: string;
+  rentHistory: { month: string; amount: string; status: "paid" | "pending" | "overdue" }[];
+}> = {
+  u1: { phone: "+91 98765 11111", email: "rahul.s@gmail.com",  moveIn: "Jan 2024", deposit: 17000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Suresh Sharma", emergencyPhone: "+91 97777 11111", rentHistory: [{ month: "Apr 2025", amount: "₹8,500",  status: "paid" },    { month: "Mar 2025", amount: "₹8,500",  status: "paid" },    { month: "Feb 2025", amount: "₹8,500",  status: "paid" }] },
+  u2: { phone: "+91 98765 22222", email: "priya.v@gmail.com",  moveIn: "Mar 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Anita Verma",   emergencyPhone: "+91 97777 22222", rentHistory: [{ month: "Apr 2025", amount: "₹10,000", status: "paid" },    { month: "Mar 2025", amount: "₹10,000", status: "paid" },    { month: "Feb 2025", amount: "₹10,000", status: "paid" }] },
+  u3: { phone: "+91 98765 33333", email: "amit.p@gmail.com",   moveIn: "Jun 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Rekha Patel",   emergencyPhone: "+91 97777 33333", rentHistory: [{ month: "Apr 2025", amount: "₹9,500",  status: "paid" },    { month: "Mar 2025", amount: "₹9,500",  status: "paid" },    { month: "Feb 2025", amount: "₹9,500",  status: "overdue" }] },
+  u4: { phone: "+91 98765 44444", email: "neha.g@gmail.com",   moveIn: "Aug 2024", deposit: 17000, depositPaid: false, noticeGiven: false, idType: "Passport", idVerified: false, agreementSigned: true,  emergencyName: "Rakesh Gupta",  emergencyPhone: "+91 97777 44444", rentHistory: [{ month: "Apr 2025", amount: "₹8,500",  status: "pending" }, { month: "Mar 2025", amount: "₹8,500",  status: "paid" },    { month: "Feb 2025", amount: "₹8,500",  status: "paid" }] },
+  u5: { phone: "+91 98765 55555", email: "kiran.r@gmail.com",  moveIn: "Oct 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: false, emergencyName: "Sunita Rao",    emergencyPhone: "+91 97777 55555", rentHistory: [{ month: "Apr 2025", amount: "₹10,000", status: "pending" }, { month: "Mar 2025", amount: "₹10,000", status: "paid" },    { month: "Feb 2025", amount: "₹10,000", status: "paid" }] },
+  u6: { phone: "+91 98765 66666", email: "sonia.m@gmail.com",  moveIn: "Nov 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Kavita Mehta",  emergencyPhone: "+91 97777 66666", rentHistory: [{ month: "Apr 2025", amount: "₹9,500",  status: "overdue" }, { month: "Mar 2025", amount: "₹9,500",  status: "overdue" }, { month: "Feb 2025", amount: "₹9,500",  status: "paid" }] },
+};
+
+const MAINTENANCE_EXT: Record<string, {
+  description: string; assignee: string | null;
+  comments: { author: string; text: string; time: string }[];
+}> = {
+  m1: { description: "The AC in room 101 stopped cooling. Temperature doesn't drop below 26°C even on max setting.", assignee: "Ramu (Electrician)", comments: [{ author: "Ravi Kumar", text: "Raised ticket. Will check tomorrow.", time: "Apr 3, 9 AM" }, { author: "Ramu", text: "Checked — refrigerant low. Refilling scheduled for tomorrow.", time: "Apr 4, 2 PM" }] },
+  m2: { description: "Water leaking from ceiling in room 2A bathroom. Dripping continuously since last night.", assignee: null, comments: [{ author: "Kiran Rao", text: "Started leaking around midnight. Please fix urgently.", time: "Apr 1, 8 AM" }] },
+  m3: { description: "Light in room B2 flickers intermittently. Likely a loose connection at the switch.", assignee: "Suresh (Electrician)", comments: [{ author: "Sonia Mehta", text: "Flickering since last week.", time: "Mar 27, 6 PM" }, { author: "Suresh", text: "Fixed — replaced the faulty switch.", time: "Mar 30, 11 AM" }] },
+  m4: { description: "Door lock in room 302 is stuck. Key doesn't turn smoothly for the past 3 days.", assignee: "Ramesh (Carpenter)", comments: [{ author: "Neha Gupta", text: "Lock has been stiff for 3 days. Getting difficult to lock at night.", time: "Mar 25, 4 PM" }] },
+  m5: { description: "WiFi in room 3B very slow or fully disconnected since Apr 3. Router restart didn't help.", assignee: null, comments: [{ author: "Kiran Rao", text: "Please send a technician, work from home is affected.", time: "Apr 5, 7 PM" }] },
+};
+
+const PROPERTY_GALLERY: Record<string, string[]> = {
+  p1: [
+    "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&h=280&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&h=280&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&h=280&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=400&h=280&fit=crop&q=80",
+  ],
+  p2: [
+    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=280&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=280&fit=crop&q=80",
+    "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=400&h=280&fit=crop&q=80",
+  ],
+  p3: [
+    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&h=280&fit=crop&q=80",
+  ],
+};
+
+type AmenityOption = { label: string; icon: React.ElementType | null };
+const ALL_AMENITY_OPTIONS: AmenityOption[] = [
+  { label: "WiFi",            icon: Wifi },
+  { label: "Parking",         icon: Car },
+  { label: "Gym",             icon: Dumbbell },
+  { label: "AC Rooms",        icon: null },
+  { label: "Laundry",         icon: null },
+  { label: "CCTV",            icon: null },
+  { label: "Power Backup",    icon: null },
+  { label: "Water Purifier",  icon: null },
+  { label: "Food/Meals",      icon: null },
+  { label: "Housekeeping",    icon: null },
+  { label: "Security Guard",  icon: null },
+  { label: "Cafeteria",       icon: null },
 ];
 
 const MAINTENANCE = [
@@ -276,36 +382,696 @@ function OverviewTab() {
   );
 }
 
+type Property = typeof PROPERTIES[number];
+type InnerTab = "details" | "photos" | "rooms" | "tenants" | "maintenance";
+
+function ManagePropertyView({ property, onBack }: { property: Property; onBack: () => void }) {
+  const [innerTab, setInnerTab] = useState<InnerTab>("details");
+
+  // Details form state
+  const [form, setForm] = useState({
+    name: property.name, address: property.address,
+    rent: String(property.rent), deposit: String(property.rent * 2),
+    advance: "1", noticeDays: "30", checkIn: "10:00 AM",
+    gender: "Male Only", type: "PG", visitorPolicy: "Allowed till 9 PM", food: "Optional meals",
+  });
+  const upd = (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Amenities
+  const [amenities, setAmenities] = useState<Set<string>>(
+    new Set(PROPERTY_AMENITIES[property.id] ?? [])
+  );
+  const toggleAmenity = (label: string) =>
+    setAmenities((prev) => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s; });
+
+  // Rooms
+  const [rooms, setRooms] = useState(PROPERTY_ROOMS[property.id] ?? []);
+  const [assigningRoomId, setAssigningRoomId] = useState<string | null>(null);
+  const [assignSelectVal, setAssignSelectVal] = useState("");
+
+  // Photos
+  const [gallery, setGallery] = useState(PROPERTY_GALLERY[property.id] ?? []);
+  const [coverIdx, setCoverIdx] = useState(0);
+
+  // Tenants
+  const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
+  const [tenantFilter, setTenantFilter] = useState<"all" | "active" | "notice">("all");
+  const [showAddTenant, setShowAddTenant] = useState(false);
+  const propertyTenants = TENANTS.filter((t) => t.property === property.name);
+  const filteredTenants = propertyTenants.filter((t) => {
+    const ext = TENANTS_EXT[t.id];
+    if (tenantFilter === "notice") return !!ext?.noticeGiven;
+    if (tenantFilter === "active") return !ext?.noticeGiven;
+    return true;
+  });
+
+  // Maintenance
+  const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
+  const [ticketStatuses, setTicketStatuses] = useState<Record<string, string>>({});
+  const [mFilter, setMFilter] = useState<"all" | "pending" | "in_progress" | "resolved">("all");
+  const [noteText, setNoteText] = useState("");
+  const allTickets = MAINTENANCE.filter((m) => m.property.startsWith(property.name));
+  const filteredTickets = allTickets.filter((m) => {
+    const st = ticketStatuses[m.id] ?? m.status;
+    return mFilter === "all" || st === mFilter;
+  });
+
+  const revenue = rooms.filter((r) => r.status === "occupied").reduce((s, r) => s + r.rent, 0);
+  const openTickets = allTickets.filter((m) => (ticketStatuses[m.id] ?? m.status) !== "resolved").length;
+
+  const INNER_TABS: { id: InnerTab; label: string; count?: number }[] = [
+    { id: "details",     label: "Details" },
+    { id: "photos",      label: "Photos",      count: gallery.length },
+    { id: "rooms",       label: "Rooms",       count: rooms.length },
+    { id: "tenants",     label: "Tenants",     count: propertyTenants.length },
+    { id: "maintenance", label: "Maintenance", count: allTickets.length },
+  ];
+
+  return (
+    <div className="space-y-5">
+
+      {/* ── Hero ── */}
+      <div className="relative rounded-2xl overflow-hidden h-52 bg-gradient-to-br from-violet-900 via-violet-800 to-indigo-900">
+        {property.image && <img src={property.image} alt={property.name} className="absolute inset-0 w-full h-full object-cover" />}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <button onClick={onBack} className="absolute top-4 left-4 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+          <ArrowLeft size={14} /> Back
+        </button>
+        <button onClick={() => setInnerTab("photos")} className="absolute top-4 right-4 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+          <Camera size={13} /> Manage Photos
+        </button>
+        <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-white leading-tight">{form.name}</h2>
+            <p className="flex items-center gap-1 text-white/70 text-xs mt-0.5"><MapPin size={11} />{form.address}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <span className="text-[10px] font-bold bg-white/15 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">{form.type}</span>
+            <span className="text-[10px] font-bold bg-white/15 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">{form.gender}</span>
+            <StatusChip status={property.pending > 0 ? "pending" : "paid"} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── KPI strip ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {([
+          { label: "Monthly Revenue", value: `₹${revenue.toLocaleString("en-IN")}`, icon: IndianRupee, color: "accent" },
+          { label: "Occupancy",       value: `${Math.round((rooms.filter(r=>r.status==="occupied").length / Math.max(rooms.length,1)) * 100)}%`, icon: BedDouble, color: "trust" },
+          { label: "Vacant Beds",     value: String(rooms.filter(r=>r.status==="vacant").length), icon: Home, color: "muted" },
+          { label: "Open Tickets",    value: String(openTickets), icon: Wrench, color: "warning" },
+        ] as const).map((k) => (
+          <div key={k.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-4 shadow-sm">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${
+              k.color==="accent"  ? "bg-[color:var(--accent-100)] text-[color:var(--accent-600)]" :
+              k.color==="trust"   ? "bg-[color:var(--trust-50)] text-[color:var(--trust-700)]" :
+              k.color==="warning" ? "bg-[color:var(--warning-50)] text-[color:var(--warning-700)]" :
+              "bg-[color:var(--background)] text-[color:var(--muted)]"
+            }`}><k.icon size={15} strokeWidth={1.75} /></div>
+            <p className="text-lg font-bold text-[color:var(--foreground)]">{k.value}</p>
+            <p className="text-[10px] text-[color:var(--muted)] mt-0.5">{k.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Panel ── */}
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
+
+        {/* Tab bar */}
+        <div className="flex border-b border-[color:var(--line)] px-2 pt-2 gap-1 overflow-x-auto">
+          {INNER_TABS.map((t) => (
+            <button key={t.id} onClick={() => setInnerTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold rounded-t-xl whitespace-nowrap transition-colors ${
+                innerTab===t.id ? "bg-[color:var(--accent-500)] text-white" : "text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--background)]"
+              }`}>
+              {t.label}
+              {t.count !== undefined && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${innerTab===t.id ? "bg-white/20 text-white" : "bg-[color:var(--background)] text-[color:var(--muted)]"}`}>{t.count}</span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ────────── Details ────────── */}
+        {innerTab === "details" && (
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* Basic info */}
+              <div className="space-y-4">
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Basic Info</h4>
+                {(["name", "address"] as const).map((k) => (
+                  <label key={k} className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">{k === "name" ? "Property Name" : "Address"}</span>
+                    <input value={form[k]} onChange={upd(k)} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm text-[color:var(--foreground)] bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)] transition-colors" />
+                  </label>
+                ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Type</span>
+                    <select value={form.type} onChange={upd("type")} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)]">
+                      {["PG", "Hostel", "Co-living", "Flat"].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Gender Policy</span>
+                    <select value={form.gender} onChange={upd("gender")} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)]">
+                      {["Male Only", "Female Only", "Co-ed"].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Manager Contact</span>
+                  <div className="flex gap-2">
+                    <div className="flex items-center gap-2 border border-[color:var(--line)] rounded-xl px-3 py-2.5 bg-[color:var(--background)] flex-1">
+                      <Phone size={13} className="text-[color:var(--muted)] shrink-0" />
+                      <input defaultValue="+91 98765 43210" className="text-sm bg-transparent outline-none w-full" />
+                    </div>
+                    <div className="flex items-center gap-2 border border-[color:var(--line)] rounded-xl px-3 py-2.5 bg-[color:var(--background)] flex-1">
+                      <Mail size={13} className="text-[color:var(--muted)] shrink-0" />
+                      <input defaultValue="ravi@shiftproof.in" className="text-sm bg-transparent outline-none w-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financials & Rules */}
+              <div className="space-y-4">
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Financials & Rules</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  {(["rent", "deposit", "advance", "noticeDays"] as const).map((k) => (
+                    <label key={k} className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">
+                        {k==="rent" ? "Rent / Bed (₹)" : k==="deposit" ? "Security Deposit (₹)" : k==="advance" ? "Advance (months)" : "Notice Period (days)"}
+                      </span>
+                      <input value={form[k]} onChange={upd(k)} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)] transition-colors" />
+                    </label>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Check-in Time</span>
+                    <input value={form.checkIn} onChange={upd("checkIn")} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)] transition-colors" />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Visitor Policy</span>
+                    <select value={form.visitorPolicy} onChange={upd("visitorPolicy")} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)]">
+                      {["Allowed till 9 PM", "Allowed till 8 PM", "No visitors"].map((o) => <option key={o}>{o}</option>)}
+                    </select>
+                  </label>
+                </div>
+                <label className="block">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Food Policy</span>
+                  <select value={form.food} onChange={upd("food")} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-400)]">
+                    {["Meals included", "Optional meals", "No meals"].map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {/* Amenities */}
+            <div>
+              <h4 className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-3">Amenities — click to toggle</h4>
+              <div className="flex flex-wrap gap-2">
+                {ALL_AMENITY_OPTIONS.map((a) => {
+                  const active = amenities.has(a.label);
+                  return (
+                    <button key={a.label} onClick={() => toggleAmenity(a.label)}
+                      className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                        active ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
+                               : "bg-white text-[color:var(--muted)] border-[color:var(--line)] hover:border-[color:var(--accent-400)] hover:text-[color:var(--accent-600)]"
+                      }`}>
+                      {a.icon !== null ? React.createElement(a.icon, { size: 11 }) : null}
+                      {active && <CheckCircle2 size={10} />}
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2 border-t border-[color:var(--line)]">
+              <button className="text-xs font-semibold text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-4 py-2.5 rounded-xl border border-[color:var(--line)] hover:bg-[color:var(--background)] transition-colors">Discard</button>
+              <button className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-colors">Save Changes</button>
+            </div>
+          </div>
+        )}
+
+        {/* ────────── Photos ────────── */}
+        {innerTab === "photos" && (
+          <div className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs text-[color:var(--muted)]">{gallery.length} photos · first photo is used as cover</p>
+              <button className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors">
+                <Plus size={12} /> Add Photos
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {gallery.map((url, i) => (
+                <div key={url} className="relative group rounded-xl overflow-hidden aspect-video bg-[color:var(--background)]">
+                  <img src={url} alt="" className="w-full h-full object-cover" />
+                  {i === coverIdx && (
+                    <span className="absolute top-2 left-2 bg-[color:var(--accent-500)] text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Cover</span>
+                  )}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    {i !== coverIdx && (
+                      <button onClick={() => setCoverIdx(i)} className="text-[10px] font-bold text-white bg-white/20 hover:bg-[color:var(--accent-500)] px-2.5 py-1.5 rounded-lg transition-colors">
+                        Set Cover
+                      </button>
+                    )}
+                    <button onClick={() => setGallery((prev) => prev.filter((_, j) => j !== i))} className="text-[10px] font-bold text-white bg-white/20 hover:bg-red-500 px-2.5 py-1.5 rounded-lg transition-colors">
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {Array.from({ length: Math.max(0, 6 - gallery.length) }).map((_, i) => (
+                <button key={i} className="aspect-video rounded-xl border-2 border-dashed border-[color:var(--line)] hover:border-[color:var(--accent-400)] text-[color:var(--muted)] hover:text-[color:var(--accent-600)] flex flex-col items-center justify-center gap-1 transition-colors">
+                  <Camera size={18} strokeWidth={1.5} />
+                  <span className="text-[10px] font-medium">Upload</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-[color:var(--muted)] mt-4">Supported: JPG, PNG, WebP · Max 10 MB · Up to 20 photos</p>
+          </div>
+        )}
+
+        {/* ────────── Rooms ────────── */}
+        {innerTab === "rooms" && (
+          <div className="p-5">
+            <div className="flex items-center gap-4 mb-5 p-3.5 rounded-xl bg-[color:var(--background)]">
+              <div className="flex-1">
+                <div className="h-2 rounded-full bg-[color:var(--line)] overflow-hidden">
+                  <div className="h-full bg-[color:var(--accent-500)] rounded-full transition-all"
+                    style={{ width: `${Math.round((rooms.filter(r=>r.status==="occupied").length / Math.max(rooms.length,1)) * 100)}%` }} />
+                </div>
+              </div>
+              <span className="text-xs text-[color:var(--muted)] whitespace-nowrap shrink-0">
+                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>r.status==="occupied").length}</span> occupied ·{" "}
+                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>r.status==="vacant").length}</span> vacant
+              </span>
+              <button className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors shrink-0">
+                <Plus size={12} /> Add Room
+              </button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+              {rooms.map((r) => (
+                <div key={r.id} className={`rounded-xl border p-3.5 flex flex-col gap-2 ${r.status==="occupied" ? "border-[color:var(--accent-200)] bg-[color:var(--accent-50)]" : "border-[color:var(--line)] bg-white"}`}>
+                  <div className="flex items-start justify-between">
+                    <p className="text-base font-bold text-[color:var(--foreground)]">#{r.number}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${r.status==="occupied" ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" : "bg-[color:var(--background)] text-[color:var(--muted)]"}`}>{r.type}</span>
+                  </div>
+                  {r.status === "occupied" && r.tenant ? (
+                    <>
+                      <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate">{r.tenant}</p>
+                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rent.toLocaleString("en-IN")}/mo</p>
+                      <button onClick={() => setRooms((prev) => prev.map((x) => x.id===r.id ? { ...x, status: "vacant" as const, tenant: null } : x))}
+                        className="mt-auto text-[10px] font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded-lg border border-red-100 transition-colors">
+                        Unassign
+                      </button>
+                    </>
+                  ) : assigningRoomId === r.id ? (
+                    <div className="flex flex-col gap-1.5">
+                      <select value={assignSelectVal} onChange={(e) => setAssignSelectVal(e.target.value)}
+                        className="text-[10px] border border-[color:var(--line)] rounded-lg px-2 py-1.5 bg-white outline-none w-full">
+                        <option value="">Select tenant…</option>
+                        {TENANTS.filter((t) => t.property !== property.name).map((t) => (
+                          <option key={t.id} value={t.name}>{t.name}</option>
+                        ))}
+                      </select>
+                      <div className="flex gap-1">
+                        <button onClick={() => {
+                          if (!assignSelectVal) return;
+                          setRooms((prev) => prev.map((x) => x.id===r.id ? { ...x, status: "occupied" as const, tenant: assignSelectVal } : x));
+                          setAssigningRoomId(null); setAssignSelectVal("");
+                        }} className="flex-1 text-[10px] font-bold bg-[color:var(--accent-500)] text-white py-1.5 rounded-lg">Assign</button>
+                        <button onClick={() => { setAssigningRoomId(null); setAssignSelectVal(""); }} className="text-[10px] font-bold text-[color:var(--muted)] px-2 py-1.5 rounded-lg border border-[color:var(--line)]">✕</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rent.toLocaleString("en-IN")}/mo</p>
+                      <button onClick={() => setAssigningRoomId(r.id)}
+                        className="mt-auto text-[10px] font-semibold text-[color:var(--accent-600)] hover:bg-[color:var(--accent-50)] px-2 py-1.5 rounded-lg border border-[color:var(--accent-200)] transition-colors">
+                        + Assign Tenant
+                      </button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ────────── Tenants ────────── */}
+        {innerTab === "tenants" && (
+          <div>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[color:var(--line)]">
+              <div className="flex gap-1.5">
+                {(["all", "active", "notice"] as const).map((f) => (
+                  <button key={f} onClick={() => setTenantFilter(f)}
+                    className={`text-[11px] font-semibold px-3 py-1.5 rounded-full transition-colors ${tenantFilter===f ? "bg-[color:var(--accent-500)] text-white" : "bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}>
+                    {f==="all" ? `All (${propertyTenants.length})` : f==="active" ? "Active" : "Notice Given"}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowAddTenant(true)} className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors">
+                <Plus size={12} /> Add Tenant
+              </button>
+            </div>
+
+            {/* Add Tenant form */}
+            {showAddTenant && (
+              <div className="mx-5 mt-4 p-5 rounded-xl border border-[color:var(--accent-200)] bg-[color:var(--accent-50)]">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-bold text-[color:var(--foreground)]">Add New Tenant</h4>
+                  <button onClick={() => setShowAddTenant(false)} className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"><X size={16} /></button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {[
+                    { label: "Full Name",            placeholder: "e.g. Rahul Sharma",  type: "text" },
+                    { label: "Phone",                placeholder: "+91 98765 XXXXX",    type: "text" },
+                    { label: "Email",                placeholder: "email@gmail.com",    type: "text" },
+                    { label: "Room / Bed No.",       placeholder: "e.g. 101",           type: "text" },
+                    { label: "Move-in Date",         placeholder: "DD/MM/YYYY",         type: "text" },
+                    { label: "Lease End Date",       placeholder: "DD/MM/YYYY",         type: "text" },
+                    { label: "Monthly Rent (₹)",     placeholder: String(property.rent), type: "text" },
+                    { label: "Security Deposit (₹)", placeholder: String(property.rent * 2), type: "text" },
+                    { label: "ID Type",              placeholder: "",                   type: "select" },
+                  ].map((f) => (
+                    <label key={f.label} className="block">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">{f.label}</span>
+                      {f.type === "select" ? (
+                        <select className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]">
+                          <option>Aadhar Card</option><option>PAN Card</option><option>Passport</option><option>Voter ID</option>
+                        </select>
+                      ) : (
+                        <input placeholder={f.placeholder} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]" />
+                      )}
+                    </label>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-[color:var(--accent-200)]">
+                  <p className="text-[11px] text-[color:var(--muted)]">Tenant will receive an onboarding SMS after adding.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowAddTenant(false)} className="text-xs font-semibold text-[color:var(--muted)] px-4 py-2 rounded-xl border border-[color:var(--line)] hover:bg-white transition-colors">Cancel</button>
+                    <button className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-5 py-2 rounded-xl transition-colors">Add Tenant</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Tenant list */}
+            <div className="p-3 space-y-2 pt-4">
+              {filteredTenants.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-[color:var(--muted)]">
+                  <Users size={32} strokeWidth={1.25} />
+                  <p className="text-sm font-medium">No tenants match this filter</p>
+                </div>
+              )}
+              {filteredTenants.map((t) => {
+                const ext = TENANTS_EXT[t.id];
+                const isExp = expandedTenantId === t.id;
+                return (
+                  <div key={t.id} className="rounded-xl border border-[color:var(--line)] overflow-hidden">
+                    <button onClick={() => setExpandedTenantId(isExp ? null : t.id)}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-[color:var(--background)] transition-colors text-left">
+                      <Avatar initials={t.initials} size="md" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-[color:var(--foreground)]">{t.name}</p>
+                          {ext?.noticeGiven && <span className="text-[9px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Notice Given</span>}
+                          {ext && !ext.idVerified && <span className="text-[9px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full uppercase tracking-wide">ID Pending</span>}
+                          {ext && !ext.agreementSigned && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Agreement Pending</span>}
+                        </div>
+                        <p className="text-[11px] text-[color:var(--muted)] mt-0.5">
+                          Room {t.room} · Move-in {ext?.moveIn ?? "—"} · Lease ends {t.lease}
+                        </p>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2 shrink-0">
+                        <StatusChip status={t.paid ? "paid" : "pending"} />
+                        <ChevronDown size={15} className={`text-[color:var(--muted)] transition-transform duration-200 ${isExp ? "rotate-180" : ""}`} />
+                      </div>
+                    </button>
+
+                    {isExp && ext && (
+                      <div className="bg-[color:var(--background)] border-t border-[color:var(--line)] p-5 space-y-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+
+                          {/* Contact */}
+                          <div className="space-y-2.5">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Contact</h5>
+                            <div className="flex items-center gap-2 text-xs"><Phone size={12} className="text-[color:var(--muted)]" />{ext.phone}</div>
+                            <div className="flex items-center gap-2 text-xs"><Mail size={12} className="text-[color:var(--muted)]" />{ext.email}</div>
+                            <div className="pt-1">
+                              <p className="text-[10px] text-[color:var(--muted)] mb-1">Emergency Contact</p>
+                              <p className="text-xs font-semibold text-[color:var(--foreground)]">{ext.emergencyName}</p>
+                              <p className="text-xs text-[color:var(--muted)]">{ext.emergencyPhone}</p>
+                            </div>
+                          </div>
+
+                          {/* Financials */}
+                          <div className="space-y-2.5">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Financials</h5>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-[color:var(--muted)]">Security Deposit</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs font-bold text-[color:var(--foreground)]">₹{ext.deposit.toLocaleString("en-IN")}</span>
+                                <StatusChip status={ext.depositPaid ? "paid" : "pending"} />
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[10px] text-[color:var(--muted)] mb-2">Rent History</p>
+                              <div className="space-y-1.5">
+                                {ext.rentHistory.map((rh) => (
+                                  <div key={rh.month} className="flex items-center justify-between">
+                                    <span className="text-[11px] text-[color:var(--muted)]">{rh.month}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] font-semibold text-[color:var(--foreground)]">{rh.amount}</span>
+                                      <StatusChip status={rh.status} />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Documents */}
+                          <div className="space-y-2.5">
+                            <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Documents</h5>
+                            {[
+                              { label: `${ext.idType} Card`,    done: ext.idVerified,       icon: ShieldCheck },
+                              { label: "Rental Agreement",      done: ext.agreementSigned,   icon: FileText },
+                              { label: "Police Verification",   done: false,                 icon: FileText },
+                              { label: "Passport Photo",        done: true,                  icon: FileText },
+                            ].map((doc) => (
+                              <div key={doc.label} className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <doc.icon size={12} className={doc.done ? "text-[color:var(--success-700)]" : "text-[color:var(--muted)]"} />
+                                  {doc.label}
+                                </div>
+                                {doc.done
+                                  ? <span className="text-[9px] font-bold text-[color:var(--success-700)]">✓ Uploaded</span>
+                                  : <button className="text-[9px] font-bold text-[color:var(--accent-600)] hover:underline">Upload</button>
+                                }
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-wrap gap-2 pt-3 border-t border-[color:var(--line)]">
+                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--accent-50)] text-[color:var(--accent-600)] hover:bg-[color:var(--accent-100)] px-3 py-2 rounded-lg transition-colors">
+                            <CalendarDays size={12} /> Edit Lease
+                          </button>
+                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--success-50)] text-[color:var(--success-700)] hover:bg-green-100 px-3 py-2 rounded-lg transition-colors">
+                            <Banknote size={12} /> Record Payment
+                          </button>
+                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-3 py-2 rounded-lg border border-[color:var(--line)] transition-colors">
+                            <Phone size={12} /> Send Reminder
+                          </button>
+                          {!ext.noticeGiven && (
+                            <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-lg transition-colors">
+                              <AlertCircle size={12} /> Initiate Notice
+                            </button>
+                          )}
+                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors ml-auto">
+                            <UserX size={12} /> Remove Tenant
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ────────── Maintenance ────────── */}
+        {innerTab === "maintenance" && (
+          <div>
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[color:var(--line)]">
+              <div className="flex gap-1.5 overflow-x-auto">
+                {(["all", "pending", "in_progress", "resolved"] as const).map((f) => (
+                  <button key={f} onClick={() => setMFilter(f)}
+                    className={`text-[11px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${mFilter===f ? "bg-[color:var(--accent-500)] text-white" : "bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}>
+                    {f==="all" ? `All (${allTickets.length})` : f==="in_progress" ? "In Progress" : f.charAt(0).toUpperCase()+f.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <button className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors shrink-0 ml-3">
+                <Plus size={12} /> New Ticket
+              </button>
+            </div>
+
+            {filteredTickets.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-[color:var(--muted)]">
+                <Wrench size={32} strokeWidth={1.25} />
+                <p className="text-sm font-medium">No tickets match this filter</p>
+              </div>
+            )}
+
+            <div className="p-3 space-y-2 pt-3">
+              {filteredTickets.map((m) => {
+                const st = ticketStatuses[m.id] ?? m.status;
+                const ext = MAINTENANCE_EXT[m.id];
+                const isExp = expandedTicketId === m.id;
+                return (
+                  <div key={m.id} className="rounded-xl border border-[color:var(--line)] overflow-hidden">
+                    <button onClick={() => { setExpandedTicketId(isExp ? null : m.id); setNoteText(""); }}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-[color:var(--background)] transition-colors text-left">
+                      <div className={`w-1.5 h-10 rounded-full shrink-0 ${st==="resolved" ? "bg-[color:var(--success)]" : st==="in_progress" ? "bg-[color:var(--trust)]" : "bg-[color:var(--warning)]"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-[color:var(--foreground)]">{m.title}</p>
+                        <p className="text-[11px] text-[color:var(--muted)] mt-0.5">{m.category} · {m.date}{ext?.assignee ? ` · ${ext.assignee}` : " · Unassigned"}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <StatusChip status={m.priority} />
+                        <StatusChip status={st} />
+                        <ChevronDown size={15} className={`text-[color:var(--muted)] transition-transform duration-200 ${isExp ? "rotate-180" : ""}`} />
+                      </div>
+                    </button>
+
+                    {isExp && ext && (
+                      <div className="bg-[color:var(--background)] border-t border-[color:var(--line)] p-5 space-y-4">
+                        <p className="text-xs text-[color:var(--foreground)] leading-relaxed">{ext.description}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] block mb-1">Assignee</label>
+                            <input defaultValue={ext.assignee ?? ""} placeholder="e.g. Ramu (Electrician)"
+                              className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] block mb-1">Status</label>
+                            <select value={st} onChange={(e) => setTicketStatuses((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                              className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]">
+                              <option value="pending">Pending</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="resolved">Resolved</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-3">Activity</h5>
+                          <div className="space-y-3">
+                            {ext.comments.map((c, i) => (
+                              <div key={i} className="flex gap-2.5">
+                                <div className="w-6 h-6 rounded-full bg-[color:var(--accent-100)] text-[color:var(--accent-700)] flex items-center justify-center text-[9px] font-bold shrink-0">
+                                  {c.author.split(" ").map((w) => w[0]).join("")}
+                                </div>
+                                <div className="flex-1 bg-white rounded-xl border border-[color:var(--line)] px-3 py-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-[10px] font-bold text-[color:var(--foreground)]">{c.author}</span>
+                                    <span className="text-[10px] text-[color:var(--muted)]">{c.time}</span>
+                                  </div>
+                                  <p className="text-[11px] text-[color:var(--foreground)]">{c.text}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2 mt-3">
+                            <input value={noteText} onChange={(e) => setNoteText(e.target.value)}
+                              placeholder="Add a note or update…"
+                              className="flex-1 border border-[color:var(--line)] rounded-xl px-3 py-2 text-xs bg-white outline-none focus:border-[color:var(--accent-400)]" />
+                            <button onClick={() => setNoteText("")}
+                              className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-[11px] font-bold px-3 py-2 rounded-xl transition-colors">
+                              Post
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 function PropertiesTab() {
+  const [managingId, setManagingId] = useState<string | null>(null);
+  const managing = PROPERTIES.find((p) => p.id === managingId);
+
+  if (managing) {
+    return <ManagePropertyView property={managing} onBack={() => setManagingId(null)} />;
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
       {PROPERTIES.map((p) => (
-        <div key={p.id} className="bg-white rounded-2xl border border-[color:var(--line)] p-6 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-start justify-between mb-4">
-            <div className="w-10 h-10 rounded-xl bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--accent-600)]">
-              <Building2 size={18} strokeWidth={1.75} />
+        <div key={p.id} className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+          {/* Cover image */}
+          {p.image ? (
+            <img src={p.image} alt={p.name} className="w-full h-36 object-cover" />
+          ) : (
+            <div className="w-full h-36 bg-gradient-to-br from-violet-900 via-violet-800 to-indigo-900 flex items-center justify-center">
+              <Building2 size={36} strokeWidth={1.25} className="text-white/40" />
             </div>
-            <StatusChip status={p.pending > 0 ? "pending" : "paid"} />
+          )}
+          <div className="p-5 flex flex-col flex-1">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="text-sm font-bold text-[color:var(--foreground)]">{p.name}</h3>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">{p.address}</p>
+              </div>
+              <StatusChip status={p.pending > 0 ? "pending" : "paid"} />
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center mb-4">
+              <div className="bg-[color:var(--background)] rounded-xl py-2">
+                <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds}</p>
+                <p className="text-[10px] text-[color:var(--muted)]">Total</p>
+              </div>
+              <div className="bg-[color:var(--accent-50)] rounded-xl py-2">
+                <p className="text-base font-bold text-[color:var(--accent-700)]">{p.occupied}</p>
+                <p className="text-[10px] text-[color:var(--accent-600)]">Occupied</p>
+              </div>
+              <div className="bg-[color:var(--background)] rounded-xl py-2">
+                <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds - p.occupied}</p>
+                <p className="text-[10px] text-[color:var(--muted)]">Vacant</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-auto pt-4 border-t border-[color:var(--line)]">
+              <p className="text-xs text-[color:var(--muted)]">
+                Rent: <span className="font-semibold text-[color:var(--foreground)]">₹{p.rent.toLocaleString("en-IN")}/bed</span>
+              </p>
+              <button
+                onClick={() => setManagingId(p.id)}
+                className="flex items-center gap-1 text-xs font-semibold text-[color:var(--accent-600)] hover:text-[color:var(--accent-700)] bg-[color:var(--accent-50)] hover:bg-[color:var(--accent-100)] px-3 py-1.5 rounded-lg transition-colors"
+              >
+                <Settings size={12} strokeWidth={2} />
+                Manage
+              </button>
+            </div>
           </div>
-          <h3 className="text-sm font-bold text-[color:var(--foreground)] mb-1">{p.name}</h3>
-          <p className="text-xs text-[color:var(--muted)] mb-4">{p.address}</p>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-[color:var(--background)] rounded-xl py-2">
-              <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds}</p>
-              <p className="text-[10px] text-[color:var(--muted)]">Total</p>
-            </div>
-            <div className="bg-[color:var(--accent-50)] rounded-xl py-2">
-              <p className="text-base font-bold text-[color:var(--accent-700)]">{p.occupied}</p>
-              <p className="text-[10px] text-[color:var(--accent-600)]">Occupied</p>
-            </div>
-            <div className="bg-[color:var(--background)] rounded-xl py-2">
-              <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds - p.occupied}</p>
-              <p className="text-[10px] text-[color:var(--muted)]">Vacant</p>
-            </div>
-          </div>
-          <p className="text-xs text-[color:var(--muted)] mt-4 pt-4 border-t border-[color:var(--line)]">
-            Rent: <span className="font-semibold text-[color:var(--foreground)]">₹{p.rent.toLocaleString("en-IN")}/bed</span>
-          </p>
         </div>
       ))}
       <button className="rounded-2xl border-2 border-dashed border-[color:var(--line)] p-6 flex flex-col items-center justify-center gap-2 text-[color:var(--muted)] hover:border-[color:var(--accent-500)] hover:text-[color:var(--accent-600)] transition-colors min-h-[220px]">
