@@ -7,12 +7,13 @@ import {
   Home, CreditCard, Wrench, Bell, ChevronLeft, Menu,
   CheckCircle2, Clock, IndianRupee, Calendar,
   Plus, Download, Send, FileText, Users, MapPin, Phone,
-  Shield,
+  Shield, User, Lock, Smartphone, ToggleLeft, ToggleRight,
+  Edit3, Eye, EyeOff, Trash2, Settings, LogOut,
 } from "lucide-react";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type NavId = "overview" | "myroom" | "payments" | "maintenance" | "notices";
+type NavId = "overview" | "myroom" | "payments" | "maintenance" | "notices" | "account";
 
 // ─── Mock data ─────────────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ const NAV_LABELS: Record<NavId, string> = {
   payments:    "Payments",
   maintenance: "Maintenance",
   notices:     "Notices",
+  account:     "Account",
 };
 const NAV_ICONS: Record<NavId, React.ReactElement> = {
   overview:    <Home       size={15} strokeWidth={1.75} />,
@@ -79,6 +81,7 @@ const NAV_ICONS: Record<NavId, React.ReactElement> = {
   payments:    <CreditCard size={15} strokeWidth={1.75} />,
   maintenance: <Wrench     size={15} strokeWidth={1.75} />,
   notices:     <Bell       size={15} strokeWidth={1.75} />,
+  account:     <User       size={15} strokeWidth={1.75} />,
 };
 
 // ─── Small components ──────────────────────────────────────────────────────────
@@ -686,6 +689,249 @@ function NoticesSection() {
   );
 }
 
+function AccountSection() {
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: TENANT.name, email: "rahul.sharma@gmail.com", phone: "9876543210",
+  });
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const [showOldPwd, setShowOldPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSaved, setPwdSaved] = useState(false);
+
+  const [notifs, setNotifs] = useState({
+    rentReminders: true, maintenanceUpdates: true, notices: true,
+    whatsapp: true, sms: false,
+  });
+
+  const [idDocs, setIdDocs] = useState([
+    { label: "Aadhar Card", status: "verified", number: "XXXX-XXXX-4821" },
+    { label: "PAN Card",    status: "pending",  number: "—" },
+  ]);
+
+  function saveProfile() {
+    setEditingProfile(false);
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2500);
+  }
+
+  function savePwd() {
+    if (!pwdForm.old) { setPwdError("Enter your current password."); return; }
+    if (pwdForm.next.length < 6) { setPwdError("Min. 6 characters required."); return; }
+    if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
+    setPwdError(null);
+    setPwdForm({ old: "", next: "", confirm: "" });
+    setPwdSaved(true);
+    setTimeout(() => setPwdSaved(false), 2500);
+  }
+
+  const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-success-600 focus:ring-2 focus:ring-success-50 placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const CARD  = "bg-white rounded-2xl border border-[color:var(--background)] shadow-sm p-5";
+  const SEC   = "text-sm font-bold text-[color:var(--foreground)] mb-4 flex items-center gap-2";
+
+  return (
+    <div className="max-w-lg mx-auto space-y-4 pb-8">
+
+      {/* Profile */}
+      <div className={CARD}>
+        <div className="flex items-start justify-between mb-4">
+          <h2 className={SEC}><User size={14} className="text-success-600" /> Profile</h2>
+          {!editingProfile ? (
+            <button onClick={() => setEditingProfile(true)}
+              className="flex items-center gap-1 text-xs font-semibold text-success-700 hover:underline">
+              <Edit3 size={11} /> Edit
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setEditingProfile(false)} className="text-xs text-slate-400 hover:text-slate-700">Cancel</button>
+              <button onClick={saveProfile}
+                className="text-xs font-semibold bg-success-700 text-white px-3 py-1 rounded-lg hover:bg-success-800 transition-colors">Save</button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3 mb-5">
+          <div className="w-14 h-14 rounded-2xl bg-success-50 border border-[color:var(--success)]/20 flex items-center justify-center text-lg font-bold text-success-700 shrink-0">
+            {TENANT.initials}
+          </div>
+          <div>
+            <p className="text-sm font-bold text-[color:var(--foreground)]">{profileForm.name}</p>
+            <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-50 text-success-700 uppercase tracking-wide">
+              Tenant
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {[
+            { label: "Full Name", key: "name",  type: "text" },
+            { label: "Email",     key: "email", type: "email" },
+            { label: "Mobile",    key: "phone", type: "tel" },
+          ].map(({ label, key, type }) => (
+            <div key={key} className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
+              <input
+                type={type}
+                disabled={!editingProfile}
+                value={profileForm[key as keyof typeof profileForm]}
+                onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                className={INPUT}
+              />
+            </div>
+          ))}
+        </div>
+        {profileSaved && (
+          <p className="mt-3 text-xs text-success-700 bg-success-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
+            <CheckCircle2 size={12} /> Profile updated.
+          </p>
+        )}
+      </div>
+
+      {/* Current tenancy (read-only summary) */}
+      <div className={CARD}>
+        <h2 className={SEC}><Home size={14} className="text-success-600" /> Current Tenancy</h2>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          {[
+            { label: "PG",       value: TENANT.pg },
+            { label: "Room",     value: `${TENANT.room} · ${TENANT.type}` },
+            { label: "Check-in", value: TENANT.checkIn },
+            { label: "Lease end",value: TENANT.leaseEnd },
+            { label: "Rent",     value: `₹${TENANT.rent.toLocaleString()}/mo` },
+            { label: "Deposit",  value: `₹${TENANT.deposit.toLocaleString()}` },
+          ].map(({ label, value }) => (
+            <div key={label}>
+              <p className="text-[11px] text-slate-400 mb-0.5">{label}</p>
+              <p className="font-semibold text-[color:var(--foreground)]">{value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ID Documents */}
+      <div className={CARD}>
+        <h2 className={SEC}><FileText size={14} className="text-success-600" /> Identity Documents</h2>
+        <div className="space-y-2">
+          {idDocs.map((doc, i) => (
+            <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-[color:var(--background)] bg-[color:var(--background)]">
+              <div>
+                <p className="text-sm font-semibold text-[color:var(--foreground)]">{doc.label}</p>
+                <p className="text-[11px] text-slate-400">{doc.number}</p>
+              </div>
+              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide ${
+                doc.status === "verified"
+                  ? "bg-success-50 text-success-700"
+                  : "bg-warning-50 text-warning-700"
+              }`}>
+                {doc.status === "verified" ? "Verified" : "Pending"}
+              </span>
+            </div>
+          ))}
+        </div>
+        <button className="mt-3 w-full text-xs font-semibold border border-dashed border-slate-300 text-slate-500 hover:border-success-400 hover:text-success-700 py-2.5 rounded-xl transition-colors">
+          + Upload Document
+        </button>
+      </div>
+
+      {/* Notifications */}
+      <div className={CARD}>
+        <h2 className={SEC}><Bell size={14} className="text-success-600" /> Notifications</h2>
+        <div className="space-y-0.5">
+          {([
+            { key: "rentReminders",    label: "Rent due reminders",   sub: "Reminded 5 days before due date" },
+            { key: "maintenanceUpdates",label: "Maintenance updates", sub: "When your ticket status changes" },
+            { key: "notices",          label: "Owner notices",        sub: "Announcements from your PG" },
+          ] as const).map(({ key, label, sub }) => (
+            <div key={key} className="flex items-center justify-between py-3 border-b border-[color:var(--background)] last:border-0">
+              <div>
+                <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
+                <p className="text-[11px] text-slate-400">{sub}</p>
+              </div>
+              <button onClick={() => setNotifs(n => ({ ...n, [key]: !n[key] }))} className="shrink-0 ml-4">
+                {notifs[key]
+                  ? <ToggleRight size={24} className="text-success-600" />
+                  : <ToggleLeft  size={24} className="text-slate-300" />}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mt-3 mb-2">Via</p>
+        <div className="flex gap-2">
+          {(["whatsapp", "sms"] as const).map(ch => (
+            <button key={ch}
+              onClick={() => setNotifs(n => ({ ...n, [ch]: !n[ch] }))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                notifs[ch]
+                  ? "bg-success-700 text-white border-success-700"
+                  : "border-slate-200 text-slate-400 hover:border-success-400"
+              }`}
+            >
+              <Smartphone size={11} />
+              {ch === "whatsapp" ? "WhatsApp" : "SMS"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Security */}
+      <div className={CARD}>
+        <h2 className={SEC}><Lock size={14} className="text-success-600" /> Change Password</h2>
+        <div className="space-y-3">
+          {[
+            { label: "Current password", key: "old",     show: showOldPwd, toggle: () => setShowOldPwd(v => !v) },
+            { label: "New password",     key: "next",    show: showNewPwd, toggle: () => setShowNewPwd(v => !v) },
+            { label: "Confirm password", key: "confirm", show: showNewPwd, toggle: () => {} },
+          ].map(({ label, key, show, toggle }) => (
+            <div key={key} className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
+              <div className="relative">
+                <input
+                  type={show ? "text" : "password"}
+                  placeholder="••••••"
+                  value={pwdForm[key as keyof typeof pwdForm]}
+                  onChange={e => setPwdForm(f => ({ ...f, [key]: e.target.value }))}
+                  className={INPUT + " pr-10"}
+                />
+                {key !== "confirm" && (
+                  <button type="button" onClick={toggle}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
+                    {show ? <EyeOff size={13} /> : <Eye size={13} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {pwdError && (
+          <p className="mt-2 text-xs text-error-700 bg-error-50 rounded-lg px-3 py-2">{pwdError}</p>
+        )}
+        {pwdSaved && (
+          <p className="mt-2 text-xs text-success-700 bg-success-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
+            <CheckCircle2 size={12} /> Password updated.
+          </p>
+        )}
+        <button onClick={savePwd}
+          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">
+          Update Password
+        </button>
+      </div>
+
+      {/* Danger */}
+      <div className={`${CARD} border-error/20`}>
+        <h2 className={`${SEC} text-error-700`}><Trash2 size={14} className="text-error" /> Danger Zone</h2>
+        <p className="text-sm text-slate-500 mb-4">
+          Requesting deletion will remove your account and data within 30 days. Contact your owner first to settle any pending dues.
+        </p>
+        <button className="text-xs font-semibold border border-error/30 text-error-700 hover:bg-error-50 px-4 py-2.5 rounded-xl transition-colors">
+          Request Account Deletion
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main export ───────────────────────────────────────────────────────────────
 
 export default function TenantDashboardClient() {
@@ -707,6 +953,7 @@ export default function TenantDashboardClient() {
     payments:    "Payments",
     maintenance: "Maintenance",
     notices:     "Notices",
+    account:     "Account",
   };
 
   return (
@@ -765,23 +1012,34 @@ export default function TenantDashboardClient() {
         </div>
 
         {/* Profile footer */}
-        <div className="px-4 py-4 border-t border-[color:var(--background)] shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-accent-100 flex items-center justify-center text-xs font-bold text-success-700 shrink-0">
+        <div className="px-3 py-3 border-t border-[color:var(--background)] shrink-0 space-y-0.5">
+          <button
+            onClick={() => { setActiveNav("account"); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors text-left ${
+              activeNav === "account"
+                ? "bg-success-700 text-white"
+                : "hover:bg-[color:var(--background)] text-slate-600"
+            }`}
+          >
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 ${
+              activeNav === "account" ? "bg-white/20 text-white" : "bg-success-50 text-success-700"
+            }`}>
               {TENANT.initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-800 truncate">{TENANT.name}</p>
-              <p className="text-[11px] text-slate-400">Room {TENANT.room} · {TENANT.pg}</p>
+              <p className="text-xs font-bold truncate">{TENANT.name}</p>
+              <p className={`text-[10px] truncate ${activeNav === "account" ? "text-white/60" : "text-slate-400"}`}>
+                Room {TENANT.room} · {TENANT.pg}
+              </p>
             </div>
-            <button
-              onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); }}
-              className="text-[11px] text-slate-400 hover:text-error-700 transition-colors shrink-0"
-              title="Sign out"
-            >
-              Out
-            </button>
-          </div>
+            <Settings size={12} className={activeNav === "account" ? "text-white/50" : "text-slate-300"} />
+          </button>
+          <button
+            onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); router.push("/login"); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-400 hover:text-error-700 hover:bg-error-50 transition-colors"
+          >
+            <LogOut size={13} /> Sign out
+          </button>
         </div>
       </aside>
 
@@ -825,6 +1083,7 @@ export default function TenantDashboardClient() {
           {activeNav === "payments"    && <PaymentsSection />}
           {activeNav === "maintenance" && <MaintenanceSection />}
           {activeNav === "notices"     && <NoticesSection />}
+          {activeNav === "account"     && <AccountSection />}
         </main>
       </div>
     </div>

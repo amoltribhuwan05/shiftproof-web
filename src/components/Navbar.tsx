@@ -61,7 +61,7 @@ export default function Navbar() {
         {/* Desktop actions — one CTA, one sign-in */}
         <div className="hidden lg:flex items-center gap-3">
           <Link
-            href="/owner-dashboard"
+            href="/login"
             className="text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
           >
             Sign in
@@ -100,7 +100,7 @@ export default function Navbar() {
           ))}
           <div className="h-px bg-[color:var(--line)] my-2" />
           <Link
-            href="/owner-dashboard"
+            href="/login"
             className="py-3 text-base text-[color:var(--muted)]"
             onClick={() => setMobileOpen(false)}
           >

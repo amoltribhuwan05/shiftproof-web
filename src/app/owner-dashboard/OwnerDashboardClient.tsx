@@ -10,6 +10,7 @@ import {
   ChevronRight, Download, IndianRupee, BedDouble, Home,
   ArrowLeft, MapPin, Edit3, Camera, Wifi, Car, Dumbbell, Phone, Mail,
   ChevronDown, FileText, CalendarDays, Banknote, UserX, ShieldCheck,
+  User, Lock, Smartphone, ToggleLeft, ToggleRight, Landmark, Trash2, Eye, EyeOff,
 } from "lucide-react";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -318,7 +319,7 @@ function OverviewTab() {
         </div>
 
         {/* At a Glance */}
-        <div className="bg-[color:var(--foreground)] rounded-2xl p-6 text-white shadow-sm">
+        <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-sm">
           <h3 className="text-sm font-bold text-white mb-5">At a Glance</h3>
           <div className="space-y-4">
             {AT_A_GLANCE.map((g) => (
@@ -1226,37 +1227,684 @@ function ReportsTab() {
   );
 }
 
+function AccountTab() {
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "Ravi Kumar", email: "ravi.kumar@gmail.com",
+    phone: "9876543210", gst: "29AABCU9603R1ZX", pan: "AABCU9603R",
+  });
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  const [showOldPwd, setShowOldPwd] = useState(false);
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSaved, setPwdSaved] = useState(false);
+
+  const [notifs, setNotifs] = useState({
+    rentReminders: true, maintenanceAlerts: true,
+    leaseExpiry: true, paymentReceipts: true,
+    whatsapp: true, email: true, sms: false,
+  });
+
+  const [bankForm, setBankForm] = useState({
+    accountName: "Ravi Kumar", accountNumber: "••••••••4821",
+    ifsc: "HDFC0001234", bank: "HDFC Bank",
+  });
+  const [editingBank, setEditingBank] = useState(false);
+
+  function saveProfile() {
+    setEditingProfile(false);
+    setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 2500);
+  }
+
+  function savePwd() {
+    if (!pwdForm.old) { setPwdError("Enter your current password."); return; }
+    if (pwdForm.next.length < 6) { setPwdError("New password must be at least 6 characters."); return; }
+    if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
+    setPwdError(null);
+    setPwdForm({ old: "", next: "", confirm: "" });
+    setPwdSaved(true);
+    setTimeout(() => setPwdSaved(false), 2500);
+  }
+
+  const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const CARD = "bg-white rounded-2xl border border-[color:var(--line)] p-6 shadow-sm";
+  const SEC_TITLE = "text-sm font-bold text-[color:var(--foreground)] mb-4 flex items-center gap-2";
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-5 pb-8">
+
+      {/* Profile card */}
+      <div className={CARD}>
+        <div className="flex items-start justify-between mb-5">
+          <h2 className={SEC_TITLE}>
+            <User size={15} className="text-[color:var(--accent-500)]" /> Profile
+          </h2>
+          {!editingProfile ? (
+            <button onClick={() => setEditingProfile(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-600)] hover:underline">
+              <Edit3 size={12} /> Edit
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setEditingProfile(false)}
+                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]">Cancel</button>
+              <button onClick={saveProfile}
+                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-3 py-1 rounded-lg hover:bg-[color:var(--accent-600)] transition-colors">Save</button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-16 h-16 rounded-2xl bg-[color:var(--accent-500)]/15 flex items-center justify-center text-xl font-bold text-[color:var(--accent-600)] shrink-0">
+            RK
+          </div>
+          <div>
+            <p className="text-base font-bold text-[color:var(--foreground)]">{profileForm.name}</p>
+            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[color:var(--accent-100)] text-[color:var(--accent-700)] uppercase tracking-wide">
+              <Building2 size={9} /> PG Owner
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: "Full Name",    key: "name",  type: "text" },
+            { label: "Email",        key: "email", type: "email" },
+            { label: "Mobile",       key: "phone", type: "tel" },
+            { label: "GST Number",   key: "gst",   type: "text" },
+            { label: "PAN Number",   key: "pan",   type: "text" },
+          ].map(({ label, key, type }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
+              <input
+                type={type}
+                disabled={!editingProfile}
+                value={profileForm[key as keyof typeof profileForm]}
+                onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                className={INPUT}
+              />
+            </div>
+          ))}
+        </div>
+
+        {profileSaved && (
+          <p className="mt-3 text-xs text-[color:var(--success-700)] bg-[color:var(--success-50)] rounded-lg px-3 py-2 flex items-center gap-1.5">
+            <CheckCircle2 size={12} /> Profile updated successfully.
+          </p>
+        )}
+      </div>
+
+      {/* Subscription card */}
+      <div className={CARD}>
+        <h2 className={SEC_TITLE}>
+          <CreditCard size={15} className="text-[color:var(--accent-500)]" /> Subscription
+        </h2>
+        <div className="flex items-center justify-between p-4 rounded-xl bg-[color:var(--accent-500)]/8 border border-[color:var(--accent-200)] mb-4">
+          <div>
+            <p className="text-sm font-bold text-[color:var(--foreground)]">Growth Plan</p>
+            <p className="text-[11px] text-[color:var(--muted)] mt-0.5">Up to 5 properties · 50 tenants</p>
+          </div>
+          <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-[color:var(--accent-500)] text-white uppercase tracking-wide">Active</span>
+        </div>
+        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+          <div>
+            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Billing cycle</p>
+            <p className="font-semibold text-[color:var(--foreground)]">Monthly · ₹999/mo</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Next renewal</p>
+            <p className="font-semibold text-[color:var(--foreground)]">May 15, 2025</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Trial ends</p>
+            <p className="font-semibold text-[color:var(--foreground)]">Converted · Apr 1, 2025</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Properties used</p>
+            <p className="font-semibold text-[color:var(--foreground)]">3 of 5</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button className="flex-1 text-xs font-semibold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2.5 rounded-xl transition-colors">
+            Upgrade to Enterprise
+          </button>
+          <button className="text-xs font-semibold border border-[color:var(--line)] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-4 py-2.5 rounded-xl transition-colors">
+            View Invoices
+          </button>
+        </div>
+      </div>
+
+      {/* Bank / payout */}
+      <div className={CARD}>
+        <div className="flex items-start justify-between mb-4">
+          <h2 className={SEC_TITLE}>
+            <Landmark size={15} className="text-[color:var(--accent-500)]" /> Payout Bank Account
+          </h2>
+          {!editingBank ? (
+            <button onClick={() => setEditingBank(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-600)] hover:underline">
+              <Edit3 size={12} /> Edit
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setEditingBank(false)}
+                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]">Cancel</button>
+              <button onClick={() => setEditingBank(false)}
+                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-3 py-1 rounded-lg hover:bg-[color:var(--accent-600)] transition-colors">Save</button>
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: "Account Holder", key: "accountName" },
+            { label: "Bank",           key: "bank" },
+            { label: "Account Number", key: "accountNumber" },
+            { label: "IFSC Code",      key: "ifsc" },
+          ].map(({ label, key }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
+              <input
+                type="text"
+                disabled={!editingBank}
+                value={bankForm[key as keyof typeof bankForm]}
+                onChange={e => setBankForm(f => ({ ...f, [key]: e.target.value }))}
+                className={INPUT}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Notifications */}
+      <div className={CARD}>
+        <h2 className={SEC_TITLE}>
+          <Bell size={15} className="text-[color:var(--accent-500)]" /> Notification Preferences
+        </h2>
+        <div className="space-y-1">
+          {([
+            { key: "rentReminders",    label: "Rent due reminders",       sub: "5 days and 1 day before due date" },
+            { key: "maintenanceAlerts",label: "Maintenance alerts",        sub: "New ticket raised by tenant" },
+            { key: "leaseExpiry",      label: "Lease expiry warnings",     sub: "30 days before lease end" },
+            { key: "paymentReceipts",  label: "Payment receipts",          sub: "When a tenant pays rent" },
+          ] as const).map(({ key, label, sub }) => (
+            <div key={key} className="flex items-center justify-between py-3 border-b border-[color:var(--line)] last:border-0">
+              <div>
+                <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
+                <p className="text-[11px] text-[color:var(--muted)]">{sub}</p>
+              </div>
+              <button onClick={() => setNotifs(n => ({ ...n, [key]: !n[key] }))} className="shrink-0 ml-4">
+                {notifs[key]
+                  ? <ToggleRight size={26} className="text-[color:var(--accent-500)]" />
+                  : <ToggleLeft  size={26} className="text-[color:var(--muted)]" />}
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide mt-4 mb-2">Channels</p>
+        <div className="flex flex-wrap gap-2">
+          {(["whatsapp", "email", "sms"] as const).map(ch => (
+            <button
+              key={ch}
+              onClick={() => setNotifs(n => ({ ...n, [ch]: !n[ch] }))}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                notifs[ch]
+                  ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
+                  : "border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--accent-300)]"
+              }`}
+            >
+              <Smartphone size={11} />
+              {ch.charAt(0).toUpperCase() + ch.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Security */}
+      <div className={CARD}>
+        <h2 className={SEC_TITLE}>
+          <Lock size={15} className="text-[color:var(--accent-500)]" /> Security
+        </h2>
+        <div className="space-y-3">
+          {[
+            { label: "Current password", key: "old",     show: showOldPwd, toggle: () => setShowOldPwd(v => !v) },
+            { label: "New password",     key: "next",    show: showNewPwd, toggle: () => setShowNewPwd(v => !v) },
+            { label: "Confirm password", key: "confirm", show: showNewPwd, toggle: () => {} },
+          ].map(({ label, key, show, toggle }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
+              <div className="relative">
+                <input
+                  type={show ? "text" : "password"}
+                  placeholder="••••••"
+                  value={pwdForm[key as keyof typeof pwdForm]}
+                  onChange={e => setPwdForm(f => ({ ...f, [key]: e.target.value }))}
+                  className={INPUT + " pr-10"}
+                />
+                {key !== "confirm" && (
+                  <button type="button" onClick={toggle}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--muted)] hover:text-[color:var(--foreground)]">
+                    {show ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        {pwdError && (
+          <p className="mt-3 text-xs text-[color:var(--error-700)] bg-[color:var(--error-50)] rounded-lg px-3 py-2">{pwdError}</p>
+        )}
+        {pwdSaved && (
+          <p className="mt-3 text-xs text-[color:var(--success-700)] bg-[color:var(--success-50)] rounded-lg px-3 py-2 flex items-center gap-1.5">
+            <CheckCircle2 size={12} /> Password changed successfully.
+          </p>
+        )}
+        <button onClick={savePwd}
+          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">
+          Update Password
+        </button>
+      </div>
+
+      {/* Danger zone */}
+      <div className={`${CARD} border-[color:var(--error)]/30`}>
+        <h2 className={`${SEC_TITLE} text-[color:var(--error-700)]`}>
+          <Trash2 size={15} className="text-[color:var(--error)]" /> Danger Zone
+        </h2>
+        <p className="text-sm text-[color:var(--muted)] mb-4">
+          Deactivating your account will remove all properties and tenant data permanently after 30 days. This cannot be undone.
+        </p>
+        <button className="text-xs font-semibold border border-[color:var(--error)]/40 text-[color:var(--error-700)] hover:bg-[color:var(--error-50)] px-4 py-2.5 rounded-xl transition-colors">
+          Request Account Deactivation
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SECTION_TITLES: Record<string, string> = {
   overview: "Good morning, Ravi", properties: "Properties",
   tenants: "Tenants", payments: "Payments",
   maintenance: "Maintenance", reports: "Reports",
+  account: "Account",
 };
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+// ─── Search overlay ──────────────────────────────────────────────────────────
+
+const SEARCH_INDEX = [
+  ...PROPERTIES.map(p => ({ type: "Property", label: p.name, sub: p.address, nav: "properties" })),
+  ...TENANTS.map(t  => ({ type: "Tenant",   label: t.name,  sub: `${t.property} · Room ${t.room}`, nav: "tenants" })),
+  ...MAINTENANCE.map(m => ({ type: "Ticket", label: m.title, sub: `${m.property} · ${m.status}`, nav: "maintenance" })),
+];
+
+function SearchOverlay({ onClose, onNav }: { onClose: () => void; onNav: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const results = q.trim().length > 0
+    ? SEARCH_INDEX.filter(item =>
+        item.label.toLowerCase().includes(q.toLowerCase()) ||
+        item.sub.toLowerCase().includes(q.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div className="relative w-full max-w-lg bg-[color:var(--surface-card)] rounded-2xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-[color:var(--line)]">
+          <Search size={16} className="text-[color:var(--muted)] shrink-0" />
+          <input
+            autoFocus
+            type="text"
+            placeholder="Search tenants, properties, tickets…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            className="flex-1 text-sm text-[color:var(--foreground)] bg-transparent outline-none placeholder:text-[color:var(--muted)]"
+          />
+          <kbd className="hidden sm:block text-[10px] text-[color:var(--muted)] bg-[color:var(--background)] px-1.5 py-0.5 rounded border border-[color:var(--line)]">ESC</kbd>
+        </div>
+        {results.length > 0 && (
+          <ul className="py-2 max-h-72 overflow-y-auto">
+            {results.map((r, i) => (
+              <li key={i}>
+                <button
+                  onClick={() => { onNav(r.nav); onClose(); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[color:var(--background)] transition-colors text-left"
+                >
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    r.type === "Property"   ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" :
+                    r.type === "Tenant"     ? "bg-[color:var(--trust-50)] text-[color:var(--trust-700)]" :
+                                              "bg-[color:var(--warning-50)] text-[color:var(--warning-700)]"
+                  }`}>{r.type}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-[color:var(--foreground)] truncate">{r.label}</p>
+                    <p className="text-[11px] text-[color:var(--muted)] truncate">{r.sub}</p>
+                  </div>
+                  <ChevronRight size={13} className="text-[color:var(--muted)] shrink-0" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {q.trim().length > 0 && results.length === 0 && (
+          <p className="px-4 py-6 text-sm text-center text-[color:var(--muted)]">No results for &ldquo;{q}&rdquo;</p>
+        )}
+        {q.trim().length === 0 && (
+          <p className="px-4 py-5 text-xs text-center text-[color:var(--muted)]">Start typing to search across properties, tenants and tickets</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Notifications dropdown ───────────────────────────────────────────────────
+
+const NOTIF_DATA = [
+  { id: "n1", type: "error",   title: "3 overdue rent payments",      body: "Neha, Kiran & Sonia are overdue.",          time: "2h ago",  read: false, nav: "payments" },
+  { id: "n2", type: "warning", title: "Lease expiring — Amit Patel",  body: "Lease ends Apr 30. Renew or vacate?",       time: "1d ago",  read: false, nav: "tenants" },
+  { id: "n3", type: "warning", title: "Lease expiring — Kiran Rao",   body: "Lease ends Oct 25. Action needed.",         time: "1d ago",  read: true,  nav: "tenants" },
+  { id: "n4", type: "info",    title: "5 active maintenance requests", body: "2 high priority, 3 pending assignment.",    time: "3h ago",  read: false, nav: "maintenance" },
+  { id: "n5", type: "success", title: "Rent received — Rahul Sharma", body: "₹8,500 received for April 2025.",           time: "Apr 2",   read: true,  nav: "payments" },
+];
+
+function NotifDropdown({ onClose, onNav }: { onClose: () => void; onNav: (id: string) => void }) {
+  const [items, setItems] = useState(NOTIF_DATA);
+
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const iconColor: Record<string, string> = {
+    error: "text-[color:var(--error)]", warning: "text-[color:var(--warning-700)]",
+    info: "text-[color:var(--trust-700)]", success: "text-[color:var(--success-700)]",
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-[color:var(--surface-card)] rounded-2xl shadow-xl border border-[color:var(--line)] overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--line)]">
+          <p className="text-sm font-bold text-[color:var(--foreground)]">Notifications</p>
+          <button onClick={() => setItems(i => i.map(n => ({ ...n, read: true })))}
+            className="text-[11px] font-semibold text-[color:var(--accent-600)] hover:underline">
+            Mark all read
+          </button>
+        </div>
+        <ul className="max-h-80 overflow-y-auto divide-y divide-[color:var(--line)]">
+          {items.map(n => (
+            <li key={n.id}>
+              <button
+                onClick={() => { setItems(i => i.map(x => x.id === n.id ? { ...x, read: true } : x)); onNav(n.nav); onClose(); }}
+                className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--background)] ${!n.read ? "bg-[color:var(--accent-50)]" : ""}`}
+              >
+                <AlertCircle size={14} className={`${iconColor[n.type]} shrink-0 mt-0.5`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs font-semibold truncate ${!n.read ? "text-[color:var(--foreground)]" : "text-[color:var(--muted)]"}`}>{n.title}</p>
+                  <p className="text-[11px] text-[color:var(--muted)] truncate">{n.body}</p>
+                  <p className="text-[10px] text-[color:var(--muted)] mt-0.5">{n.time}</p>
+                </div>
+                {!n.read && <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--accent-500)] shrink-0 mt-1.5" />}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="px-4 py-2.5 border-t border-[color:var(--line)]">
+          <button onClick={onClose} className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Settings types + helpers ─────────────────────────────────────────────────
+
+const SETTINGS_KEY = "sp_owner_prefs";
+
+type DashSettings = {
+  theme: "light" | "dark" | "system";
+  density: "comfortable" | "compact";
+  dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY";
+  defaultPage: string;
+  sidebarCollapsed: boolean;
+};
+
+const DEFAULT_SETTINGS: DashSettings = {
+  theme: "light", density: "comfortable",
+  dateFormat: "DD/MM/YYYY", defaultPage: "overview", sidebarCollapsed: false,
+};
+
+function loadSettings(): DashSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+  } catch { return DEFAULT_SETTINGS; }
+}
+
+function resolveTheme(setting: DashSettings["theme"]): "light" | "dark" {
+  if (setting === "system") {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  return setting;
+}
+
+function formatTopbarDate(fmt: DashSettings["dateFormat"]): string {
+  const now = new Date();
+  const days  = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const dd  = String(now.getDate()).padStart(2,"0");
+  const mm  = String(now.getMonth() + 1).padStart(2,"0");
+  const yyyy = now.getFullYear();
+  const day  = days[now.getDay()];
+  const mon  = months[now.getMonth()];
+  if (fmt === "MM/DD/YYYY") return `${day}, ${mon} ${dd} ${yyyy}`;
+  return `${day}, ${dd} ${mon} ${yyyy}`;
+}
+
+// ─── Settings dropdown (controlled) ──────────────────────────────────────────
+
+function SettingsDropdown({
+  settings, onChange, onSave, onClose,
+}: {
+  settings: DashSettings;
+  onChange: (patch: Partial<DashSettings>) => void;
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const [saved, setSaved] = useState(false);
+
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function save() {
+    onSave();
+    setSaved(true);
+    setTimeout(() => { setSaved(false); onClose(); }, 1200);
+  }
+
+  const ROW  = "flex items-center justify-between py-3 border-b border-[color:var(--line)] last:border-0";
+  const LABEL = "text-sm font-medium text-[color:var(--foreground)]";
+  const SUB   = "text-[11px] text-[color:var(--muted)]";
+  const CHIP  = (active: boolean) =>
+    `px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+      active
+        ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
+        : "border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--accent-200)] hover:text-[color:var(--foreground)]"
+    }`;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-[color:var(--surface-card)] rounded-2xl shadow-xl border border-[color:var(--line)] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[color:var(--line)]">
+          <p className="text-sm font-bold text-[color:var(--foreground)]">Display & Preferences</p>
+          <p className="text-[11px] text-[color:var(--muted)] mt-0.5">Changes apply immediately · Saved to this browser</p>
+        </div>
+
+        <div className="px-4 py-1 divide-y divide-[color:var(--line)]">
+
+          {/* Theme */}
+          <div className={ROW}>
+            <div>
+              <p className={LABEL}>Theme</p>
+              <p className={SUB}>Colour scheme</p>
+            </div>
+            <div className="flex gap-1">
+              {(["light", "dark", "system"] as const).map(t => (
+                <button key={t} onClick={() => onChange({ theme: t })} className={CHIP(settings.theme === t)}>
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Density */}
+          <div className={ROW}>
+            <div>
+              <p className={LABEL}>Density</p>
+              <p className={SUB}>Card & list spacing</p>
+            </div>
+            <div className="flex gap-1">
+              {(["comfortable", "compact"] as const).map(d => (
+                <button key={d} onClick={() => onChange({ density: d })} className={CHIP(settings.density === d)}>
+                  {d === "comfortable" ? "Default" : "Compact"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date format */}
+          <div className={ROW}>
+            <div>
+              <p className={LABEL}>Date format</p>
+              <p className={SUB}>Shown in topbar & tables</p>
+            </div>
+            <div className="flex gap-1">
+              {(["DD/MM/YYYY", "MM/DD/YYYY"] as const).map(f => (
+                <button key={f} onClick={() => onChange({ dateFormat: f })} className={CHIP(settings.dateFormat === f)}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Default page */}
+          <div className={ROW}>
+            <div>
+              <p className={LABEL}>Default page</p>
+              <p className={SUB}>First tab after login</p>
+            </div>
+            <select
+              value={settings.defaultPage}
+              onChange={e => onChange({ defaultPage: e.target.value })}
+              className="text-xs border border-[color:var(--line)] rounded-lg px-2 py-1.5 text-[color:var(--foreground)] bg-[color:var(--background)] outline-none focus:border-[color:var(--accent-500)]"
+            >
+              {NAV_ITEMS.map(n => (
+                <option key={n.id} value={n.id}>{n.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Sidebar collapse */}
+          <div className={ROW}>
+            <div>
+              <p className={LABEL}>Compact sidebar</p>
+              <p className={SUB}>Icons only on desktop</p>
+            </div>
+            <button
+              onClick={() => onChange({ sidebarCollapsed: !settings.sidebarCollapsed })}
+              className={`w-9 h-5 rounded-full transition-colors relative ${settings.sidebarCollapsed ? "bg-[color:var(--accent-500)]" : "bg-slate-200"}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${settings.sidebarCollapsed ? "left-4" : "left-0.5"}`} />
+            </button>
+          </div>
+
+        </div>
+
+        <div className="px-4 py-3 border-t border-[color:var(--line)] flex items-center justify-between">
+          {saved
+            ? <p className="text-xs text-[color:var(--success-700)] flex items-center gap-1.5"><CheckCircle2 size={12} /> Saved to browser</p>
+            : <button onClick={save} className="text-xs font-semibold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2 rounded-xl transition-colors">
+                Save preferences
+              </button>
+          }
+          <button onClick={onClose} className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">Discard</button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function OwnerDashboardClient() {
   const router = useRouter();
+
   const [activeNav, setActiveNav] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Settings — loaded from localStorage, applied immediately on change
+  const [settings, setSettings] = useState<DashSettings>(DEFAULT_SETTINGS);
+  React.useEffect(() => {
+    const saved = loadSettings();
+    setSettings(saved);
+    if (saved.defaultPage && saved.defaultPage !== "overview") setActiveNav(saved.defaultPage);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function patchSettings(patch: Partial<DashSettings>) {
+    setSettings(prev => ({ ...prev, ...patch }));
+  }
+  function saveSettings() {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
+
+  const effectiveTheme = React.useMemo(() => resolveTheme(settings.theme), [settings.theme]);
+  const [searchOpen, setSearchOpen]   = useState(false);
+  const [notifOpen,  setNotifOpen]    = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const unreadCount = NOTIF_DATA.filter(n => !n.read).length;
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/login");
   }
 
+  const sidebarW  = settings.sidebarCollapsed ? "w-14"    : "w-[240px]";
+  const mainML    = settings.sidebarCollapsed ? "lg:ml-14" : "lg:ml-[240px]";
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[color:var(--background)]">
+    <div
+      className="flex h-screen overflow-hidden bg-[color:var(--background)]"
+      data-dash-theme={effectiveTheme}
+      data-dash-density={settings.density}
+    >
 
       {/* ── Sidebar ── */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-[240px] bg-[color:var(--foreground)] flex flex-col py-6 transition-transform duration-300
+      <aside className={`fixed inset-y-0 left-0 z-40 ${sidebarW} bg-[#1A1A18] flex flex-col py-6 transition-all duration-300
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
 
         {/* Logo */}
-        <div className="px-6 mb-8 flex items-center gap-2.5">
+        <div className={`mb-8 flex items-center gap-2.5 ${settings.sidebarCollapsed ? "justify-center px-0" : "px-6"}`}>
           <div className="w-7 h-7 rounded-full bg-[color:var(--accent-500)] flex items-center justify-center shrink-0">
             <Building2 size={14} strokeWidth={2} className="text-white" />
           </div>
-          <span className="font-bold text-lg text-white tracking-tight">ShiftProof</span>
+          {!settings.sidebarCollapsed && <span className="font-bold text-lg text-white tracking-tight">ShiftProof</span>}
         </div>
 
         {/* Nav */}
@@ -1265,33 +1913,45 @@ export default function OwnerDashboardClient() {
             <button
               key={item.id}
               onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors text-left ${
-                activeNav === item.id
-                  ? "bg-[color:var(--accent-500)]/20 text-white"
-                  : "text-white/50 hover:text-white hover:bg-white/5"
-              }`}
+              title={settings.sidebarCollapsed ? item.label : undefined}
+              className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors text-left
+                ${settings.sidebarCollapsed ? "justify-center px-0 py-2.5" : "px-4 py-2.5"}
+                ${activeNav === item.id ? "bg-[color:var(--accent-500)]/20 text-white" : "text-white/50 hover:text-white hover:bg-white/5"}`}
             >
               <item.icon size={17} strokeWidth={activeNav === item.id ? 2 : 1.75}
                 className={activeNav === item.id ? "text-[color:var(--accent-400)]" : ""} />
-              {item.label}
+              {!settings.sidebarCollapsed && item.label}
             </button>
           ))}
         </nav>
 
-        {/* Profile */}
-        <div className="px-4 pt-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-2">
+        {/* Profile footer */}
+        <div className={`pt-4 border-t border-white/10 ${settings.sidebarCollapsed ? "px-2" : "px-4"}`}>
+          <button
+            onClick={() => { setActiveNav("account"); setSidebarOpen(false); }}
+            title={settings.sidebarCollapsed ? `${OWNER.name} · Account` : undefined}
+            className={`w-full flex items-center gap-3 mb-2 px-2 py-2 rounded-xl transition-colors text-left ${
+              activeNav === "account" ? "bg-[color:var(--accent-500)]/20" : "hover:bg-white/5"
+            } ${settings.sidebarCollapsed ? "justify-center" : ""}`}
+          >
             <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)]/20 flex items-center justify-center text-xs font-bold text-[color:var(--accent-400)] shrink-0">
               {OWNER.initials}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-white truncate">{OWNER.name}</p>
-              <p className="text-[10px] text-white/40 truncate">{OWNER.properties} properties · {OWNER.beds} beds</p>
-            </div>
-          </div>
+            {!settings.sidebarCollapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-white truncate">{OWNER.name}</p>
+                  <p className="text-[10px] text-white/40 truncate">{OWNER.properties} properties · {OWNER.beds} beds</p>
+                </div>
+                <Settings size={13} className="text-white/30 shrink-0" />
+              </>
+            )}
+          </button>
           <button onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[11px] text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors">
-            <LogOut size={13} /> Sign out
+            title={settings.sidebarCollapsed ? "Sign out" : undefined}
+            className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg text-[11px] text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors ${settings.sidebarCollapsed ? "justify-center" : ""}`}>
+            <LogOut size={13} />
+            {!settings.sidebarCollapsed && "Sign out"}
           </button>
         </div>
       </aside>
@@ -1300,7 +1960,7 @@ export default function OwnerDashboardClient() {
       {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden lg:ml-[240px]">
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${mainML} transition-all duration-300`}>
 
         {/* Topbar */}
         <header className="flex items-center gap-3 px-5 h-14 bg-white border-b border-[color:var(--line)] shrink-0">
@@ -1309,21 +1969,54 @@ export default function OwnerDashboardClient() {
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-[color:var(--foreground)] truncate">{SECTION_TITLES[activeNav]}</p>
-            <p className="text-[11px] text-[color:var(--muted)] hidden sm:block">Tue, 15 Apr 2025</p>
+            <p className="text-[11px] text-[color:var(--muted)] hidden sm:block">{formatTopbarDate(settings.dateFormat)}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button className="w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-[color:var(--muted)] transition-colors">
+            {/* Search */}
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+              title="Search (⌘K)"
+            >
               <Search size={15} strokeWidth={1.75} />
             </button>
-            <button className="relative w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-[color:var(--muted)] transition-colors">
-              <Bell size={15} strokeWidth={1.75} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[color:var(--error)]" />
-            </button>
-            <button className="w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-[color:var(--muted)] transition-colors">
-              <Settings size={15} strokeWidth={1.75} />
-            </button>
+            {/* Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setNotifOpen(v => !v)}
+                className={`relative w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${notifOpen ? "bg-[color:var(--background)] text-[color:var(--foreground)]" : "hover:bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}
+                title="Notifications"
+              >
+                <Bell size={15} strokeWidth={1.75} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[color:var(--error)]" />
+                )}
+              </button>
+              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} onNav={(id) => { setActiveNav(id); setNotifOpen(false); }} />}
+            </div>
+            {/* Settings — UI preferences */}
+            <div className="relative">
+              <button
+                onClick={() => setSettingsOpen(v => !v)}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${settingsOpen ? "bg-[color:var(--background)] text-[color:var(--foreground)]" : "hover:bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}
+                title="Display & Preferences"
+              >
+                <Settings size={15} strokeWidth={1.75} />
+              </button>
+              {settingsOpen && (
+                <SettingsDropdown
+                  settings={settings}
+                  onChange={patchSettings}
+                  onSave={saveSettings}
+                  onClose={() => setSettingsOpen(false)}
+                />
+              )}
+            </div>
           </div>
         </header>
+
+        {/* Search overlay (portal-like, rendered inside main so it's above content) */}
+        {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} onNav={(id) => { setActiveNav(id); }} />}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
@@ -1333,6 +2026,7 @@ export default function OwnerDashboardClient() {
           {activeNav === "payments"    && <PaymentsTab />}
           {activeNav === "maintenance" && <MaintenanceTab />}
           {activeNav === "reports"     && <ReportsTab />}
+          {activeNav === "account"     && <AccountTab />}
         </main>
       </div>
 

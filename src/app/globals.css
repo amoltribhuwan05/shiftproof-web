@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source not "../../**/*.md";
 
 /*
  * SEMANTIC COLOR CONTRAST RULES — do not violate:
@@ -16,6 +17,7 @@
   --foreground: #1A1A18;   /* near-black */
   --muted: #6B6B66;        /* warm grey */
   --line: #E7E4DC;         /* hairline */
+  --surface-card: #ffffff; /* card / panel background */
 
   /* Forest green — single brand accent */
   --accent-50:  #E8F1EC;
@@ -50,8 +52,9 @@
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background:   var(--background);
+  --color-foreground:   var(--foreground);
+  --color-surface-card: var(--surface-card);
   --color-muted: var(--muted);
   --color-line: var(--line);
 
@@ -117,3 +120,66 @@ h1, h2, .serif {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Dashboard dark theme ─────────────────────────────────────────────────── */
+[data-dash-theme="dark"] {
+  --background:   #141412;
+  --foreground:   #ECECE8;
+  --muted:        #7A7A74;
+  --line:         #2A2A26;
+  --surface-card: #1E1E1C;
+  --accent-50:    #0E2118;
+  --accent-100:   #162E20;
+  --accent-200:   #2D6A4F;
+  --accent-500:   #52B788;
+  --accent-600:   #40916C;
+  --accent-700:   #74C69D;
+  --success-50:   #0F2318;
+  --success:      #4ADE80;
+  --success-700:  #86EFAC;
+  --warning-50:   #1C1600;
+  --warning:      #FBBF24;
+  --warning-700:  #FDE68A;
+  --error-50:     #200A0A;
+  --error:        #F87171;
+  --error-700:    #FCA5A5;
+  --trust-50:     #0A1226;
+  --trust:        #60A5FA;
+  --trust-700:    #93C5FD;
+  color-scheme: dark;
+}
+
+/* bg-white → dark card surface */
+[data-dash-theme="dark"] .bg-white { background-color: #1E1E1C !important; }
+
+/* Borders */
+[data-dash-theme="dark"] .border-slate-200 { border-color: #2A2A26 !important; }
+[data-dash-theme="dark"] .border-slate-300 { border-color: #333330 !important; }
+[data-dash-theme="dark"] .divide-slate-100 > * + * { border-color: #2A2A26 !important; }
+
+/* Text — hardcoded slate → light equivalents in dark mode */
+[data-dash-theme="dark"] .text-slate-900 { color: #ECECE8 !important; }
+[data-dash-theme="dark"] .text-slate-800 { color: #D8D8D4 !important; }
+[data-dash-theme="dark"] .text-slate-700 { color: #C4C4C0 !important; }
+[data-dash-theme="dark"] .text-slate-600 { color: #A8A8A4 !important; }
+[data-dash-theme="dark"] .text-slate-500 { color: #8A8A84 !important; }
+[data-dash-theme="dark"] .text-slate-400 { color: #6A6A64 !important; }
+
+/* Form inputs */
+[data-dash-theme="dark"] input:not([type=range]),
+[data-dash-theme="dark"] select,
+[data-dash-theme="dark"] textarea {
+  background-color: #252522 !important;
+  color: #ECECE8 !important;
+  border-color: #2A2A26 !important;
+}
+
+/* Shadows */
+[data-dash-theme="dark"] .shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }
+[data-dash-theme="dark"] .shadow-xl  { box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; }
+[data-dash-theme="dark"] .shadow-2xl { box-shadow: 0 12px 48px rgba(0,0,0,0.7) !important; }
+
+/* ── Dashboard compact density ────────────────────────────────────────────── */
+[data-dash-density="compact"] [data-card] { padding: 0.875rem; }
+[data-dash-density="compact"] [data-card] h2 { margin-bottom: 0.625rem; }
+[data-dash-density="compact"] [data-row] { padding-top: 0.5rem; padding-bottom: 0.5rem; }

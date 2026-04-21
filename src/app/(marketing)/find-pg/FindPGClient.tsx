@@ -545,7 +545,12 @@ export default function FindPGClient() {
   const [sortBy,            setSortBy]            = useState<SortOption>("relevance");
   const [viewMode,          setViewMode]          = useState<ViewMode>("grid");
   const [filterOpen,        setFilterOpen]        = useState(false);
-  const [savedIds,          setSavedIds]          = useState<Set<string>>(new Set());
+  const [savedIds,          setSavedIds]          = useState<Set<string>>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem("sp_saved_pgs") : null;
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
   const [locationDetecting, setLocationDetecting] = useState(true);
   const [userCoords,        setUserCoords]        = useState<{ lat: number; lng: number } | null>(null);
   const [outsideIndia,      setOutsideIndia]      = useState(false);
@@ -585,6 +590,11 @@ export default function FindPGClient() {
 
   const toggleSave = (id: string) =>
     setSavedIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Persist saved IDs to localStorage whenever they change
+  useEffect(() => {
+    try { localStorage.setItem("sp_saved_pgs", JSON.stringify([...savedIds])); } catch { /* quota exceeded */ }
+  }, [savedIds]);
 
   // Changing city always resets locality selection and bounds
   const changeCity = (c: string) => { 

@@ -56,6 +56,21 @@ export default function Hero() {
                 </li>
               ))}
             </ul>
+
+            {/* Social proof stat bar */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-6 gap-y-3">
+              {[
+                { value: "2,000+", label: "owners" },
+                { value: "18,000+", label: "tenants" },
+                { value: "₹5 Cr", label: "ARR" },
+                { value: "12", label: "cities" },
+              ].map((s) => (
+                <div key={s.label} className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-semibold text-[color:var(--foreground)]">{s.value}</span>
+                  <span className="text-sm text-[color:var(--muted)]">{s.label}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Phone mock — Android punch-hole, no iPhone notch */}

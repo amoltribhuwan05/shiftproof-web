@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, LayoutDashboard } from "lucide-react";
 import SignupForm from "./SignupForm";
 
 export const metadata = {
@@ -65,6 +65,19 @@ export default async function SignupPage({
             </li>
           ))}
         </ul>
+
+        <div className="mt-8 pt-8 border-t border-[color:var(--line)]">
+          <p className="text-sm text-[color:var(--muted)]">
+            Want to access the web dashboard instead?{" "}
+            <Link
+              href="/auth/register"
+              className="text-[color:var(--accent-600)] font-medium hover:underline inline-flex items-center gap-1"
+            >
+              <LayoutDashboard size={13} />
+              Create a web account
+            </Link>
+          </p>
+        </div>
       </section>
     </main>
   );

@@ -39,7 +39,7 @@ const faqs = [
 ];
 
 export default function FAQ() {
-  const [open, setOpen] = useState<number | null>(0);
+  const [open, setOpen] = useState<number | null>(2);
 
   return (
     <section id="faq" className="py-14 sm:py-20 border-t border-[color:var(--line)]">

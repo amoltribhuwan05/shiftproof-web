@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { parseSession, SESSION_COOKIE } from "@/lib/users";
 import RegisterForm from "./RegisterForm";
 
@@ -26,10 +27,16 @@ export default async function RegisterPage() {
 
         <div className="rounded-2xl border border-[color:var(--line)] bg-white p-8 shadow-sm">
           <h1 className="text-xl font-semibold text-[color:var(--foreground)] mb-1">
-            Create your account
+            Create your web account
           </h1>
-          <p className="text-sm text-[color:var(--muted)] mb-6">
+          <p className="text-sm text-[color:var(--muted)] mb-1">
             Free for tenants. 14-day free trial for owners.
+          </p>
+          <p className="text-xs text-[color:var(--muted)] mb-6">
+            Looking for the Android app?{" "}
+            <Link href="/signup" className="text-[color:var(--accent-600)] font-medium hover:underline">
+              Get the app →
+            </Link>
           </p>
           <RegisterForm />
         </div>

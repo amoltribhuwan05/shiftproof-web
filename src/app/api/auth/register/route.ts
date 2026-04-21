@@ -23,7 +23,11 @@ export async function POST(req: NextRequest) {
   if (role !== "owner" && role !== "tenant") return NextResponse.json({ error: "Role must be owner or tenant" }, { status: 400 });
 
   if (findUserByEmail(email)) {
-    return NextResponse.json({ error: "An account with this email already exists" }, { status: 409 });
+    // Return same shape as a validation error — don't confirm whether the email is registered
+    return NextResponse.json(
+      { error: "Registration unsuccessful. If you already have an account, please sign in." },
+      { status: 400 }
+    );
   }
 
   const user = addUser({
