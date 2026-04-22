@@ -31,6 +31,7 @@ export const MOCK_USERS: MockUser[] = [
     phone: "9876543210",
     properties: 3,
     tenants: 28,
+    pgName: "Ravi Kumar Properties",
   },
   {
     id: "o2",
@@ -41,6 +42,7 @@ export const MOCK_USERS: MockUser[] = [
     phone: "9876543211",
     properties: 1,
     tenants: 8,
+    pgName: "Priya Mehta Residency",
   },
   {
     id: "t1",

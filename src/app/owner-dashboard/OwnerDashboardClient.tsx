@@ -11,7 +11,19 @@ import {
   ArrowLeft, MapPin, Edit3, Camera, Wifi, Car, Dumbbell, Phone, Mail,
   ChevronDown, FileText, CalendarDays, Banknote, UserX, ShieldCheck,
   User, Lock, Smartphone, ToggleLeft, ToggleRight, Landmark, Trash2, Eye, EyeOff,
+  Globe, UserPlus, Send,
 } from "lucide-react";
+import { CURRENT_ORG, MOCK_ORGS } from "@/lib/orgData";
+import {
+  type OrgRole, type OrgMember, type OrgPermissions, type Organization,
+  ROLE_PERMISSIONS, PLAN_LIMITS,
+} from "@/lib/orgTypes";
+import {
+  ReactFlow, Handle, Position, MarkerType, Background,
+  type Node, type Edge,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import Dagre from "@dagrejs/dagre";
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
@@ -104,6 +116,31 @@ const PROPERTY_ROOMS: Record<string, { id: string; number: string; type: string;
   ],
 };
 
+const PROPERTY_FLOORS: Record<string, { id: string; label: string; roomIds: string[] }[]> = {
+  p1: [
+    { id: "p1f1", label: "Floor 1", roomIds: ["r1",  "r2",  "r3",  "r4"]           },
+    { id: "p1f2", label: "Floor 2", roomIds: ["r5",  "r6",  "r7",  "r8"]           },
+    { id: "p1f3", label: "Floor 3", roomIds: ["r9",  "r10", "r11", "r12"]          },
+  ],
+  p2: [
+    { id: "p2f1", label: "Floor 1", roomIds: ["r13", "r14", "r15", "r16"]          },
+    { id: "p2f2", label: "Floor 2", roomIds: ["r17", "r18", "r19", "r20"]          },
+  ],
+  p3: [
+    { id: "p3f1", label: "Floor 1", roomIds: ["r21", "r22", "r23", "r24", "r25"]   },
+    { id: "p3f2", label: "Floor 2", roomIds: ["r26", "r27", "r28", "r29", "r30"]   },
+  ],
+};
+
+const ROOM_BY_ID = Object.fromEntries(
+  Object.values(PROPERTY_ROOMS).flat().map(r => [r.id, r])
+);
+
+const TENANT_BY_NAME: Record<string, string> = Object.fromEntries(
+  TENANTS.map(t => [t.name, t.id])
+);
+
+
 const PROPERTY_AMENITIES: Record<string, string[]> = {
   p1: ["WiFi", "Parking", "Gym", "CCTV", "Laundry", "Power Backup"],
   p2: ["WiFi", "Parking", "CCTV", "AC Rooms", "Housekeeping", "Water Purifier"],
@@ -115,14 +152,107 @@ const TENANTS_EXT: Record<string, {
   deposit: number; depositPaid: boolean; noticeGiven: boolean;
   idType: string; idVerified: boolean; agreementSigned: boolean;
   emergencyName: string; emergencyPhone: string;
-  rentHistory: { month: string; amount: string; status: "paid" | "pending" | "overdue" }[];
+  rentHistory: { month: string; amount: string; status: "paid" | "pending" | "overdue"; paidOn?: string; ref?: string }[];
 }> = {
-  u1: { phone: "+91 98765 11111", email: "rahul.s@gmail.com",  moveIn: "Jan 2024", deposit: 17000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Suresh Sharma", emergencyPhone: "+91 97777 11111", rentHistory: [{ month: "Apr 2025", amount: "₹8,500",  status: "paid" },    { month: "Mar 2025", amount: "₹8,500",  status: "paid" },    { month: "Feb 2025", amount: "₹8,500",  status: "paid" }] },
-  u2: { phone: "+91 98765 22222", email: "priya.v@gmail.com",  moveIn: "Mar 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Anita Verma",   emergencyPhone: "+91 97777 22222", rentHistory: [{ month: "Apr 2025", amount: "₹10,000", status: "paid" },    { month: "Mar 2025", amount: "₹10,000", status: "paid" },    { month: "Feb 2025", amount: "₹10,000", status: "paid" }] },
-  u3: { phone: "+91 98765 33333", email: "amit.p@gmail.com",   moveIn: "Jun 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Rekha Patel",   emergencyPhone: "+91 97777 33333", rentHistory: [{ month: "Apr 2025", amount: "₹9,500",  status: "paid" },    { month: "Mar 2025", amount: "₹9,500",  status: "paid" },    { month: "Feb 2025", amount: "₹9,500",  status: "overdue" }] },
-  u4: { phone: "+91 98765 44444", email: "neha.g@gmail.com",   moveIn: "Aug 2024", deposit: 17000, depositPaid: false, noticeGiven: false, idType: "Passport", idVerified: false, agreementSigned: true,  emergencyName: "Rakesh Gupta",  emergencyPhone: "+91 97777 44444", rentHistory: [{ month: "Apr 2025", amount: "₹8,500",  status: "pending" }, { month: "Mar 2025", amount: "₹8,500",  status: "paid" },    { month: "Feb 2025", amount: "₹8,500",  status: "paid" }] },
-  u5: { phone: "+91 98765 55555", email: "kiran.r@gmail.com",  moveIn: "Oct 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: false, emergencyName: "Sunita Rao",    emergencyPhone: "+91 97777 55555", rentHistory: [{ month: "Apr 2025", amount: "₹10,000", status: "pending" }, { month: "Mar 2025", amount: "₹10,000", status: "paid" },    { month: "Feb 2025", amount: "₹10,000", status: "paid" }] },
-  u6: { phone: "+91 98765 66666", email: "sonia.m@gmail.com",  moveIn: "Nov 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Kavita Mehta",  emergencyPhone: "+91 97777 66666", rentHistory: [{ month: "Apr 2025", amount: "₹9,500",  status: "overdue" }, { month: "Mar 2025", amount: "₹9,500",  status: "overdue" }, { month: "Feb 2025", amount: "₹9,500",  status: "paid" }] },
+  u1: { phone: "+91 98765 11111", email: "rahul.s@gmail.com",  moveIn: "Jan 2024", deposit: 17000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Suresh Sharma", emergencyPhone: "+91 97777 11111",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹8,500",  status: "paid",    paidOn: "Apr 2, 2025",  ref: "TXN-2504-001" },
+      { month: "Mar 2025", amount: "₹8,500",  status: "paid",    paidOn: "Mar 1, 2025",  ref: "TXN-2503-001" },
+      { month: "Feb 2025", amount: "₹8,500",  status: "paid",    paidOn: "Feb 3, 2025",  ref: "TXN-2502-001" },
+      { month: "Jan 2025", amount: "₹8,500",  status: "paid",    paidOn: "Jan 4, 2025",  ref: "TXN-2501-001" },
+      { month: "Dec 2024", amount: "₹8,500",  status: "paid",    paidOn: "Dec 2, 2024",  ref: "TXN-2412-001" },
+      { month: "Nov 2024", amount: "₹8,500",  status: "paid",    paidOn: "Nov 5, 2024",  ref: "TXN-2411-001" },
+    ]},
+  u2: { phone: "+91 98765 22222", email: "priya.v@gmail.com",  moveIn: "Mar 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Anita Verma",   emergencyPhone: "+91 97777 22222",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹10,000", status: "paid",    paidOn: "Apr 2, 2025",  ref: "TXN-2504-002" },
+      { month: "Mar 2025", amount: "₹10,000", status: "paid",    paidOn: "Mar 3, 2025",  ref: "TXN-2503-002" },
+      { month: "Feb 2025", amount: "₹10,000", status: "paid",    paidOn: "Feb 1, 2025",  ref: "TXN-2502-002" },
+      { month: "Jan 2025", amount: "₹10,000", status: "paid",    paidOn: "Jan 2, 2025",  ref: "TXN-2501-002" },
+      { month: "Dec 2024", amount: "₹10,000", status: "paid",    paidOn: "Dec 3, 2024",  ref: "TXN-2412-002" },
+      { month: "Nov 2024", amount: "₹10,000", status: "paid",    paidOn: "Nov 1, 2024",  ref: "TXN-2411-002" },
+    ]},
+  u3: { phone: "+91 98765 33333", email: "amit.p@gmail.com",   moveIn: "Jun 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Rekha Patel",   emergencyPhone: "+91 97777 33333",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹9,500",  status: "paid",    paidOn: "Apr 3, 2025",  ref: "TXN-2504-003" },
+      { month: "Mar 2025", amount: "₹9,500",  status: "paid",    paidOn: "Mar 2, 2025",  ref: "TXN-2503-003" },
+      { month: "Feb 2025", amount: "₹9,500",  status: "overdue" },
+      { month: "Jan 2025", amount: "₹9,500",  status: "paid",    paidOn: "Jan 6, 2025",  ref: "TXN-2501-003" },
+      { month: "Dec 2024", amount: "₹9,500",  status: "paid",    paidOn: "Dec 4, 2024",  ref: "TXN-2412-003" },
+      { month: "Nov 2024", amount: "₹9,500",  status: "paid",    paidOn: "Nov 2, 2024",  ref: "TXN-2411-003" },
+    ]},
+  u4: { phone: "+91 98765 44444", email: "neha.g@gmail.com",   moveIn: "Aug 2024", deposit: 17000, depositPaid: false, noticeGiven: false, idType: "Passport", idVerified: false, agreementSigned: true,  emergencyName: "Rakesh Gupta",  emergencyPhone: "+91 97777 44444",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹8,500",  status: "pending" },
+      { month: "Mar 2025", amount: "₹8,500",  status: "paid",    paidOn: "Mar 8, 2025",  ref: "TXN-2503-004" },
+      { month: "Feb 2025", amount: "₹8,500",  status: "paid",    paidOn: "Feb 5, 2025",  ref: "TXN-2502-004" },
+      { month: "Jan 2025", amount: "₹8,500",  status: "overdue" },
+      { month: "Dec 2024", amount: "₹8,500",  status: "paid",    paidOn: "Dec 7, 2024",  ref: "TXN-2412-004" },
+      { month: "Nov 2024", amount: "₹8,500",  status: "paid",    paidOn: "Nov 4, 2024",  ref: "TXN-2411-004" },
+    ]},
+  u5: { phone: "+91 98765 55555", email: "kiran.r@gmail.com",  moveIn: "Oct 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: false, emergencyName: "Sunita Rao",    emergencyPhone: "+91 97777 55555",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹10,000", status: "pending" },
+      { month: "Mar 2025", amount: "₹10,000", status: "paid",    paidOn: "Mar 10, 2025", ref: "TXN-2503-005" },
+      { month: "Feb 2025", amount: "₹10,000", status: "paid",    paidOn: "Feb 9, 2025",  ref: "TXN-2502-005" },
+      { month: "Jan 2025", amount: "₹10,000", status: "paid",    paidOn: "Jan 11, 2025", ref: "TXN-2501-005" },
+      { month: "Dec 2024", amount: "₹10,000", status: "paid",    paidOn: "Dec 9, 2024",  ref: "TXN-2412-005" },
+      { month: "Nov 2024", amount: "₹10,000", status: "paid",    paidOn: "Nov 10, 2024", ref: "TXN-2411-005" },
+    ]},
+  u6: { phone: "+91 98765 66666", email: "sonia.m@gmail.com",  moveIn: "Nov 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Kavita Mehta",  emergencyPhone: "+91 97777 66666",
+    rentHistory: [
+      { month: "Apr 2025", amount: "₹9,500",  status: "overdue" },
+      { month: "Mar 2025", amount: "₹9,500",  status: "overdue" },
+      { month: "Feb 2025", amount: "₹9,500",  status: "paid",    paidOn: "Feb 12, 2025", ref: "TXN-2502-006" },
+      { month: "Jan 2025", amount: "₹9,500",  status: "paid",    paidOn: "Jan 14, 2025", ref: "TXN-2501-006" },
+      { month: "Dec 2024", amount: "₹9,500",  status: "paid",    paidOn: "Dec 11, 2024", ref: "TXN-2412-006" },
+      { month: "Nov 2024", amount: "₹9,500",  status: "paid",    paidOn: "Nov 12, 2024", ref: "TXN-2411-006" },
+    ]},
+};
+
+const TENANT_DOCS: Record<string, { type: string; status: "verified" | "pending" | "missing"; uploadedOn?: string }[]> = {
+  u1: [
+    { type: "Aadhar Card",         status: "verified", uploadedOn: "15 Jan 2024" },
+    { type: "Rental Agreement",    status: "verified", uploadedOn: "15 Jan 2024" },
+    { type: "Police Verification", status: "verified", uploadedOn: "17 Jan 2024" },
+    { type: "Passport Photo",      status: "verified", uploadedOn: "15 Jan 2024" },
+    { type: "Employment Proof",    status: "missing" },
+  ],
+  u2: [
+    { type: "PAN Card",            status: "verified", uploadedOn: "10 Mar 2024" },
+    { type: "Rental Agreement",    status: "verified", uploadedOn: "10 Mar 2024" },
+    { type: "Police Verification", status: "verified", uploadedOn: "12 Mar 2024" },
+    { type: "Passport Photo",      status: "verified", uploadedOn: "10 Mar 2024" },
+    { type: "Employment Proof",    status: "verified", uploadedOn: "10 Mar 2024" },
+  ],
+  u3: [
+    { type: "Aadhar Card",         status: "verified", uploadedOn: "05 Jun 2024" },
+    { type: "Rental Agreement",    status: "verified", uploadedOn: "05 Jun 2024" },
+    { type: "Police Verification", status: "pending",  uploadedOn: "06 Jun 2024" },
+    { type: "Passport Photo",      status: "verified", uploadedOn: "05 Jun 2024" },
+    { type: "Employment Proof",    status: "missing" },
+  ],
+  u4: [
+    { type: "Passport",            status: "pending",  uploadedOn: "12 Aug 2024" },
+    { type: "Rental Agreement",    status: "verified", uploadedOn: "12 Aug 2024" },
+    { type: "Police Verification", status: "missing" },
+    { type: "Passport Photo",      status: "pending",  uploadedOn: "12 Aug 2024" },
+    { type: "Employment Proof",    status: "missing" },
+  ],
+  u5: [
+    { type: "Aadhar Card",         status: "verified", uploadedOn: "20 Oct 2024" },
+    { type: "Rental Agreement",    status: "missing" },
+    { type: "Police Verification", status: "missing" },
+    { type: "Passport Photo",      status: "verified", uploadedOn: "20 Oct 2024" },
+    { type: "Employment Proof",    status: "verified", uploadedOn: "20 Oct 2024" },
+  ],
+  u6: [
+    { type: "PAN Card",            status: "verified", uploadedOn: "01 Nov 2024" },
+    { type: "Rental Agreement",    status: "verified", uploadedOn: "01 Nov 2024" },
+    { type: "Police Verification", status: "verified", uploadedOn: "03 Nov 2024" },
+    { type: "Passport Photo",      status: "verified", uploadedOn: "01 Nov 2024" },
+    { type: "Employment Proof",    status: "missing" },
+  ],
 };
 
 const MAINTENANCE_EXT: Record<string, {
@@ -224,12 +354,13 @@ function StatusChip({ status }: { status: string }) {
 }
 
 const NAV_ITEMS = [
-  { id: "overview",    label: "Overview",    icon: LayoutDashboard },
-  { id: "properties",  label: "Properties",  icon: Building2 },
-  { id: "tenants",     label: "Tenants",     icon: Users },
-  { id: "payments",    label: "Payments",    icon: CreditCard },
-  { id: "maintenance", label: "Maintenance", icon: Wrench },
-  { id: "reports",     label: "Reports",     icon: BarChart3 },
+  { id: "overview",      label: "Overview",      icon: LayoutDashboard },
+  { id: "properties",    label: "Properties",    icon: Building2 },
+  { id: "tenants",       label: "Tenants",       icon: Users },
+  { id: "payments",      label: "Payments",      icon: CreditCard },
+  { id: "maintenance",   label: "Maintenance",   icon: Wrench },
+  { id: "reports",       label: "Reports",       icon: BarChart3 },
+  { id: "organization",  label: "Organization",  icon: Landmark },
 ];
 
 // ─── Tab sections ─────────────────────────────────────────────────────────────
@@ -1018,8 +1149,8 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
   );
 }
 
-function PropertiesTab() {
-  const [managingId, setManagingId] = useState<string | null>(null);
+function PropertiesTab({ initialPropId }: { initialPropId?: string | null }) {
+  const [managingId, setManagingId] = useState<string | null>(initialPropId ?? null);
   const managing = PROPERTIES.find((p) => p.id === managingId);
 
   if (managing) {
@@ -1083,7 +1214,375 @@ function PropertiesTab() {
   );
 }
 
-function TenantsTab() {
+function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
+  tenantId: string; onBack: () => void; onViewInOrg?: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<"overview" | "documents" | "payment">("overview");
+  const t   = TENANTS.find(x => x.id === tenantId);
+  const ext = TENANTS_EXT[tenantId];
+  const docs = TENANT_DOCS[tenantId] ?? [];
+  if (!t || !ext) return null;
+
+  // Resolve actual room / floor / property from the structural data
+  let actualRoom: typeof PROPERTY_ROOMS["p1"][0] | undefined;
+  let actualPropId: string | undefined;
+  for (const [pid, rooms] of Object.entries(PROPERTY_ROOMS)) {
+    const found = rooms.find(r => r.tenant === t.name);
+    if (found) { actualRoom = found; actualPropId = pid; break; }
+  }
+  const actualProp  = actualPropId ? PROPERTIES.find(p => p.id === actualPropId) : null;
+  const actualFloor = (actualPropId && actualRoom)
+    ? (PROPERTY_FLOORS[actualPropId] ?? []).find(fl => fl.roomIds.includes(actualRoom!.id))
+    : null;
+
+  const total        = ext.rentHistory.length;
+  const paidCount    = ext.rentHistory.filter(r => r.status === "paid").length;
+  const overdueCount = ext.rentHistory.filter(r => r.status === "overdue").length;
+  const onTimeRate   = Math.round((paidCount / total) * 100);
+  const totalPaidAmt = ext.rentHistory
+    .filter(r => r.status === "paid")
+    .reduce((s, r) => s + parseInt(r.amount.replace(/[^\d]/g, ""), 10), 0);
+  const verifiedDocs = docs.filter(d => d.status === "verified").length;
+  const pendingDocs  = docs.filter(d => d.status === "pending").length;
+  const missingDocs  = docs.filter(d => d.status === "missing").length;
+  const chartData    = [...ext.rentHistory].reverse();
+
+  const statsStrip = [
+    { label: "Move-in",      value: ext.moveIn,                                   sub: "Lease until " + t.lease },
+    { label: "Monthly Rent", value: ext.rentHistory[0]?.amount ?? "—",           sub: "Current" },
+    { label: "Total Paid",   value: "₹" + totalPaidAmt.toLocaleString("en-IN"),  sub: paidCount + " months" },
+    { label: "Deposit",      value: ext.depositPaid ? "₹" + ext.deposit.toLocaleString("en-IN") : "Pending",
+                             sub: ext.depositPaid ? "Received" : "Not received" },
+  ];
+
+  return (
+    <div className="space-y-5 pb-6">
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-[color:var(--muted)]">
+        <button onClick={onBack} className="flex items-center gap-1 hover:text-[color:var(--foreground)] font-medium transition-colors">
+          <ArrowLeft size={13} /> All Tenants
+        </button>
+        <span>/</span>
+        <span className="text-[color:var(--foreground)] font-semibold truncate">{t.name}</span>
+      </div>
+
+      {/* ── Hero card ─────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm">
+        {/* Gradient banner — overflow-hidden here clips gradient to rounded top corners */}
+        <div className="h-28 rounded-t-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#7c3aed 0%,#4f46e5 55%,#2563eb 100%)" }}>
+          {ext.noticeGiven && (
+            <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
+              <AlertCircle size={10} /> Notice Period
+            </div>
+          )}
+          {actualProp && (
+            <div className="absolute bottom-3 left-5 flex items-center gap-1 text-white/70 text-[10px]">
+              <Landmark size={9} />
+              <span className="ml-1">{actualProp.name}</span>
+              {actualFloor && <><ChevronRight size={9} /><span>{actualFloor.label}</span></>}
+              {actualRoom  && <><ChevronRight size={9} /><span>Room {actualRoom.number}</span></>}
+            </div>
+          )}
+        </div>
+        <div className="px-5 pb-5 relative z-10">
+          <div className="flex items-end justify-between -mt-10 mb-4">
+            <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-xl font-bold shrink-0"
+              style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
+              {t.initials}
+            </div>
+            <div className="flex gap-2 mb-1 flex-wrap justify-end">
+              <a href={`tel:${ext.phone}`}
+                className="flex items-center gap-1.5 text-[11px] font-semibold bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                <Phone size={11} /> Call
+              </a>
+              <a href={`mailto:${ext.email}`}
+                className="flex items-center gap-1.5 text-[11px] font-semibold border border-[color:var(--line)] hover:bg-slate-50 text-[color:var(--foreground)] px-3 py-1.5 rounded-lg transition-colors">
+                <Mail size={11} /> Email
+              </a>
+              <a href={`https://wa.me/${ext.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+                className="flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg transition-colors">
+                <Send size={11} /> WhatsApp
+              </a>
+              {onViewInOrg && (
+                <button onClick={onViewInOrg}
+                  className="flex items-center gap-1.5 text-[11px] font-semibold border border-violet-200 text-violet-600 hover:bg-violet-50 px-3 py-1.5 rounded-lg transition-colors">
+                  <Globe size={11} /> Org Tree
+                </button>
+              )}
+            </div>
+          </div>
+          <h2 className="text-base font-bold text-[color:var(--foreground)]">{t.name}</h2>
+          <p className="text-xs text-[color:var(--muted)] mb-3">
+            {actualProp?.name ?? t.property} · {actualRoom ? `Room ${actualRoom.number} · ${actualRoom.type}` : `Room ${t.room}`}
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            <StatusChip status={t.paid ? "paid" : "pending"} />
+            <StatusChip status={t.risk} />
+            {ext.idVerified && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                <ShieldCheck size={9} /> ID Verified
+              </span>
+            )}
+            {ext.agreementSigned && (
+              <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                <FileText size={9} /> Agreement Signed
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Stats strip ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statsStrip.map(s => (
+          <div key={s.label} className="bg-white rounded-xl border border-[color:var(--line)] px-4 py-3.5 shadow-sm">
+            <p className="text-[10px] text-[color:var(--muted)] uppercase tracking-wide mb-1">{s.label}</p>
+            <p className="text-sm font-bold text-[color:var(--foreground)]">{s.value}</p>
+            <p className="text-[10px] text-[color:var(--muted)] mt-0.5">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Tabbed panel ──────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] overflow-hidden shadow-sm">
+        {/* Tab bar */}
+        <div className="flex border-b border-[color:var(--line)] px-1 pt-1 gap-0.5 bg-[color:var(--background)]">
+          {(["overview", "documents", "payment"] as const).map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`px-5 py-2.5 text-[11px] font-semibold rounded-t-lg transition-colors ${
+                activeTab === tab
+                  ? "bg-white text-violet-600 border-x border-t border-[color:var(--line)] -mb-px"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}>
+              {tab === "payment" ? "Payment History" : tab === "overview" ? "Overview" : "Documents"}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5">
+
+          {/* ── Overview ────────────────────────────────────────────────── */}
+          {activeTab === "overview" && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Room & Lease */}
+                <div>
+                  <h4 className="text-xs font-bold text-[color:var(--foreground)] mb-3 flex items-center gap-2">
+                    <BedDouble size={13} className="text-violet-600" /> Room & Lease
+                  </h4>
+                  {[
+                    { label: "Property",  value: actualProp?.name ?? t.property },
+                    { label: "Floor",     value: actualFloor?.label ?? "—" },
+                    { label: "Room No.",  value: actualRoom ? `${actualRoom.number} · ${actualRoom.type}` : t.room },
+                    { label: "Move-in",   value: ext.moveIn },
+                    { label: "Lease End", value: t.lease },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center justify-between py-2 border-b border-[color:var(--line)] last:border-0">
+                      <span className="text-[11px] text-[color:var(--muted)]">{row.label}</span>
+                      <span className="text-[11px] font-semibold text-[color:var(--foreground)]">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Contact */}
+                <div>
+                  <h4 className="text-xs font-bold text-[color:var(--foreground)] mb-3 flex items-center gap-2">
+                    <Phone size={13} className="text-violet-600" /> Contact
+                  </h4>
+                  {[
+                    { label: "Phone",        value: ext.phone },
+                    { label: "Email",        value: ext.email },
+                    { label: "Emergency",    value: ext.emergencyName },
+                    { label: "Emrg. Phone", value: ext.emergencyPhone },
+                  ].map(row => (
+                    <div key={row.label} className="flex items-center justify-between py-2 border-b border-[color:var(--line)] last:border-0">
+                      <span className="text-[11px] text-[color:var(--muted)]">{row.label}</span>
+                      <span className="text-[11px] font-semibold text-[color:var(--foreground)] truncate max-w-[160px]">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Verification checklist */}
+              <div>
+                <h4 className="text-xs font-bold text-[color:var(--foreground)] mb-3 flex items-center gap-2">
+                  <ShieldCheck size={13} className="text-violet-600" /> Verification Status
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[
+                    { label: `${ext.idType} Verified`, ok: ext.idVerified },
+                    { label: "Agreement Signed",        ok: ext.agreementSigned },
+                    { label: "Deposit Paid",            ok: ext.depositPaid },
+                    { label: "Notice Given",            ok: ext.noticeGiven },
+                  ].map(row => (
+                    <div key={row.label} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[11px] font-medium ${
+                      row.ok
+                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                        : "bg-[color:var(--background)] border-[color:var(--line)] text-[color:var(--muted)]"
+                    }`}>
+                      {row.ok ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+                      {row.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Documents ───────────────────────────────────────────────── */}
+          {activeTab === "documents" && (
+            <div className="space-y-4">
+              <div className="flex gap-3 flex-wrap">
+                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+                  <CheckCircle2 size={11} /> {verifiedDocs} Verified
+                </span>
+                {pendingDocs > 0 && (
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                    <Clock size={11} /> {pendingDocs} Awaiting Review
+                  </span>
+                )}
+                {missingDocs > 0 && (
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
+                    <AlertCircle size={11} /> {missingDocs} Missing
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {docs.map(doc => (
+                  <div key={doc.type} className={`p-4 rounded-xl border flex flex-col gap-2.5 ${
+                    doc.status === "verified" ? "bg-white border-[color:var(--line)]"
+                    : doc.status === "pending" ? "bg-amber-50 border-amber-200"
+                    : "bg-red-50 border-red-200 border-dashed"
+                  }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                        doc.status === "verified" ? "bg-emerald-100"
+                        : doc.status === "pending" ? "bg-amber-100" : "bg-red-100"
+                      }`}>
+                        <FileText size={14} className={
+                          doc.status === "verified" ? "text-emerald-600"
+                          : doc.status === "pending" ? "text-amber-600" : "text-red-600"
+                        } />
+                      </div>
+                      {doc.status === "verified" && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
+                      {doc.status === "pending"  && <Clock size={14} className="text-amber-500 shrink-0" />}
+                      {doc.status === "missing"  && <AlertCircle size={14} className="text-red-500 shrink-0" />}
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold text-[color:var(--foreground)]">{doc.type}</p>
+                      <p className="text-[10px] text-[color:var(--muted)] mt-0.5">
+                        {doc.status === "verified" ? `Uploaded ${doc.uploadedOn}`
+                          : doc.status === "pending" ? "Awaiting review" : "Not uploaded"}
+                      </p>
+                    </div>
+                    {doc.status === "verified" && (
+                      <button className="self-start flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-700 transition-colors">
+                        <Eye size={10} /> View
+                      </button>
+                    )}
+                    {doc.status === "missing" && (
+                      <button className="self-start flex items-center gap-1 text-[10px] font-semibold text-red-600 hover:text-red-700 transition-colors">
+                        <Send size={10} /> Request
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Payment History ──────────────────────────────────────────── */}
+          {activeTab === "payment" && (
+            <div className="space-y-5">
+              {/* Summary stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-[color:var(--background)] rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs font-bold text-[color:var(--foreground)]">₹{totalPaidAmt.toLocaleString("en-IN")}</p>
+                  <p className="text-[10px] text-[color:var(--muted)] mt-0.5">Total Collected</p>
+                </div>
+                <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs font-bold text-red-600">{overdueCount}</p>
+                  <p className="text-[10px] text-[color:var(--muted)] mt-0.5">Overdue Months</p>
+                </div>
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
+                  <p className="text-xs font-bold text-emerald-600">{onTimeRate}%</p>
+                  <p className="text-[10px] text-[color:var(--muted)] mt-0.5">On-time Rate</p>
+                </div>
+              </div>
+
+              {/* Div-based bar chart */}
+              <div className="bg-[color:var(--background)] rounded-xl p-4">
+                <p className="text-[10px] font-bold text-[color:var(--muted)] uppercase tracking-wide mb-3">6-Month Payment Trend</p>
+                <div className="flex items-end gap-2" style={{ height: 72 }}>
+                  {chartData.map(r => {
+                    const bg = r.status === "paid" ? "#7c3aed" : r.status === "overdue" ? "#ef4444" : "#f59e0b";
+                    const h  = r.status === "paid" ? 72 : r.status === "overdue" ? 58 : 36;
+                    return (
+                      <div key={r.month} className="flex-1 rounded-sm transition-all"
+                        style={{ height: h, background: bg, opacity: r.status === "paid" ? 1 : 0.8 }} />
+                    );
+                  })}
+                </div>
+                <div className="flex gap-2 mt-1.5">
+                  {chartData.map(r => (
+                    <div key={r.month} className="flex-1 text-center">
+                      <span className="text-[9px] text-[color:var(--muted)]">{r.month.split(" ")[0].slice(0, 3)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-4 mt-3 flex-wrap">
+                  {[{ color: "#7c3aed", label: "Paid" }, { color: "#f59e0b", label: "Pending" }, { color: "#ef4444", label: "Overdue" }].map(l => (
+                    <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-[color:var(--muted)]">
+                      <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: l.color }} />
+                      {l.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Detailed table */}
+              <div className="overflow-x-auto rounded-xl border border-[color:var(--line)]">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-[color:var(--background)]">
+                      {["Month", "Amount", "Paid On", "Status", "Ref #"].map(h => (
+                        <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[color:var(--line)]">
+                    {ext.rentHistory.map(rh => (
+                      <tr key={rh.month} className="hover:bg-[color:var(--background)] transition-colors">
+                        <td className="px-4 py-3 text-[11px] text-[color:var(--foreground)] whitespace-nowrap">{rh.month}</td>
+                        <td className="px-4 py-3 text-[11px] font-semibold text-[color:var(--foreground)]">{rh.amount}</td>
+                        <td className="px-4 py-3 text-[11px] text-[color:var(--muted)] whitespace-nowrap">{rh.paidOn ?? "—"}</td>
+                        <td className="px-4 py-3"><StatusChip status={rh.status} /></td>
+                        <td className="px-4 py-3 text-[11px] text-[color:var(--muted)] font-mono">{rh.ref ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TenantsTab({ initialTenantId, onNav }: { initialTenantId?: string | null; onNav?: (tab: string) => void }) {
+  const [profileId, setProfileId] = useState<string | null>(initialTenantId ?? null);
+
+  if (profileId) {
+    return (
+      <TenantProfileView
+        tenantId={profileId}
+        onBack={() => setProfileId(null)}
+        onViewInOrg={onNav ? () => onNav("organization") : undefined}
+      />
+    );
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--line)]">
@@ -1101,6 +1600,7 @@ function TenantsTab() {
               <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] hidden md:table-cell">Lease End</th>
               <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Payment</th>
               <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Risk</th>
+              <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--line)]">
@@ -1116,6 +1616,12 @@ function TenantsTab() {
                 <td className="px-4 py-3.5 text-xs text-[color:var(--muted)] hidden md:table-cell">{t.lease}</td>
                 <td className="px-4 py-3.5"><StatusChip status={t.paid ? "paid" : "pending"} /></td>
                 <td className="px-6 py-3.5"><StatusChip status={t.risk} /></td>
+                <td className="px-4 py-3.5">
+                  <button onClick={() => setProfileId(t.id)}
+                    className="text-[11px] font-semibold text-[color:var(--accent-600)] hover:text-[color:var(--accent-700)] hover:underline">
+                    View
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1527,8 +2033,962 @@ const SECTION_TITLES: Record<string, string> = {
   overview: "Good morning, Ravi", properties: "Properties",
   tenants: "Tenants", payments: "Payments",
   maintenance: "Maintenance", reports: "Reports",
-  account: "Account",
+  organization: "Organization", account: "Account",
 };
+
+// ─── Organization tab ─────────────────────────────────────────────────────────
+
+const ROLE_STYLE: Record<OrgRole, string> = {
+  owner:      "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]",
+  admin:      "bg-[color:var(--trust-50)] text-[color:var(--trust-700)]",
+  manager:    "bg-[color:var(--warning-50)] text-[color:var(--warning-700)]",
+  accountant: "bg-[color:var(--success-50)] text-[color:var(--success-700)]",
+  caretaker:  "bg-slate-100 text-slate-600",
+};
+
+const ROLE_LABEL: Record<OrgRole, string> = {
+  owner: "Owner", admin: "Admin", manager: "Manager",
+  accountant: "Accountant", caretaker: "Caretaker",
+};
+
+const PERM_LABELS: Record<keyof OrgPermissions, string> = {
+  viewPayments:    "View payments & rent",
+  editProperties:  "Edit property details",
+  manageTenants:   "Manage tenants",
+  viewReports:     "View reports & exports",
+  manageMembers:   "Manage team members",
+  billingAccess:   "Billing & subscription",
+};
+
+function RoleChip({ role }: { role: OrgRole }) {
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${ROLE_STYLE[role]}`}>
+      {ROLE_LABEL[role]}
+    </span>
+  );
+}
+
+function MemberStatusChip({ status, expired }: { status: OrgMember["status"]; expired: boolean }) {
+  if (status === "active")   return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[color:var(--success-700)]"><span className="w-1.5 h-1.5 rounded-full bg-[color:var(--success)] inline-block" />Active</span>;
+  if (status === "inactive") return <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[color:var(--muted)]"><span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block" />Inactive</span>;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-medium ${expired ? "text-[color:var(--error-700)]" : "text-[color:var(--warning-700)]"}`}>
+      <span className={`w-1.5 h-1.5 rounded-full inline-block ${expired ? "bg-[color:var(--error)]" : "bg-[color:var(--warning)]"}`} />
+      {expired ? "Expired" : "Invited"}
+    </span>
+  );
+}
+
+const GSTIN_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+const ORG_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// ─── OrgDetail — profile card + member management for one org ─────────────────
+
+function OrgDetail({
+  org,
+  onDelete,
+}: {
+  org: Organization;
+  onDelete: (id: string) => void;
+}) {
+  const limits = PLAN_LIMITS[org.plan];
+  const isSolo = org.plan === "solo";
+
+  const [members, setMembers]     = React.useState<OrgMember[]>(org.members);
+  const [showInvite, setShowInvite] = React.useState(false);
+  const [inviteName, setInviteName] = React.useState("");
+  const [inviteEmail, setInviteEmail] = React.useState("");
+  const [inviteRole, setInviteRole]   = React.useState<OrgRole>("manager");
+  const [inviteError, setInviteError] = React.useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = React.useState(false);
+
+  const ownerCount     = members.filter(m => m.role === "owner").length;
+  const activeCount    = members.filter(m => m.status === "active").length;
+  const nonOwnerActive = members.filter(m => m.role !== "owner" && m.status === "active").length;
+  const atLimit        = members.length >= limits.maxMembers;
+
+  function sendInvite() {
+    if (!inviteName.trim()) { setInviteError("Name is required."); return; }
+    if (!ORG_EMAIL_RE.test(inviteEmail.trim())) { setInviteError("A valid email is required."); return; }
+    if (members.some(m => m.email.toLowerCase() === inviteEmail.trim().toLowerCase())) {
+      setInviteError("This email is already a member of the organization."); return;
+    }
+    if (atLimit) { setInviteError(`Seat limit reached (${limits.maxMembers} members on ${limits.label} plan).`); return; }
+    setMembers(prev => [...prev, {
+      id: `m${Date.now()}`,
+      name: inviteName.trim(),
+      email: inviteEmail.trim().toLowerCase(),
+      role: inviteRole,
+      assignedProperties: [],
+      status: "invited",
+      joinedAt: "",
+      invitedAt: new Date().toISOString(),
+    }]);
+    setInviteName(""); setInviteEmail(""); setInviteRole("manager");
+    setShowInvite(false); setInviteError(null);
+  }
+
+  function removeMember(id: string) {
+    const m = members.find(x => x.id === id);
+    if (!m || (m.role === "owner" && ownerCount <= 1)) return;
+    setMembers(prev => prev.filter(x => x.id !== id));
+  }
+
+  const INP = "px-3 py-2.5 rounded-xl border border-[color:var(--line)] text-sm bg-white outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] text-[color:var(--foreground)]";
+
+  return (
+    <div className="space-y-6">
+
+      {/* Org profile card */}
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] p-6">
+        <div className="flex items-start gap-4">
+          {org.image ? (
+            <img src={org.image} alt={org.name} className="w-14 h-14 rounded-2xl object-cover shrink-0" />
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-[color:var(--accent-100)] text-[color:var(--accent-700)] flex items-center justify-center text-lg font-bold shrink-0 select-none">
+              {org.logoInitials}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <h2 className="text-lg font-semibold text-[color:var(--foreground)] truncate">{org.name}</h2>
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 capitalize">{org.type}</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-[color:var(--trust-50)] text-[color:var(--trust-700)]">{limits.label} plan</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-2 text-sm text-[color:var(--muted)]">
+              <span className="flex items-center gap-2 truncate"><MapPin size={13} className="shrink-0" />{org.address}, {org.city}</span>
+              <span className="flex items-center gap-2"><Phone size={13} className="shrink-0" />{org.phone}</span>
+              <span className="flex items-center gap-2 truncate"><Mail size={13} className="shrink-0" />{org.email}</span>
+              {org.website && (
+                <span className="flex items-center gap-2 truncate">
+                  <Globe size={13} className="shrink-0" />
+                  <a href={org.website} target="_blank" rel="noopener noreferrer" className="hover:text-[color:var(--accent-500)] underline underline-offset-2 truncate">
+                    {org.website.replace("https://", "")}
+                  </a>
+                </span>
+              )}
+              {org.gstin && <span className="flex items-center gap-2"><ShieldCheck size={13} className="shrink-0" />GSTIN: <span className="font-mono text-xs text-[color:var(--foreground)]">{org.gstin}</span></span>}
+              {org.cin   && <span className="flex items-center gap-2"><Landmark size={13} className="shrink-0" />CIN: <span className="font-mono text-xs text-[color:var(--foreground)]">{org.cin}</span></span>}
+            </div>
+          </div>
+          <button
+            onClick={() => setDeleteConfirm(v => !v)}
+            title="Delete organization"
+            className="shrink-0 p-2 rounded-xl text-[color:var(--muted)] hover:text-[color:var(--error)] hover:bg-[color:var(--error-50)] transition-colors"
+          >
+            <Trash2 size={16} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {/* Delete confirmation */}
+        {deleteConfirm && (
+          <div className="mt-5 rounded-xl border border-[color:var(--error-50)] bg-[color:var(--error-50)] p-4">
+            {nonOwnerActive > 0 ? (
+              <div className="flex items-start gap-3">
+                <AlertCircle size={16} className="text-[color:var(--error-700)] shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-[color:var(--error-700)]">
+                    Cannot delete — {nonOwnerActive} active member{nonOwnerActive > 1 ? "s" : ""} still in this organization.
+                  </p>
+                  <p className="text-xs text-[color:var(--error-700)]/80 mt-1">Remove all team members before deleting the organization.</p>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-sm font-semibold text-[color:var(--error-700)] mb-1">Delete &ldquo;{org.name}&rdquo;?</p>
+                <p className="text-xs text-[color:var(--error-700)]/80 mb-3">
+                  {org.propertyIds.length > 0
+                    ? `${org.propertyIds.length} linked propert${org.propertyIds.length > 1 ? "ies" : "y"} will become unassigned. `
+                    : ""}
+                  This cannot be undone.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => onDelete(org.id)}
+                    className="px-4 py-1.5 rounded-lg bg-[color:var(--error)] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Yes, delete
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(false)}
+                    className="px-4 py-1.5 rounded-lg text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Solo plan gate for members */}
+      {isSolo ? (
+        <div className="bg-white rounded-2xl border border-[color:var(--line)] p-8 flex flex-col items-center text-center gap-3">
+          <Users size={22} strokeWidth={1.75} className="text-[color:var(--muted)]" />
+          <p className="font-semibold text-[color:var(--foreground)]">Team members require Growth plan</p>
+          <p className="text-sm text-[color:var(--muted)] max-w-xs">Upgrade to invite admins, managers, caretakers and accountants.</p>
+          <button className="mt-1 inline-flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-5 py-2 text-sm font-semibold text-white transition-colors">
+            Upgrade to Growth
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Members */}
+          <div className="bg-white rounded-2xl border border-[color:var(--line)] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--line)]">
+              <div>
+                <h3 className="font-semibold text-[color:var(--foreground)]">Team Members</h3>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">{activeCount} active · {members.length} / {limits.maxMembers} seats used</p>
+              </div>
+              {atLimit ? (
+                <span className="text-xs text-[color:var(--muted)] bg-[color:var(--background)] px-3 py-2 rounded-xl border border-[color:var(--line)]">
+                  Seat limit reached · Upgrade to add more
+                </span>
+              ) : (
+                <button
+                  onClick={() => setShowInvite(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold transition-colors"
+                >
+                  <UserPlus size={13} strokeWidth={2} /> Invite member
+                </button>
+              )}
+            </div>
+
+            {showInvite && (
+              <div className="px-5 py-4 bg-[color:var(--background)] border-b border-[color:var(--line)]">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input placeholder="Full name" value={inviteName} onChange={e => setInviteName(e.target.value)} className={INP} />
+                  <input type="email" placeholder="Email address" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} className={INP} />
+                  <select value={inviteRole} onChange={e => setInviteRole(e.target.value as OrgRole)} className={INP}>
+                    <option value="admin">Admin — full access, no billing</option>
+                    <option value="manager">Manager — assigned properties</option>
+                    <option value="accountant">Accountant — payments & reports</option>
+                    <option value="caretaker">Caretaker — view only</option>
+                  </select>
+                </div>
+                {inviteError && <p className="text-xs text-[color:var(--error-700)] bg-[color:var(--error-50)] rounded-lg px-3 py-2 mt-3">{inviteError}</p>}
+                <div className="flex gap-2 mt-3">
+                  <button onClick={sendInvite} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold transition-colors">
+                    <Send size={12} strokeWidth={2} /> Send invite
+                  </button>
+                  <button onClick={() => { setShowInvite(false); setInviteError(null); }} className="px-4 py-2 rounded-xl text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-[color:var(--muted)] border-b border-[color:var(--line)]">
+                    <th className="text-left px-5 py-3 font-medium">Member</th>
+                    <th className="text-left px-5 py-3 font-medium">Role</th>
+                    <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Properties</th>
+                    <th className="text-left px-5 py-3 font-medium hidden md:table-cell">Joined</th>
+                    <th className="text-left px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--line)]">
+                  {members.map(m => {
+                    const isLastOwner = m.role === "owner" && ownerCount <= 1;
+                    const expired = m.status === "invited" && !!m.invitedAt &&
+                      (Date.now() - new Date(m.invitedAt).getTime()) > 7 * 24 * 60 * 60 * 1000;
+                    const initials = m.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                    return (
+                      <tr key={m.id} className="hover:bg-[color:var(--background)]/60 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <Avatar initials={initials} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-medium text-[color:var(--foreground)] truncate">{m.name}</p>
+                              <p className="text-xs text-[color:var(--muted)] truncate">{m.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5"><RoleChip role={m.role} /></td>
+                        <td className="px-5 py-3.5 hidden sm:table-cell text-xs text-[color:var(--muted)]">
+                          {m.assignedProperties.length === 0 ? "All properties" : `${m.assignedProperties.length} assigned`}
+                        </td>
+                        <td className="px-5 py-3.5 hidden md:table-cell text-xs text-[color:var(--muted)]">{m.joinedAt || "—"}</td>
+                        <td className="px-5 py-3.5"><MemberStatusChip status={m.status} expired={expired} /></td>
+                        <td className="px-5 py-3.5 text-right whitespace-nowrap">
+                          {m.status === "invited" && (
+                            <button className="text-xs text-[color:var(--accent-500)] hover:underline mr-3">Resend</button>
+                          )}
+                          <button
+                            disabled={isLastOwner}
+                            onClick={() => removeMember(m.id)}
+                            title={isLastOwner ? "Cannot remove the only owner" : "Remove from organization"}
+                            className="text-xs text-[color:var(--error)] hover:underline disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Permission matrix */}
+          <div className="bg-white rounded-2xl border border-[color:var(--line)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-[color:var(--line)]">
+              <h3 className="font-semibold text-[color:var(--foreground)]">Role Permissions</h3>
+              <p className="text-xs text-[color:var(--muted)] mt-0.5">What each role can access in ShiftProof</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-[color:var(--muted)] border-b border-[color:var(--line)]">
+                    <th className="text-left px-5 py-3 font-medium">Permission</th>
+                    {(["owner", "admin", "manager", "accountant", "caretaker"] as OrgRole[]).map(r => (
+                      <th key={r} className="px-4 py-3 text-center"><RoleChip role={r} /></th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[color:var(--line)]">
+                  {(Object.keys(ROLE_PERMISSIONS.owner) as (keyof OrgPermissions)[]).map(perm => (
+                    <tr key={perm} className="hover:bg-[color:var(--background)]/60">
+                      <td className="px-5 py-3 text-[color:var(--foreground)] font-medium">{PERM_LABELS[perm]}</td>
+                      {(["owner", "admin", "manager", "accountant", "caretaker"] as OrgRole[]).map(r => (
+                        <td key={r} className="px-4 py-3 text-center">
+                          {ROLE_PERMISSIONS[r][perm]
+                            ? <CheckCircle2 size={14} strokeWidth={2} className="text-[color:var(--success)] mx-auto" />
+                            : <span className="block w-3.5 h-0.5 bg-slate-200 mx-auto rounded-full" />
+                          }
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── OrgTree — React Flow + dagre org chart ──────────────────────────────────
+
+// Node dimensions used by dagre for layout calculation
+const ND = {
+  "org-n":  { w: 210, h: 132 },
+  "prop-n": { w: 180, h: 120 },
+  "flr-n":  { w: 152, h: 106 },
+  "room-n": { w: 130, h:  92 },
+} as const;
+
+// ── invisible handle style (we only need them for edge routing) ──
+const HS = { background: "transparent", border: "none", width: 1, height: 1, minWidth: 1, minHeight: 1 };
+
+type NData = {
+  label: string; sub?: string; badge?: string;
+  image?: string; initials?: string; floorNum?: number;
+  occupied?: boolean; hasProfile?: boolean; isExp?: boolean;
+  onPress?: () => void;
+  onView?: () => void;
+};
+
+const _NOOP       = () => {};
+const _EDGE_STYLE = { stroke: "#7c3aed", strokeWidth: 2 };
+const _ARROW_END  = { type: MarkerType.ArrowClosed, color: "#7c3aed", width: 16, height: 16 };
+
+// ── Custom node components — defined at module level to prevent re-creation ──
+
+function OrgN({ data }: { data: NData }) {
+  return (
+    <div style={{ width: ND["org-n"].w, background: "linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)" }}
+      className="relative flex flex-col items-center gap-1.5 px-4 py-3 rounded-2xl cursor-pointer shadow-lg hover:shadow-xl transition-shadow select-none">
+      <Handle type="target" position={Position.Top} isConnectable={false} style={HS} />
+      <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rotate-45 rounded-sm"
+        style={{ background: "linear-gradient(135deg,#a78bfa,#818cf8)", boxShadow: "0 2px 8px #7c3aed66" }} />
+      {data.image
+        ? <img src={data.image} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 ring-2 ring-white/30" />
+        : <div className="w-10 h-10 rounded-xl bg-white/20 text-white flex items-center justify-center text-sm font-bold shrink-0">{data.initials}</div>
+      }
+      <div className="text-center">
+        <p className="text-[11px] font-bold text-white leading-snug truncate">{data.label}</p>
+        {data.sub && <p className="text-[10px] text-violet-200 mt-0.5 capitalize truncate">{data.sub}</p>}
+      </div>
+      {data.onView && (
+        <button onClick={e => { e.stopPropagation(); data.onView!(); }}
+          className="flex items-center gap-1 text-[9px] font-bold text-white bg-white/20 hover:bg-white/35 px-3 py-1 rounded-full transition-colors mt-0.5 border border-white/20">
+          View Details <ChevronRight size={8} />
+        </button>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={HS} />
+    </div>
+  );
+}
+
+function PropN({ data }: { data: NData }) {
+  return (
+    <div style={{ width: ND["prop-n"].w, background: "linear-gradient(135deg,#0d9488 0%,#0284c7 100%)" }}
+      className="flex flex-col px-3.5 py-3 rounded-xl cursor-pointer shadow-md hover:shadow-lg transition-shadow select-none">
+      <Handle type="target" position={Position.Top} isConnectable={false} style={HS} />
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+          <Building2 size={13} className="text-white" />
+        </div>
+        <p className="text-[11px] font-bold text-white leading-snug truncate flex-1">{data.label}</p>
+        <ChevronDown size={12} className={`text-white/70 shrink-0 transition-transform duration-200 ${data.isExp ? "rotate-180" : ""}`} />
+      </div>
+      {data.sub   && <p className="text-[10px] text-teal-100 leading-none truncate mb-1">{data.sub}</p>}
+      {data.badge && <span className="self-start px-2 py-0.5 rounded-full bg-white/20 text-[9px] font-semibold text-white">{data.badge}</span>}
+      {data.onView && (
+        <button onClick={e => { e.stopPropagation(); data.onView!(); }}
+          className="self-start mt-2 flex items-center gap-1 text-[9px] font-bold text-white bg-white/20 hover:bg-white/35 px-2.5 py-0.5 rounded-full transition-colors border border-white/20">
+          View <ChevronRight size={8} />
+        </button>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={HS} />
+    </div>
+  );
+}
+
+function FlrN({ data }: { data: NData }) {
+  return (
+    <div style={{ width: ND["flr-n"].w, background: "linear-gradient(135deg,#4338ca 0%,#6366f1 100%)" }}
+      className="flex flex-col px-3 py-2.5 rounded-xl cursor-pointer shadow-md hover:shadow-lg transition-shadow select-none">
+      <Handle type="target" position={Position.Top} isConnectable={false} style={HS} />
+      <div className="flex items-center gap-2 mb-1">
+        <div className="w-6 h-6 rounded-md bg-white/25 text-white flex items-center justify-center text-[10px] font-extrabold shrink-0">
+          {data.floorNum}
+        </div>
+        <p className="text-[11px] font-bold text-white leading-snug flex-1 truncate">{data.label}</p>
+        <ChevronDown size={12} className={`text-white/70 shrink-0 transition-transform duration-200 ${data.isExp ? "rotate-180" : ""}`} />
+      </div>
+      {data.badge && <p className="text-[9px] text-indigo-200 truncate mb-1">{data.badge}</p>}
+      {data.onView && (
+        <button onClick={e => { e.stopPropagation(); data.onView!(); }}
+          className="self-start flex items-center gap-1 text-[9px] font-bold text-white bg-white/20 hover:bg-white/35 px-2.5 py-0.5 rounded-full transition-colors border border-white/20">
+          View <ChevronRight size={8} />
+        </button>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={HS} />
+    </div>
+  );
+}
+
+function RoomN({ data }: { data: NData }) {
+  const initials = data.occupied
+    ? data.label.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "";
+  return (
+    <div style={{ width: ND["room-n"].w }}
+      className={`flex flex-col px-3 py-2 rounded-xl cursor-pointer transition-all select-none ${
+        data.occupied
+          ? "bg-white border-2 border-emerald-300 shadow hover:shadow-md hover:border-emerald-400"
+          : "bg-slate-50 border-2 border-dashed border-slate-300 hover:bg-slate-100"
+      }`}>
+      <Handle type="target" position={Position.Top} isConnectable={false} style={HS} />
+      <div className="flex items-center gap-2 mb-1">
+        {data.occupied
+          ? <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-extrabold shrink-0 ring-2 ring-emerald-200">{initials}</div>
+          : <div className="w-7 h-7 rounded-full bg-slate-200 flex items-center justify-center shrink-0"><Home size={12} className="text-slate-400" /></div>
+        }
+        <div className="min-w-0">
+          <p className={`text-[10px] font-semibold leading-tight truncate ${data.occupied ? "text-slate-800" : "text-slate-400"}`}>{data.label}</p>
+          {data.sub && <p className="text-[9px] text-slate-400 leading-tight truncate">{data.sub}</p>}
+        </div>
+      </div>
+      {data.onView && (
+        <button onClick={e => { e.stopPropagation(); data.onView!(); }}
+          className={`self-start flex items-center gap-1 text-[9px] font-bold px-2.5 py-0.5 rounded-full transition-colors border ${
+            data.hasProfile
+              ? "text-violet-700 bg-violet-50 hover:bg-violet-100 border-violet-200"
+              : data.occupied
+                ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                : "text-slate-500 bg-slate-100 hover:bg-slate-200 border-slate-200"
+          }`}>
+          {data.hasProfile ? "Profile" : "Details"} <ChevronRight size={8} />
+        </button>
+      )}
+      <Handle type="source" position={Position.Bottom} isConnectable={false} style={HS} />
+    </div>
+  );
+}
+
+const ORG_NODE_TYPES = { "org-n": OrgN, "prop-n": PropN, "flr-n": FlrN, "room-n": RoomN };
+
+// ── dagre auto-layout ──
+function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
+  const g = new Dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: "TB", ranksep: 80, nodesep: 32, marginx: 56, marginy: 56 });
+  nodes.forEach(n => {
+    const d = ND[n.type as keyof typeof ND] ?? { w: 160, h: 72 };
+    g.setNode(n.id, { width: d.w, height: d.h });
+  });
+  edges.forEach(e => g.setEdge(e.source, e.target));
+  Dagre.layout(g);
+  return nodes.map(n => {
+    const pos = g.node(n.id);
+    const d = ND[n.type as keyof typeof ND] ?? { w: 160, h: 72 };
+    return { ...n, position: { x: pos.x - d.w / 2, y: pos.y - d.h / 2 } };
+  });
+}
+
+type NavTarget = { tab: string; propId?: string; tenantId?: string };
+
+function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTarget) => void }) {
+  const [xProps,   setXProps]   = React.useState<Set<string>>(() => new Set(org.propertyIds));
+  const [xFloors,  setXFloors]  = React.useState<Set<string>>(() => new Set());
+
+  type SelNode = { id: string; label: string; sub?: string; badge?: string; type: string; occupied?: boolean };
+  const [selected, setSelected] = React.useState<SelNode | null>(null);
+
+  const propIds    = org.propertyIds.join(",");
+  const properties = PROPERTIES.filter(p => org.propertyIds.includes(p.id));
+
+  // Stable lookups keyed on org.propertyIds so they refresh if properties are added/removed
+  const propById  = React.useMemo(() => new Map(properties.map(p => [p.id, p])), [propIds]);
+  const floorById = React.useMemo(() => {
+    const m = new Map<string, { fl: { id: string; label: string; roomIds: string[] }; fi: number; propId: string }>();
+    for (const [pid, floors] of Object.entries(PROPERTY_FLOORS))
+      floors.forEach((fl, fi) => m.set(fl.id, { fl, fi, propId: pid }));
+    return m;
+  }, []);
+
+  // Helpers — ids of all floors/rooms under a property (used to clear stale selection)
+  function childIdsOfProp(pid: string): Set<string> {
+    const ids = new Set<string>();
+    for (const fl of PROPERTY_FLOORS[pid] ?? []) {
+      ids.add(fl.id);
+      fl.roomIds.forEach(r => ids.add(r));
+    }
+    return ids;
+  }
+  function childIdsOfFloor(flId: string): Set<string> {
+    const entry = floorById.get(flId);
+    const ids = new Set<string>();
+    if (entry) entry.fl.roomIds.forEach(r => ids.add(r));
+    return ids;
+  }
+
+  // All click logic lives here — React Flow calls this reliably regardless of elementsSelectable
+  function handleNodeClick(_: React.MouseEvent, node: Node) {
+    const id = node.id;
+
+    // Org node — select only
+    if (id === org.id) {
+      setSelected(p => p?.id === id ? null : { id, label: org.name, sub: `${org.type} · ${org.plan} plan`, type: "org" });
+      return;
+    }
+
+    // Property node — toggle expand; if collapsing clear any selected floor/room beneath it
+    const prop = propById.get(id);
+    if (prop) {
+      const expanding = !xProps.has(id);
+      setXProps(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      if (!expanding) {
+        // Collapsing: clear selected if it was a floor or room under this property
+        const childIds = childIdsOfProp(id);
+        setSelected(p => (p && childIds.has(p.id)) ? null : p);
+        // Also clear the xFloors entries for floors under this prop to avoid ghost expansion next open
+        setXFloors(s => {
+          const n = new Set(s);
+          for (const fl of PROPERTY_FLOORS[id] ?? []) n.delete(fl.id);
+          return n;
+        });
+      }
+      setSelected(p => p?.id === id ? null : { id, label: prop.name, sub: prop.address.split(",")[0], badge: `${prop.occupied}/${prop.beds} beds`, type: "property" });
+      return;
+    }
+
+    // Floor node — toggle expand; if collapsing clear selected rooms beneath it
+    const flEntry = floorById.get(id);
+    if (flEntry) {
+      const { fl } = flEntry;
+      const rooms   = fl.roomIds.map(rid => ROOM_BY_ID[rid]).filter(Boolean);
+      const occ     = rooms.filter(r => r.status === "occupied").length;
+      const expanding = !xFloors.has(id);
+      setXFloors(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+      if (!expanding) {
+        const childIds = childIdsOfFloor(id);
+        setSelected(p => (p && childIds.has(p.id)) ? null : p);
+      }
+      setSelected(p => p?.id === id ? null : { id, label: fl.label, badge: `${occ}/${rooms.length} occupied`, type: "floor" });
+      return;
+    }
+
+    // Room node — select only
+    const rm = ROOM_BY_ID[id];
+    if (rm) {
+      setSelected(p => p?.id === id ? null : { id, label: rm.tenant ?? "Vacant", sub: `Rm ${rm.number} · ${rm.type}`, type: "room", occupied: rm.status === "occupied" });
+    }
+  }
+
+  // Build nodes + edges — all interaction via onNodeClick; View buttons use onView
+  const rawNodes: Node[] = [];
+  const rawEdges: Edge[] = [];
+
+  rawNodes.push({
+    id: org.id, type: "org-n", position: { x: 0, y: 0 },
+    data: {
+      label: org.name, sub: `${org.type} · ${org.plan} plan`,
+      image: org.image, initials: org.logoInitials,
+      onView: () => onNavigate({ tab: "organization" }),
+    } as NData,
+  });
+
+  for (const prop of properties) {
+    const propExp = xProps.has(prop.id);
+    rawNodes.push({
+      id: prop.id, type: "prop-n", position: { x: 0, y: 0 },
+      data: {
+        label: prop.name, sub: prop.address.split(",")[0],
+        badge: `${prop.occupied}/${prop.beds} beds`, isExp: propExp,
+        onView: () => onNavigate({ tab: "properties", propId: prop.id }),
+      } as NData,
+    });
+    rawEdges.push({ id: `e-${org.id}-${prop.id}`, source: org.id, target: prop.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
+
+    if (propExp) {
+      (PROPERTY_FLOORS[prop.id] ?? []).forEach((fl, fi) => {
+        const rooms = fl.roomIds.map(rid => ROOM_BY_ID[rid]).filter(Boolean);
+        const occ   = rooms.filter(r => r.status === "occupied").length;
+        const flExp = xFloors.has(fl.id);
+        rawNodes.push({
+          id: fl.id, type: "flr-n", position: { x: 0, y: 0 },
+          data: {
+            label: fl.label, badge: `${occ}/${rooms.length} occ`, floorNum: fi + 1, isExp: flExp,
+            onView: () => onNavigate({ tab: "properties", propId: prop.id }),
+          } as NData,
+        });
+        rawEdges.push({ id: `e-${prop.id}-${fl.id}`, source: prop.id, target: fl.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
+
+        if (flExp) {
+          rooms.forEach(rm => {
+            const tenantId = rm.tenant ? TENANT_BY_NAME[rm.tenant] : undefined;
+            rawNodes.push({
+              id: rm.id, type: "room-n", position: { x: 0, y: 0 },
+              data: {
+                label: rm.tenant ?? "Vacant", sub: `Rm ${rm.number} · ${rm.type}`,
+                occupied: rm.status === "occupied",
+                hasProfile: !!tenantId,
+                onView: tenantId
+                  ? () => onNavigate({ tab: "tenants", tenantId })
+                  : () => onNavigate({ tab: "properties", propId: prop.id }),
+              } as NData,
+            });
+            rawEdges.push({ id: `e-${fl.id}-${rm.id}`, source: fl.id, target: rm.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
+          });
+        }
+      });
+    }
+  }
+
+  const layoutedNodes = applyDagreLayout(rawNodes, rawEdges);
+
+  // key forces ReactFlow to remount (re-runs fitView) whenever the tree shape changes
+  const rfKey = [...xProps].sort().join(",") + "|" + [...xFloors].sort().join(",");
+
+  return (
+    <div className="bg-white rounded-2xl border border-[color:var(--line)] p-6">
+      <p className="font-semibold text-sm text-[color:var(--foreground)] mb-2">Organization hierarchy</p>
+      <p className="text-xs text-[color:var(--muted)] mb-4">
+        Click <span className="text-teal-600 font-semibold">property</span> or <span className="text-indigo-600 font-semibold">floor</span> nodes to expand · scroll/pinch to zoom
+      </p>
+
+      <div className="rounded-xl overflow-hidden border border-[color:var(--line)]" style={{ height: 520, width: "100%" }}>
+        <ReactFlow
+          key={rfKey}
+          nodes={layoutedNodes}
+          edges={rawEdges}
+          nodeTypes={ORG_NODE_TYPES}
+          onNodeClick={handleNodeClick}
+          fitView
+          fitViewOptions={{ padding: 0.18 }}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          elementsSelectable={false}
+          panOnDrag
+          zoomOnScroll
+          minZoom={0.2}
+          maxZoom={1.8}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background color="#ede9fe" gap={24} size={1} />
+        </ReactFlow>
+      </div>
+
+      {selected && (
+        <div className="mt-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-[color:var(--line)]">
+          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+            selected.type === "org"        ? "bg-violet-500"
+            : selected.type === "property" ? "bg-teal-500"
+            : selected.type === "floor"    ? "bg-indigo-500"
+            : selected.occupied            ? "bg-emerald-500"
+            :                               "bg-slate-300"
+          }`} />
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-[color:var(--foreground)] truncate">{selected.label}</p>
+            {selected.badge && <p className="text-[11px] text-[color:var(--muted)] mt-0.5">{selected.badge}</p>}
+            {selected.sub   && <p className="text-[11px] text-[color:var(--muted)]">{selected.sub}</p>}
+            <p className="text-[10px] text-slate-400 mt-1 capitalize">
+              {selected.type}{selected.type === "room" && !selected.occupied ? " · Vacant" : ""}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── OrganizationTab — multi-org management ───────────────────────────────────
+
+function OrganizationTab({ onNavigate }: { onNavigate: (t: NavTarget) => void }) {
+  const [orgs, setOrgs]           = React.useState<Organization[]>(MOCK_ORGS);
+  const [activeOrgId, setActiveOrgId] = React.useState<string | null>(
+    MOCK_ORGS.length > 0 ? MOCK_ORGS[0].id : null
+  );
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [view, setView]            = React.useState<"details" | "tree">("details");
+
+  // Create-form state
+  const [cName,    setCName]    = React.useState("");
+  const [cType,    setCType]    = React.useState<Organization["type"]>("individual");
+  const [cAddress, setCAddress] = React.useState("");
+  const [cCity,    setCCity]    = React.useState("");
+  const [cPhone,   setCPhone]   = React.useState("");
+  const [cEmail,   setCEmail]   = React.useState("");
+  const [cGstin,   setCGstin]   = React.useState("");
+  const [cWebsite, setCWebsite] = React.useState("");
+  const [cError,   setCError]   = React.useState<string | null>(null);
+
+  const activeOrg = orgs.find(o => o.id === activeOrgId) ?? null;
+
+  function handleDelete(id: string) {
+    const remaining = orgs.filter(o => o.id !== id);
+    setOrgs(remaining);
+    setActiveOrgId(remaining.length > 0 ? remaining[0].id : null);
+  }
+
+  function openCreate() {
+    setShowCreate(true);
+    setActiveOrgId(null);
+  }
+
+  function cancelCreate() {
+    setShowCreate(false);
+    setCName(""); setCType("individual"); setCAddress(""); setCCity("");
+    setCPhone(""); setCEmail(""); setCGstin(""); setCWebsite(""); setCError(null);
+    if (orgs.length > 0) setActiveOrgId(orgs[0].id);
+  }
+
+  function submitCreate() {
+    if (!cName.trim())    { setCError("Organization name is required."); return; }
+    if (!cAddress.trim()) { setCError("Address is required."); return; }
+    if (!cCity.trim())    { setCError("City is required."); return; }
+    if (!cPhone.trim())   { setCError("Phone is required."); return; }
+    if (!ORG_EMAIL_RE.test(cEmail.trim())) { setCError("A valid email is required."); return; }
+    if (cGstin.trim() && !GSTIN_RE.test(cGstin.trim().toUpperCase())) {
+      setCError("GSTIN must be 15 characters in the format: 22AAAAA0000A1Z5"); return;
+    }
+    if (orgs.some(o => o.name.toLowerCase() === cName.trim().toLowerCase())) {
+      setCError("An organization with this name already exists."); return;
+    }
+
+    const initials = cName.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const today    = new Date().toISOString().slice(0, 10);
+    const newOrg: Organization = {
+      id: `org${Date.now()}`,
+      name: cName.trim(),
+      type: cType,
+      address: cAddress.trim(),
+      city: cCity.trim(),
+      phone: cPhone.trim(),
+      email: cEmail.trim().toLowerCase(),
+      ...(cGstin.trim()   ? { gstin: cGstin.trim().toUpperCase() }   : {}),
+      ...(cWebsite.trim() ? { website: cWebsite.trim() }             : {}),
+      logoInitials: initials,
+      plan: "growth",
+      propertyIds: [],
+      ownerId: "o1",
+      createdAt: today,
+      members: [{
+        id: `m${Date.now()}`,
+        name: OWNER.name,
+        email: "ravi@shiftproof.app",
+        role: "owner",
+        assignedProperties: [],
+        status: "active",
+        joinedAt: today,
+      }],
+    };
+
+    setOrgs(prev => [...prev, newOrg]);
+    setActiveOrgId(newOrg.id);
+    setShowCreate(false);
+    setCName(""); setCType("individual"); setCAddress(""); setCCity("");
+    setCPhone(""); setCEmail(""); setCGstin(""); setCWebsite(""); setCError(null);
+  }
+
+  const INP = "w-full px-3 py-2.5 rounded-xl border border-[color:var(--line)] text-sm bg-white outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] text-[color:var(--foreground)] placeholder:text-[color:var(--muted)]";
+
+  return (
+    <div className="space-y-5">
+
+      {/* Header row: org selector pills + New org button */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          {orgs.map(o => (
+            <button
+              key={o.id}
+              onClick={() => { setActiveOrgId(o.id); setShowCreate(false); }}
+              className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeOrgId === o.id && !showCreate
+                  ? "bg-[color:var(--accent-500)] text-white"
+                  : "bg-white border border-[color:var(--line)] text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:border-[color:var(--accent-200)]"
+              }`}
+            >
+              {o.name}
+            </button>
+          ))}
+          {orgs.length === 0 && !showCreate && (
+            <span className="text-sm text-[color:var(--muted)]">No organizations yet.</span>
+          )}
+        </div>
+        <button
+          onClick={showCreate ? cancelCreate : openCreate}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[color:var(--line)] text-xs font-medium text-[color:var(--muted)] hover:text-[color:var(--foreground)] hover:border-[color:var(--accent-500)] transition-colors whitespace-nowrap"
+        >
+          {showCreate ? <X size={13} /> : <Plus size={13} />}
+          {showCreate ? "Cancel" : "New organization"}
+        </button>
+      </div>
+
+      {/* Create organization form */}
+      {showCreate && (
+        <div className="bg-white rounded-2xl border border-[color:var(--line)] p-6">
+          <h3 className="font-semibold text-[color:var(--foreground)] mb-1">Create organization</h3>
+          <p className="text-xs text-[color:var(--muted)] mb-5">Your brand identity in ShiftProof. You can have multiple organizations under one account.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2 flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Organization / brand name <span className="text-[color:var(--error)]">*</span></label>
+              <input placeholder="e.g. Nova Stays, Sharma Properties" value={cName} onChange={e => setCName(e.target.value)} className={INP} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Type <span className="text-[color:var(--error)]">*</span></label>
+              <select value={cType} onChange={e => setCType(e.target.value as Organization["type"])} className={INP}>
+                <option value="individual">Individual / Proprietorship</option>
+                <option value="firm">Partnership Firm / LLP</option>
+                <option value="company">Private Limited / Company</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">City <span className="text-[color:var(--error)]">*</span></label>
+              <input placeholder="e.g. Pune, Bangalore" value={cCity} onChange={e => setCCity(e.target.value)} className={INP} />
+            </div>
+
+            <div className="sm:col-span-2 flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Registered address <span className="text-[color:var(--error)]">*</span></label>
+              <input placeholder="Street, area, landmark" value={cAddress} onChange={e => setCAddress(e.target.value)} className={INP} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Contact phone <span className="text-[color:var(--error)]">*</span></label>
+              <input placeholder="+91 98765 43210" value={cPhone} onChange={e => setCPhone(e.target.value)} className={INP} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Contact email <span className="text-[color:var(--error)]">*</span></label>
+              <input type="email" placeholder="ops@yourbrand.in" value={cEmail} onChange={e => setCEmail(e.target.value)} className={INP} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">GSTIN <span className="text-[color:var(--muted)] font-normal">(optional)</span></label>
+              <input placeholder="22AAAAA0000A1Z5" maxLength={15} value={cGstin} onChange={e => setCGstin(e.target.value.toUpperCase())} className={`${INP} font-mono`} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--muted)]">Website <span className="text-[color:var(--muted)] font-normal">(optional)</span></label>
+              <input placeholder="https://yourbrand.in" value={cWebsite} onChange={e => setCWebsite(e.target.value)} className={INP} />
+            </div>
+          </div>
+
+          {cError && (
+            <p className="text-xs text-[color:var(--error-700)] bg-[color:var(--error-50)] rounded-lg px-3 py-2 mt-4">{cError}</p>
+          )}
+
+          <div className="flex gap-2 mt-5">
+            <button
+              onClick={submitCreate}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-sm font-semibold transition-colors"
+            >
+              <Landmark size={14} strokeWidth={2} /> Create organization
+            </button>
+            <button
+              onClick={cancelCreate}
+              className="px-5 py-2.5 rounded-xl text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* View toggle — Details / Tree */}
+      {activeOrg && !showCreate && (
+        <div className="flex gap-1 p-1 bg-slate-100 rounded-xl w-fit">
+          {(["details", "tree"] as const).map(v => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors capitalize ${
+                view === v
+                  ? "bg-white text-[color:var(--foreground)] shadow-sm"
+                  : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
+              }`}
+            >
+              {v === "tree" ? "Org Tree" : "Details"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active org detail */}
+      {activeOrg && !showCreate && view === "details" && (
+        <OrgDetail key={activeOrg.id} org={activeOrg} onDelete={handleDelete} />
+      )}
+
+      {/* Org tree view */}
+      {activeOrg && !showCreate && view === "tree" && (
+        <OrgTree key={activeOrg.id} org={activeOrg} onNavigate={onNavigate} />
+      )}
+
+      {/* Empty state */}
+      {orgs.length === 0 && !showCreate && (
+        <div className="flex flex-col items-center justify-center gap-4 py-20 text-center bg-white rounded-2xl border border-[color:var(--line)]">
+          <div className="w-14 h-14 rounded-2xl bg-[color:var(--background)] flex items-center justify-center">
+            <Landmark size={24} strokeWidth={1.5} className="text-[color:var(--muted)]" />
+          </div>
+          <div>
+            <p className="font-semibold text-[color:var(--foreground)]">No organizations yet</p>
+            <p className="text-sm text-[color:var(--muted)] mt-1 max-w-xs">Create an organization to manage your brand, properties, and team under one roof.</p>
+          </div>
+          <button
+            onClick={openCreate}
+            className="mt-1 flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-6 py-2.5 text-sm font-semibold text-white transition-colors"
+          >
+            <Plus size={15} strokeWidth={2.5} /> Create organization
+          </button>
+        </div>
+      )}
+
+    </div>
+  );
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -1538,6 +2998,8 @@ const SEARCH_INDEX = [
   ...PROPERTIES.map(p => ({ type: "Property", label: p.name, sub: p.address, nav: "properties" })),
   ...TENANTS.map(t  => ({ type: "Tenant",   label: t.name,  sub: `${t.property} · Room ${t.room}`, nav: "tenants" })),
   ...MAINTENANCE.map(m => ({ type: "Ticket", label: m.title, sub: `${m.property} · ${m.status}`, nav: "maintenance" })),
+  { type: "Organization", label: CURRENT_ORG.name, sub: `${CURRENT_ORG.members.length} members · ${CURRENT_ORG.plan} plan`, nav: "organization" },
+  ...CURRENT_ORG.members.map(m => ({ type: "Member", label: m.name, sub: `${m.role} · ${m.email}`, nav: "organization" })),
 ];
 
 function SearchOverlay({ onClose, onNav }: { onClose: () => void; onNav: (id: string) => void }) {
@@ -1856,6 +3318,25 @@ export default function OwnerDashboardClient() {
 
   const [activeNav, setActiveNav] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [deepPropId,    setDeepPropId]    = useState<string | null>(null);
+  const [deepTenantId,  setDeepTenantId]  = useState<string | null>(null);
+  // Incremented each time a deep-nav fires so the target tab remounts with fresh initialId
+  const [deepPropVer,   setDeepPropVer]   = useState(0);
+  const [deepTenantVer, setDeepTenantVer] = useState(0);
+
+  // Nav initiated by the user (sidebar / search / notifs) — clears any deep link
+  function navTo(tab: string) {
+    setDeepPropId(null);
+    setDeepTenantId(null);
+    setActiveNav(tab);
+  }
+
+  // Nav from OrgTree View buttons — carries a deep link to open a specific entity
+  function handleDeepNav({ tab, propId, tenantId }: NavTarget) {
+    if (propId !== undefined)   { setDeepPropId(propId);     setDeepPropVer(v => v + 1); }
+    if (tenantId !== undefined) { setDeepTenantId(tenantId); setDeepTenantVer(v => v + 1); }
+    setActiveNav(tab);
+  }
 
   // Settings — loaded from localStorage, applied immediately on change
   const [settings, setSettings] = useState<DashSettings>(DEFAULT_SETTINGS);
@@ -1899,12 +3380,21 @@ export default function OwnerDashboardClient() {
       <aside className={`fixed inset-y-0 left-0 z-40 ${sidebarW} bg-[#1A1A18] flex flex-col py-6 transition-all duration-300
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
 
-        {/* Logo */}
-        <div className={`mb-8 flex items-center gap-2.5 ${settings.sidebarCollapsed ? "justify-center px-0" : "px-6"}`}>
-          <div className="w-7 h-7 rounded-full bg-[color:var(--accent-500)] flex items-center justify-center shrink-0">
-            <Building2 size={14} strokeWidth={2} className="text-white" />
-          </div>
-          {!settings.sidebarCollapsed && <span className="font-bold text-lg text-white tracking-tight">ShiftProof</span>}
+        {/* Org logo */}
+        <div className={`mb-8 flex items-center gap-3 ${settings.sidebarCollapsed ? "justify-center px-0" : "px-5"}`}>
+          {CURRENT_ORG.image ? (
+            <img src={CURRENT_ORG.image} alt={CURRENT_ORG.name} className="w-9 h-9 rounded-xl object-cover shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none tracking-wide">
+              {CURRENT_ORG.logoInitials}
+            </div>
+          )}
+          {!settings.sidebarCollapsed && (
+            <div className="min-w-0">
+              <p className="font-bold text-sm text-white tracking-tight truncate leading-snug">{CURRENT_ORG.name}</p>
+              <p className="text-[10px] text-white/30 leading-snug">via ShiftProof</p>
+            </div>
+          )}
         </div>
 
         {/* Nav */}
@@ -1912,7 +3402,7 @@ export default function OwnerDashboardClient() {
           {NAV_ITEMS.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setActiveNav(item.id); setSidebarOpen(false); }}
+              onClick={() => { navTo(item.id); setSidebarOpen(false); }}
               title={settings.sidebarCollapsed ? item.label : undefined}
               className={`w-full flex items-center gap-3 rounded-xl text-sm font-medium transition-colors text-left
                 ${settings.sidebarCollapsed ? "justify-center px-0 py-2.5" : "px-4 py-2.5"}
@@ -1928,7 +3418,7 @@ export default function OwnerDashboardClient() {
         {/* Profile footer */}
         <div className={`pt-4 border-t border-white/10 ${settings.sidebarCollapsed ? "px-2" : "px-4"}`}>
           <button
-            onClick={() => { setActiveNav("account"); setSidebarOpen(false); }}
+            onClick={() => { navTo("account"); setSidebarOpen(false); }}
             title={settings.sidebarCollapsed ? `${OWNER.name} · Account` : undefined}
             className={`w-full flex items-center gap-3 mb-2 px-2 py-2 rounded-xl transition-colors text-left ${
               activeNav === "account" ? "bg-[color:var(--accent-500)]/20" : "hover:bg-white/5"
@@ -1992,7 +3482,7 @@ export default function OwnerDashboardClient() {
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[color:var(--error)]" />
                 )}
               </button>
-              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} onNav={(id) => { setActiveNav(id); setNotifOpen(false); }} />}
+              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} onNav={(id) => { navTo(id); setNotifOpen(false); }} />}
             </div>
             {/* Settings — UI preferences */}
             <div className="relative">
@@ -2016,23 +3506,24 @@ export default function OwnerDashboardClient() {
         </header>
 
         {/* Search overlay (portal-like, rendered inside main so it's above content) */}
-        {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} onNav={(id) => { setActiveNav(id); }} />}
+        {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} onNav={(id) => { navTo(id); }} />}
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {activeNav === "overview"    && <OverviewTab />}
-          {activeNav === "properties"  && <PropertiesTab />}
-          {activeNav === "tenants"     && <TenantsTab />}
-          {activeNav === "payments"    && <PaymentsTab />}
-          {activeNav === "maintenance" && <MaintenanceTab />}
-          {activeNav === "reports"     && <ReportsTab />}
-          {activeNav === "account"     && <AccountTab />}
+          {activeNav === "overview"      && <OverviewTab />}
+          {activeNav === "properties"    && <PropertiesTab key={deepPropVer}   initialPropId={deepPropId} />}
+          {activeNav === "tenants"       && <TenantsTab   key={deepTenantVer} initialTenantId={deepTenantId} onNav={navTo} />}
+          {activeNav === "payments"      && <PaymentsTab />}
+          {activeNav === "maintenance"   && <MaintenanceTab />}
+          {activeNav === "reports"       && <ReportsTab />}
+          {activeNav === "organization"  && <OrganizationTab onNavigate={handleDeepNav} />}
+          {activeNav === "account"       && <AccountTab />}
         </main>
       </div>
 
       {/* FAB */}
       <button
-        onClick={() => setActiveNav("properties")}
+        onClick={() => navTo("properties")}
         className="fixed bottom-6 right-6 w-14 h-14 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white rounded-full shadow-xl flex items-center justify-center transition-colors z-50 lg:flex hidden"
         title="Add Property"
       >

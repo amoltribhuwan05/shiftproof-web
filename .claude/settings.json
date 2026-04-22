@@ -5,7 +5,8 @@
       "Bash(npm list *)",
       "Bash(~/.local/bin/gh label *)",
       "Bash(~/.local/bin/gh issue *)",
-      "Bash(python3 -c \"import json,sys; issues=json.load\\(sys.stdin\\); print\\(f'Total issues: {len\\(issues\\)}'\\); [print\\(f'  #{i[\\\\\"number\\\\\"]} {i[\\\\\"title\\\\\"]}'\\) for i in sorted\\(issues, key=lambda x: x['number']\\)]\")"
+      "Bash(python3 -c \"import json,sys; issues=json.load\\(sys.stdin\\); print\\(f'Total issues: {len\\(issues\\)}'\\); [print\\(f'  #{i[\\\\\"number\\\\\"]} {i[\\\\\"title\\\\\"]}'\\) for i in sorted\\(issues, key=lambda x: x['number']\\)]\")",
+      "mcp__code-review-graph__detect_changes_tool"
     ]
   },
   "hooks": {

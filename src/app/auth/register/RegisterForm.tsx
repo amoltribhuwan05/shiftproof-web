@@ -13,6 +13,7 @@ export default function RegisterForm() {
   const router = useRouter();
   const [role, setRole] = useState<Role>("owner");
   const [name, setName] = useState("");
+  const [orgName, setOrgName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +23,11 @@ export default function RegisterForm() {
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    if (role === "owner" && !orgName.trim()) {
+      setError("Organization name is required for owner accounts.");
+      return;
+    }
 
     const cleanPhone = phone.replace(/\D/g, "");
     if (!PHONE_RE.test(cleanPhone)) {
@@ -34,7 +40,7 @@ export default function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone: cleanPhone, password, role }),
+        body: JSON.stringify({ name, email, phone: cleanPhone, password, role, orgName: orgName.trim() || undefined }),
       });
 
       const data = await res.json();
@@ -86,6 +92,25 @@ export default function RegisterForm() {
           className={INPUT_CLS}
         />
       </div>
+
+      {role === "owner" && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="orgName">
+            Organization / brand name
+          </label>
+          <input
+            id="orgName"
+            type="text"
+            autoComplete="organization"
+            required
+            placeholder="e.g. Sharma Properties, Nova Stays"
+            value={orgName}
+            onChange={(e) => setOrgName(e.target.value)}
+            className={INPUT_CLS}
+          />
+          <span className="text-[11px] text-[color:var(--muted)]">Your brand name — used to identify your organization in ShiftProof.</span>
+        </div>
+      )}
 
       <div className="flex flex-col gap-1.5">
         <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="email">
