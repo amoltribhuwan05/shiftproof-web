@@ -188,13 +188,29 @@ Tailwind v4 syntax differs significantly from v3:
 | File | Lines | Notes |
 |---|---|---|
 | `src/app/(marketing)/find-pg/FindPGClient.tsx` | ~845 | Main listing/search/filter page — "use client" |
-| `src/app/owner-dashboard/OwnerDashboardClient.tsx` | ~450 | Full-screen SaaS dashboard — "use client" |
+| `src/app/owner-dashboard/OwnerDashboardClient.tsx` | ~3314 | Full-screen SaaS dashboard — "use client"; imports all shared data from mockData |
+| `src/app/tenant-dashboard/TenantDashboardClient.tsx` | ~1082 | Tenant-facing dashboard — "use client"; all data derived from mockData |
+| `src/lib/mockData.ts` | ~562 | **Single source of truth** — 25 tenants, 3 properties, 7 maintenance tickets, notices, transactions, CURRENT_TENANT, CURRENT_TENANT_ROOMMATES |
+| `src/lib/orgData.ts` | ~120 | Two mock orgs (org1=Ravi Kumar/p1–p3, org2=Nova Stays/np1–np2) |
+| `src/lib/users.ts` | ~101 | Auth user store; t1=Rahul Sharma matches TenantDashboard demo user |
+| `src/lib/orgTypes.ts` | — | OrgRole, OrgMember, Organization types; ROLE_PERMISSIONS; PLAN_LIMITS |
 | `src/lib/pgData.ts` | 226 | 12 mock PG listings + types |
 | `src/lib/bst.ts` | ~80 | Generic BST; used for price-range queries |
 | `src/components/Navbar.tsx` | ~160 | Sticky nav, mobile hamburger, Dashboard link — "use client" |
 | `src/app/layout.tsx` | 26 | Root shell — fonts/globals only; NO Navbar/Footer |
 | `src/app/(marketing)/layout.tsx` | 10 | Marketing shell — adds Navbar + Footer |
 | `src/app/(marketing)/page.tsx` | 23 | Landing page — assembles section components |
+
+### mockData.ts — key exports and invariants
+
+- **25 tenants** u1–u25 across 3 properties: p1 Sunshine PG (r1–r12), p2 Green Haven (r13–r20), p3 Royal Residency (r21–r30)
+- **Room r1** (101, Sunshine PG) is `"Single AC"` — Rahul Sharma's room; all other singles are `"Single"`
+- **MAINTENANCE** m1–m7: m1/m6/m7 have `tenantId: "u1"` (Rahul's tickets); TenantDashboard filters by this
+- **NOTICES** all have `propertyId: "p1"`; tenant dashboard shows all notices for p1
+- **CURRENT_TENANT** is derived (not hardcoded) — computed from u1 + room r1 + property p1 + TENANTS_EXT["u1"]
+- **CURRENT_TENANT_ROOMMATES** derived from Floor 1 rooms (102→Neha Gupta, 103→Arjun Singh)
+- **TenantDashboardClient** derives PAYMENT_HISTORY by reversing TENANTS_EXT["u1"].rentHistory and mapping `"pending"→"due"`
+- **TenantDashboardClient** derives MAINTENANCE_REQUESTS by filtering MAINTENANCE where `tenantId === "u1"`
 
 ### FindPGClient.tsx — key implementation details
 
@@ -242,6 +258,10 @@ function buildBST<T>(items: T[], keyFn: (item: T) => number): BST<T>
 | Zero runtime deps beyond Next.js + React | Project policy |
 | Owner dashboard uses `slate-950` dark theme | Distinct from marketing site's white/violet |
 | Dashboard charts are inline SVG | No chart library; stays zero-dep |
+| All dashboard mock data lives in `src/lib/mockData.ts` | Single source of truth — never redefine inline |
+| `CURRENT_TENANT` + `CURRENT_TENANT_ROOMMATES` derived in mockData.ts | No duplication; computed from TENANTS/PROPERTY_ROOMS/PROPERTIES |
+| Room assignment dropdown excludes already-assigned tenants | Uses `assignedTenantNames` Set built from live `rooms` state + other properties' PROPERTY_ROOMS |
+| Tenant reassignment requires unassign-first flow | Prevents double-booking; unassign button sets room to vacant, then Assign Tenant appears |
 
 ---
 

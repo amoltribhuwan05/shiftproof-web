@@ -10,59 +10,45 @@ import {
   Shield, User, Lock, Smartphone, ToggleLeft, ToggleRight,
   Edit3, Eye, EyeOff, Trash2, Settings, LogOut,
 } from "lucide-react";
+import {
+  CURRENT_TENANT, TENANTS_EXT, MAINTENANCE, MAINTENANCE_EXT,
+  NOTICES, PROPERTY_AMENITIES, PROPERTY_HOUSE_RULES, CURRENT_TENANT_ROOMMATES, TENANT_DOCS,
+} from "@/lib/mockData";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type NavId = "overview" | "myroom" | "payments" | "maintenance" | "notices" | "account";
 
-// ─── Mock data ─────────────────────────────────────────────────────────────────
+// ─── Display data (derived from shared mock data) ──────────────────────────────
 
-const TENANT = {
-  name: "Rahul Sharma",
-  initials: "RS",
-  room: "101",
-  floor: 1,
-  type: "Single AC",
-  pg: "Sunshine PG",
-  address: "Koramangala, Bangalore",
-  pgContact: "+91 98765 43210",
-  pgManager: "Vikram Shetty",
-  rent: 8500,
-  deposit: 17000,
-  leaseStart: "Jun 1, 2025",
-  leaseEnd: "Dec 31, 2025",
-  leaseDaysLeft: 261,
-  checkIn: "Jun 1, 2025",
-};
+const TENANT = CURRENT_TENANT;
 
-const PAYMENT_HISTORY = [
-  { month: "November", year: 2024, amount: 8500, status: "paid",    date: "Nov 3, 2024",  receipt: "RCP-2411" },
-  { month: "December", year: 2024, amount: 8500, status: "paid",    date: "Dec 4, 2024",  receipt: "RCP-2412" },
-  { month: "January",  year: 2025, amount: 8500, status: "paid",    date: "Jan 2, 2025",  receipt: "RCP-2501" },
-  { month: "February", year: 2025, amount: 8500, status: "paid",    date: "Feb 3, 2025",  receipt: "RCP-2502" },
-  { month: "March",    year: 2025, amount: 8500, status: "paid",    date: "Mar 5, 2025",  receipt: "RCP-2503" },
-  { month: "April",    year: 2025, amount: 8500, status: "due",     date: "Due Apr 5",    receipt: null       },
-];
+const PAYMENT_HISTORY = [...TENANTS_EXT["u1"].rentHistory].reverse().map(r => ({
+  month:   r.month.split(" ")[0],
+  year:    parseInt(r.month.split(" ")[1]),
+  amount:  parseInt(r.amount.replace(/[^\d]/g, "")),
+  status:  (r.status === "pending" ? "due" : r.status) as "paid" | "due" | "overdue",
+  date:    r.paidOn ?? `Due ${r.month.split(" ")[0]} 5`,
+  receipt: r.receipt ?? null,
+}));
 
-const MAINTENANCE_REQUESTS = [
-  { id: "m1", title: "AC not cooling properly", category: "Electrical", date: "Apr 3, 2025",  status: "in_progress", priority: "high",   response: "Technician scheduled for Apr 6"  },
-  { id: "m2", title: "Bathroom tap dripping",   category: "Plumbing",   date: "Mar 28, 2025", status: "resolved",    priority: "medium", response: "Fixed on Mar 30"                 },
-  { id: "m3", title: "Room light flickering",   category: "Electrical", date: "Mar 10, 2025", status: "resolved",    priority: "low",    response: "Fixed on Mar 12"                 },
-];
+const MAINTENANCE_REQUESTS = MAINTENANCE
+  .filter(m => m.tenantId === "u1")
+  .map(m => ({
+    id:       m.id,
+    title:    m.title,
+    category: m.category,
+    date:     m.date,
+    status:   m.status,
+    priority: m.priority,
+    response: MAINTENANCE_EXT[m.id]?.response ?? "",
+  }));
 
-const NOTICES_DATA = [
-  { id: "n1", title: "WiFi upgrade scheduled",  body: "The internet service will be upgraded on Apr 10 from 10am–2pm. Expect brief downtime.",    date: "Apr 3, 2025",  type: "info",     read: false },
-  { id: "n2", title: "April rent reminder",      body: "Please pay your April rent by Apr 5 to avoid a late fee. UPI: shiftproof@upi",             date: "Apr 1, 2025",  type: "reminder", read: false },
-  { id: "n3", title: "Guest policy reminder",    body: "Visitors are allowed only till 9 PM. Please ensure compliance. Thank you.",                 date: "Mar 25, 2025", type: "policy",   read: true  },
-  { id: "n4", title: "Common area cleaning",     body: "Common areas will be deep-cleaned on Apr 8 (Sunday) from 8–11am.",                         date: "Mar 22, 2025", type: "info",     read: true  },
-];
+const NOTICES_DATA = NOTICES;
 
-const AMENITIES   = ["WiFi", "AC", "Laundry", "Parking", "CCTV", "Water 24×7", "Security Guard"];
-const HOUSE_RULES = ["No smoking on premises", "Visitors allowed till 9 PM", "No loud music after 10 PM", "Monthly rent due by 5th"];
-const ROOMMATES   = [
-  { name: "Deepak Singh", initials: "DS", room: "102", since: "Jan 2025" },
-  { name: "Preet Kaur",   initials: "PK", room: "103", since: "Mar 2025" },
-];
+const AMENITIES   = PROPERTY_AMENITIES["p1"];
+const HOUSE_RULES = PROPERTY_HOUSE_RULES["p1"];
+const ROOMMATES   = CURRENT_TENANT_ROOMMATES;
 
 // ─── Nav config ────────────────────────────────────────────────────────────────
 
@@ -692,7 +678,7 @@ function NoticesSection() {
 function AccountSection() {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: TENANT.name, email: "rahul.sharma@gmail.com", phone: "9876543210",
+    name: TENANT.name, email: TENANT.email, phone: TENANT.phone,
   });
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -707,10 +693,15 @@ function AccountSection() {
     whatsapp: true, sms: false,
   });
 
-  const [idDocs, setIdDocs] = useState([
-    { label: "Aadhar Card", status: "verified", number: "XXXX-XXXX-4821" },
-    { label: "PAN Card",    status: "pending",  number: "—" },
-  ]);
+  const [idDocs, setIdDocs] = useState(
+    TENANT_DOCS["u1"]
+      .filter(d => ["Aadhar Card", "PAN Card", "Passport"].includes(d.type))
+      .map(d => ({
+        label:  d.type,
+        status: d.status as "verified" | "pending" | "missing",
+        number: d.type === "Aadhar Card" ? "XXXX-XXXX-4821" : "—",
+      }))
+  );
 
   function saveProfile() {
     setEditingProfile(false);

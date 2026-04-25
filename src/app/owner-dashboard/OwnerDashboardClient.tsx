@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { CURRENT_ORG, MOCK_ORGS } from "@/lib/orgData";
 import {
+  PROPERTIES, PROPERTY_ROOMS, PROPERTY_FLOORS, PROPERTY_AMENITIES,
+  PROPERTY_GALLERY, TENANTS, TENANTS_EXT, TENANT_DOCS, TENANT_BY_NAME,
+  ROOM_BY_ID, MAINTENANCE, MAINTENANCE_EXT, TRANSACTIONS,
+} from "@/lib/mockData";
+import {
   type OrgRole, type OrgMember, type OrgPermissions, type Organization,
   ROLE_PERMISSIONS, PLAN_LIMITS,
 } from "@/lib/orgTypes";
@@ -25,7 +30,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import Dagre from "@dagrejs/dagre";
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
+// ─── Display-only config (not shared data) ────────────────────────────────────
 
 const OWNER = { name: "Ravi Kumar", initials: "RK", properties: 3, beds: 28 };
 
@@ -53,236 +58,6 @@ const AT_A_GLANCE = [
   { label: "Overdue Accounts", value: "5",  sub: "Requires attention",  icon: AlertCircle,  color: "text-[color:var(--error)]" },
 ];
 
-const TRANSACTIONS = [
-  { id: "t1", initials: "RS", name: "Rahul Sharma",  property: "Sunshine PG · 3A",     amount: "₹8,500",  date: "Apr 2",  status: "paid" },
-  { id: "t2", initials: "PV", name: "Priya Verma",   property: "Green Haven · 1B",      amount: "₹10,000", date: "Apr 2",  status: "paid" },
-  { id: "t3", initials: "AP", name: "Amit Patel",    property: "Royal Residency · 2A",  amount: "₹9,500",  date: "Apr 3",  status: "paid" },
-  { id: "t4", initials: "NG", name: "Neha Gupta",    property: "Sunshine PG · 5C",      amount: "₹8,500",  date: "Apr 5",  status: "pending" },
-  { id: "t5", initials: "KR", name: "Kiran Rao",     property: "Green Haven · 2A",      amount: "₹10,000", date: "Apr 5",  status: "pending" },
-  { id: "t6", initials: "SM", name: "Sonia Mehta",   property: "Royal Residency · 4B",  amount: "₹9,500",  date: "Mar 28", status: "overdue" },
-];
-
-const TENANTS = [
-  { id: "u1", initials: "RS", name: "Rahul Sharma", property: "Sunshine PG",     room: "3A", lease: "Dec 2025", risk: "none",     paid: true },
-  { id: "u2", initials: "PV", name: "Priya Verma",  property: "Green Haven",     room: "1B", lease: "May 2026", risk: "none",     paid: true },
-  { id: "u3", initials: "AP", name: "Amit Patel",   property: "Royal Residency", room: "2A", lease: "Apr 2026", risk: "expiring", paid: true },
-  { id: "u4", initials: "NG", name: "Neha Gupta",   property: "Sunshine PG",     room: "5C", lease: "Nov 2025", risk: "none",     paid: false },
-  { id: "u5", initials: "KR", name: "Kiran Rao",    property: "Green Haven",     room: "2A", lease: "Oct 2025", risk: "late",     paid: false },
-  { id: "u6", initials: "SM", name: "Sonia Mehta",  property: "Royal Residency", room: "4B", lease: "Sep 2025", risk: "late",     paid: false },
-];
-
-const PROPERTIES = [
-  { id: "p1", name: "Sunshine PG",     address: "Koramangala, Bangalore", beds: 12, occupied: 10, rent: 8500,  pending: 1, image: "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&h=240&fit=crop&q=80" },
-  { id: "p2", name: "Green Haven",     address: "Indiranagar, Bangalore",  beds: 8,  occupied: 7,  rent: 10000, pending: 1, image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&h=240&fit=crop&q=80" },
-  { id: "p3", name: "Royal Residency", address: "HSR Layout, Bangalore",   beds: 10, occupied: 8,  rent: 9500,  pending: 1, image: null },
-];
-
-const PROPERTY_ROOMS: Record<string, { id: string; number: string; type: string; tenant: string | null; rent: number; status: "occupied" | "vacant" }[]> = {
-  p1: [
-    { id: "r1",  number: "101", type: "Single", tenant: "Rahul Sharma",  rent: 8500,  status: "occupied" },
-    { id: "r2",  number: "102", type: "Single", tenant: "Neha Gupta",    rent: 8500,  status: "occupied" },
-    { id: "r3",  number: "103", type: "Double", tenant: "Arjun Singh",   rent: 8500,  status: "occupied" },
-    { id: "r4",  number: "104", type: "Single", tenant: "Divya Nair",    rent: 8500,  status: "occupied" },
-    { id: "r5",  number: "105", type: "Double", tenant: "Suresh Babu",   rent: 8500,  status: "occupied" },
-    { id: "r6",  number: "106", type: "Single", tenant: "Lakshmi Iyer",  rent: 8500,  status: "occupied" },
-    { id: "r7",  number: "107", type: "Single", tenant: "Mohan Das",     rent: 8500,  status: "occupied" },
-    { id: "r8",  number: "108", type: "Double", tenant: "Kavya Reddy",   rent: 8500,  status: "occupied" },
-    { id: "r9",  number: "109", type: "Single", tenant: "Vikram Joshi",  rent: 8500,  status: "occupied" },
-    { id: "r10", number: "110", type: "Single", tenant: "Anita Desai",   rent: 8500,  status: "occupied" },
-    { id: "r11", number: "111", type: "Single", tenant: null,            rent: 8500,  status: "vacant"   },
-    { id: "r12", number: "112", type: "Double", tenant: null,            rent: 8500,  status: "vacant"   },
-  ],
-  p2: [
-    { id: "r13", number: "A1", type: "Single", tenant: "Priya Verma",   rent: 10000, status: "occupied" },
-    { id: "r14", number: "A2", type: "Double", tenant: "Kiran Rao",     rent: 10000, status: "occupied" },
-    { id: "r15", number: "A3", type: "Single", tenant: "Ritu Sharma",   rent: 10000, status: "occupied" },
-    { id: "r16", number: "A4", type: "Single", tenant: "Deepak Menon",  rent: 10000, status: "occupied" },
-    { id: "r17", number: "A5", type: "Double", tenant: "Sneha Pillai",  rent: 10000, status: "occupied" },
-    { id: "r18", number: "A6", type: "Single", tenant: "Rahul Nair",    rent: 10000, status: "occupied" },
-    { id: "r19", number: "A7", type: "Single", tenant: "Pooja Verma",   rent: 10000, status: "occupied" },
-    { id: "r20", number: "A8", type: "Double", tenant: null,            rent: 10000, status: "vacant"   },
-  ],
-  p3: [
-    { id: "r21", number: "201", type: "Single", tenant: "Amit Patel",    rent: 9500, status: "occupied" },
-    { id: "r22", number: "202", type: "Double", tenant: "Sonia Mehta",   rent: 9500, status: "occupied" },
-    { id: "r23", number: "203", type: "Single", tenant: "Rajesh Kumar",  rent: 9500, status: "occupied" },
-    { id: "r24", number: "204", type: "Single", tenant: "Meera Pillai",  rent: 9500, status: "occupied" },
-    { id: "r25", number: "205", type: "Double", tenant: "Anil Shetty",   rent: 9500, status: "occupied" },
-    { id: "r26", number: "206", type: "Single", tenant: "Zara Khan",     rent: 9500, status: "occupied" },
-    { id: "r27", number: "207", type: "Double", tenant: "Sunil Sharma",  rent: 9500, status: "occupied" },
-    { id: "r28", number: "208", type: "Single", tenant: "Nisha Gupta",   rent: 9500, status: "occupied" },
-    { id: "r29", number: "209", type: "Single", tenant: null,            rent: 9500, status: "vacant"   },
-    { id: "r30", number: "210", type: "Double", tenant: null,            rent: 9500, status: "vacant"   },
-  ],
-};
-
-const PROPERTY_FLOORS: Record<string, { id: string; label: string; roomIds: string[] }[]> = {
-  p1: [
-    { id: "p1f1", label: "Floor 1", roomIds: ["r1",  "r2",  "r3",  "r4"]           },
-    { id: "p1f2", label: "Floor 2", roomIds: ["r5",  "r6",  "r7",  "r8"]           },
-    { id: "p1f3", label: "Floor 3", roomIds: ["r9",  "r10", "r11", "r12"]          },
-  ],
-  p2: [
-    { id: "p2f1", label: "Floor 1", roomIds: ["r13", "r14", "r15", "r16"]          },
-    { id: "p2f2", label: "Floor 2", roomIds: ["r17", "r18", "r19", "r20"]          },
-  ],
-  p3: [
-    { id: "p3f1", label: "Floor 1", roomIds: ["r21", "r22", "r23", "r24", "r25"]   },
-    { id: "p3f2", label: "Floor 2", roomIds: ["r26", "r27", "r28", "r29", "r30"]   },
-  ],
-};
-
-const ROOM_BY_ID = Object.fromEntries(
-  Object.values(PROPERTY_ROOMS).flat().map(r => [r.id, r])
-);
-
-const TENANT_BY_NAME: Record<string, string> = Object.fromEntries(
-  TENANTS.map(t => [t.name, t.id])
-);
-
-
-const PROPERTY_AMENITIES: Record<string, string[]> = {
-  p1: ["WiFi", "Parking", "Gym", "CCTV", "Laundry", "Power Backup"],
-  p2: ["WiFi", "Parking", "CCTV", "AC Rooms", "Housekeeping", "Water Purifier"],
-  p3: ["WiFi", "Gym", "Parking", "CCTV", "Laundry", "Cafeteria", "Power Backup"],
-};
-
-const TENANTS_EXT: Record<string, {
-  phone: string; email: string; moveIn: string;
-  deposit: number; depositPaid: boolean; noticeGiven: boolean;
-  idType: string; idVerified: boolean; agreementSigned: boolean;
-  emergencyName: string; emergencyPhone: string;
-  rentHistory: { month: string; amount: string; status: "paid" | "pending" | "overdue"; paidOn?: string; ref?: string }[];
-}> = {
-  u1: { phone: "+91 98765 11111", email: "rahul.s@gmail.com",  moveIn: "Jan 2024", deposit: 17000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Suresh Sharma", emergencyPhone: "+91 97777 11111",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹8,500",  status: "paid",    paidOn: "Apr 2, 2025",  ref: "TXN-2504-001" },
-      { month: "Mar 2025", amount: "₹8,500",  status: "paid",    paidOn: "Mar 1, 2025",  ref: "TXN-2503-001" },
-      { month: "Feb 2025", amount: "₹8,500",  status: "paid",    paidOn: "Feb 3, 2025",  ref: "TXN-2502-001" },
-      { month: "Jan 2025", amount: "₹8,500",  status: "paid",    paidOn: "Jan 4, 2025",  ref: "TXN-2501-001" },
-      { month: "Dec 2024", amount: "₹8,500",  status: "paid",    paidOn: "Dec 2, 2024",  ref: "TXN-2412-001" },
-      { month: "Nov 2024", amount: "₹8,500",  status: "paid",    paidOn: "Nov 5, 2024",  ref: "TXN-2411-001" },
-    ]},
-  u2: { phone: "+91 98765 22222", email: "priya.v@gmail.com",  moveIn: "Mar 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Anita Verma",   emergencyPhone: "+91 97777 22222",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹10,000", status: "paid",    paidOn: "Apr 2, 2025",  ref: "TXN-2504-002" },
-      { month: "Mar 2025", amount: "₹10,000", status: "paid",    paidOn: "Mar 3, 2025",  ref: "TXN-2503-002" },
-      { month: "Feb 2025", amount: "₹10,000", status: "paid",    paidOn: "Feb 1, 2025",  ref: "TXN-2502-002" },
-      { month: "Jan 2025", amount: "₹10,000", status: "paid",    paidOn: "Jan 2, 2025",  ref: "TXN-2501-002" },
-      { month: "Dec 2024", amount: "₹10,000", status: "paid",    paidOn: "Dec 3, 2024",  ref: "TXN-2412-002" },
-      { month: "Nov 2024", amount: "₹10,000", status: "paid",    paidOn: "Nov 1, 2024",  ref: "TXN-2411-002" },
-    ]},
-  u3: { phone: "+91 98765 33333", email: "amit.p@gmail.com",   moveIn: "Jun 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "Aadhar",   idVerified: true,  agreementSigned: true,  emergencyName: "Rekha Patel",   emergencyPhone: "+91 97777 33333",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹9,500",  status: "paid",    paidOn: "Apr 3, 2025",  ref: "TXN-2504-003" },
-      { month: "Mar 2025", amount: "₹9,500",  status: "paid",    paidOn: "Mar 2, 2025",  ref: "TXN-2503-003" },
-      { month: "Feb 2025", amount: "₹9,500",  status: "overdue" },
-      { month: "Jan 2025", amount: "₹9,500",  status: "paid",    paidOn: "Jan 6, 2025",  ref: "TXN-2501-003" },
-      { month: "Dec 2024", amount: "₹9,500",  status: "paid",    paidOn: "Dec 4, 2024",  ref: "TXN-2412-003" },
-      { month: "Nov 2024", amount: "₹9,500",  status: "paid",    paidOn: "Nov 2, 2024",  ref: "TXN-2411-003" },
-    ]},
-  u4: { phone: "+91 98765 44444", email: "neha.g@gmail.com",   moveIn: "Aug 2024", deposit: 17000, depositPaid: false, noticeGiven: false, idType: "Passport", idVerified: false, agreementSigned: true,  emergencyName: "Rakesh Gupta",  emergencyPhone: "+91 97777 44444",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹8,500",  status: "pending" },
-      { month: "Mar 2025", amount: "₹8,500",  status: "paid",    paidOn: "Mar 8, 2025",  ref: "TXN-2503-004" },
-      { month: "Feb 2025", amount: "₹8,500",  status: "paid",    paidOn: "Feb 5, 2025",  ref: "TXN-2502-004" },
-      { month: "Jan 2025", amount: "₹8,500",  status: "overdue" },
-      { month: "Dec 2024", amount: "₹8,500",  status: "paid",    paidOn: "Dec 7, 2024",  ref: "TXN-2412-004" },
-      { month: "Nov 2024", amount: "₹8,500",  status: "paid",    paidOn: "Nov 4, 2024",  ref: "TXN-2411-004" },
-    ]},
-  u5: { phone: "+91 98765 55555", email: "kiran.r@gmail.com",  moveIn: "Oct 2024", deposit: 20000, depositPaid: true,  noticeGiven: false, idType: "Aadhar",   idVerified: true,  agreementSigned: false, emergencyName: "Sunita Rao",    emergencyPhone: "+91 97777 55555",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹10,000", status: "pending" },
-      { month: "Mar 2025", amount: "₹10,000", status: "paid",    paidOn: "Mar 10, 2025", ref: "TXN-2503-005" },
-      { month: "Feb 2025", amount: "₹10,000", status: "paid",    paidOn: "Feb 9, 2025",  ref: "TXN-2502-005" },
-      { month: "Jan 2025", amount: "₹10,000", status: "paid",    paidOn: "Jan 11, 2025", ref: "TXN-2501-005" },
-      { month: "Dec 2024", amount: "₹10,000", status: "paid",    paidOn: "Dec 9, 2024",  ref: "TXN-2412-005" },
-      { month: "Nov 2024", amount: "₹10,000", status: "paid",    paidOn: "Nov 10, 2024", ref: "TXN-2411-005" },
-    ]},
-  u6: { phone: "+91 98765 66666", email: "sonia.m@gmail.com",  moveIn: "Nov 2024", deposit: 19000, depositPaid: true,  noticeGiven: true,  idType: "PAN",      idVerified: true,  agreementSigned: true,  emergencyName: "Kavita Mehta",  emergencyPhone: "+91 97777 66666",
-    rentHistory: [
-      { month: "Apr 2025", amount: "₹9,500",  status: "overdue" },
-      { month: "Mar 2025", amount: "₹9,500",  status: "overdue" },
-      { month: "Feb 2025", amount: "₹9,500",  status: "paid",    paidOn: "Feb 12, 2025", ref: "TXN-2502-006" },
-      { month: "Jan 2025", amount: "₹9,500",  status: "paid",    paidOn: "Jan 14, 2025", ref: "TXN-2501-006" },
-      { month: "Dec 2024", amount: "₹9,500",  status: "paid",    paidOn: "Dec 11, 2024", ref: "TXN-2412-006" },
-      { month: "Nov 2024", amount: "₹9,500",  status: "paid",    paidOn: "Nov 12, 2024", ref: "TXN-2411-006" },
-    ]},
-};
-
-const TENANT_DOCS: Record<string, { type: string; status: "verified" | "pending" | "missing"; uploadedOn?: string }[]> = {
-  u1: [
-    { type: "Aadhar Card",         status: "verified", uploadedOn: "15 Jan 2024" },
-    { type: "Rental Agreement",    status: "verified", uploadedOn: "15 Jan 2024" },
-    { type: "Police Verification", status: "verified", uploadedOn: "17 Jan 2024" },
-    { type: "Passport Photo",      status: "verified", uploadedOn: "15 Jan 2024" },
-    { type: "Employment Proof",    status: "missing" },
-  ],
-  u2: [
-    { type: "PAN Card",            status: "verified", uploadedOn: "10 Mar 2024" },
-    { type: "Rental Agreement",    status: "verified", uploadedOn: "10 Mar 2024" },
-    { type: "Police Verification", status: "verified", uploadedOn: "12 Mar 2024" },
-    { type: "Passport Photo",      status: "verified", uploadedOn: "10 Mar 2024" },
-    { type: "Employment Proof",    status: "verified", uploadedOn: "10 Mar 2024" },
-  ],
-  u3: [
-    { type: "Aadhar Card",         status: "verified", uploadedOn: "05 Jun 2024" },
-    { type: "Rental Agreement",    status: "verified", uploadedOn: "05 Jun 2024" },
-    { type: "Police Verification", status: "pending",  uploadedOn: "06 Jun 2024" },
-    { type: "Passport Photo",      status: "verified", uploadedOn: "05 Jun 2024" },
-    { type: "Employment Proof",    status: "missing" },
-  ],
-  u4: [
-    { type: "Passport",            status: "pending",  uploadedOn: "12 Aug 2024" },
-    { type: "Rental Agreement",    status: "verified", uploadedOn: "12 Aug 2024" },
-    { type: "Police Verification", status: "missing" },
-    { type: "Passport Photo",      status: "pending",  uploadedOn: "12 Aug 2024" },
-    { type: "Employment Proof",    status: "missing" },
-  ],
-  u5: [
-    { type: "Aadhar Card",         status: "verified", uploadedOn: "20 Oct 2024" },
-    { type: "Rental Agreement",    status: "missing" },
-    { type: "Police Verification", status: "missing" },
-    { type: "Passport Photo",      status: "verified", uploadedOn: "20 Oct 2024" },
-    { type: "Employment Proof",    status: "verified", uploadedOn: "20 Oct 2024" },
-  ],
-  u6: [
-    { type: "PAN Card",            status: "verified", uploadedOn: "01 Nov 2024" },
-    { type: "Rental Agreement",    status: "verified", uploadedOn: "01 Nov 2024" },
-    { type: "Police Verification", status: "verified", uploadedOn: "03 Nov 2024" },
-    { type: "Passport Photo",      status: "verified", uploadedOn: "01 Nov 2024" },
-    { type: "Employment Proof",    status: "missing" },
-  ],
-};
-
-const MAINTENANCE_EXT: Record<string, {
-  description: string; assignee: string | null;
-  comments: { author: string; text: string; time: string }[];
-}> = {
-  m1: { description: "The AC in room 101 stopped cooling. Temperature doesn't drop below 26°C even on max setting.", assignee: "Ramu (Electrician)", comments: [{ author: "Ravi Kumar", text: "Raised ticket. Will check tomorrow.", time: "Apr 3, 9 AM" }, { author: "Ramu", text: "Checked — refrigerant low. Refilling scheduled for tomorrow.", time: "Apr 4, 2 PM" }] },
-  m2: { description: "Water leaking from ceiling in room 2A bathroom. Dripping continuously since last night.", assignee: null, comments: [{ author: "Kiran Rao", text: "Started leaking around midnight. Please fix urgently.", time: "Apr 1, 8 AM" }] },
-  m3: { description: "Light in room B2 flickers intermittently. Likely a loose connection at the switch.", assignee: "Suresh (Electrician)", comments: [{ author: "Sonia Mehta", text: "Flickering since last week.", time: "Mar 27, 6 PM" }, { author: "Suresh", text: "Fixed — replaced the faulty switch.", time: "Mar 30, 11 AM" }] },
-  m4: { description: "Door lock in room 302 is stuck. Key doesn't turn smoothly for the past 3 days.", assignee: "Ramesh (Carpenter)", comments: [{ author: "Neha Gupta", text: "Lock has been stiff for 3 days. Getting difficult to lock at night.", time: "Mar 25, 4 PM" }] },
-  m5: { description: "WiFi in room 3B very slow or fully disconnected since Apr 3. Router restart didn't help.", assignee: null, comments: [{ author: "Kiran Rao", text: "Please send a technician, work from home is affected.", time: "Apr 5, 7 PM" }] },
-};
-
-const PROPERTY_GALLERY: Record<string, string[]> = {
-  p1: [
-    "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=400&h=280&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&h=280&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=400&h=280&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=400&h=280&fit=crop&q=80",
-  ],
-  p2: [
-    "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400&h=280&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=280&fit=crop&q=80",
-    "https://images.unsplash.com/photo-1560185007-c5ca9d2c014d?w=400&h=280&fit=crop&q=80",
-  ],
-  p3: [
-    "https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=400&h=280&fit=crop&q=80",
-  ],
-};
-
 type AmenityOption = { label: string; icon: React.ElementType | null };
 const ALL_AMENITY_OPTIONS: AmenityOption[] = [
   { label: "WiFi",            icon: Wifi },
@@ -299,13 +74,6 @@ const ALL_AMENITY_OPTIONS: AmenityOption[] = [
   { label: "Cafeteria",       icon: null },
 ];
 
-const MAINTENANCE = [
-  { id: "m1", title: "AC not cooling", property: "Sunshine PG · 101",     category: "Electrical", date: "Apr 3", status: "in_progress", priority: "high" },
-  { id: "m2", title: "Water leakage",  property: "Green Haven · 2A",       category: "Plumbing",   date: "Apr 1", status: "pending",     priority: "medium" },
-  { id: "m3", title: "Light flickering", property: "Royal Residency · B2", category: "Electrical", date: "Mar 28", status: "resolved",   priority: "low" },
-  { id: "m4", title: "Door lock stuck", property: "Sunshine PG · 302",    category: "Carpentry",  date: "Mar 25", status: "resolved",    priority: "low" },
-  { id: "m5", title: "WiFi not working", property: "Green Haven · 3B",    category: "Tech",       date: "Apr 5",  status: "pending",     priority: "high" },
-];
 
 // ─── Helper components ─────────────────────────────────────────────────────────
 
@@ -542,6 +310,15 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
   const [rooms, setRooms] = useState(PROPERTY_ROOMS[property.id] ?? []);
   const [assigningRoomId, setAssigningRoomId] = useState<string | null>(null);
   const [assignSelectVal, setAssignSelectVal] = useState("");
+
+  // Tenant names already occupying a room across all properties.
+  // Uses live `rooms` state for this property so unassign → assign reflects immediately.
+  const assignedTenantNames = new Set<string>([
+    ...rooms.filter(r => r.tenant).map(r => r.tenant!),
+    ...Object.entries(PROPERTY_ROOMS)
+      .filter(([pid]) => pid !== property.id)
+      .flatMap(([, rs]) => rs.filter(r => r.tenant).map(r => r.tenant!)),
+  ]);
 
   // Photos
   const [gallery, setGallery] = useState(PROPERTY_GALLERY[property.id] ?? []);
@@ -829,9 +606,12 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                       <select value={assignSelectVal} onChange={(e) => setAssignSelectVal(e.target.value)}
                         className="text-[10px] border border-[color:var(--line)] rounded-lg px-2 py-1.5 bg-white outline-none w-full">
                         <option value="">Select tenant…</option>
-                        {TENANTS.filter((t) => t.property !== property.name).map((t) => (
-                          <option key={t.id} value={t.name}>{t.name}</option>
-                        ))}
+                        {TENANTS.filter(t => !assignedTenantNames.has(t.name)).length === 0
+                          ? <option value="" disabled>No unassigned tenants</option>
+                          : TENANTS.filter(t => !assignedTenantNames.has(t.name)).map(t => (
+                              <option key={t.id} value={t.name}>{t.name}</option>
+                            ))
+                        }
                       </select>
                       <div className="flex gap-1">
                         <button onClick={() => {

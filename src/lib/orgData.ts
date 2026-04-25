@@ -71,7 +71,7 @@ export const MOCK_ORGS: Organization[] = [
     logoInitials: "NS",
     image: "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=80&h=80&fit=crop&auto=format",
     plan: "enterprise",
-    propertyIds: ["p1", "p2"],
+    propertyIds: ["np1", "np2"],
     ownerId: "o2",
     createdAt: "2023-08-20",
     members: [

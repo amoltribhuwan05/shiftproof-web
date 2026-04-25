@@ -46,21 +46,21 @@ export const MOCK_USERS: MockUser[] = [
   },
   {
     id: "t1",
-    email: "ananya@shiftproof.app",
+    email: "rahul@shiftproof.app",
     password: "Tenant@123",
-    name: "Ananya Patel",
+    name: "Rahul Sharma",
     role: "tenant",
     phone: "9876543212",
     pgName: "Sunshine PG, Koramangala",
   },
   {
     id: "t2",
-    email: "suresh@shiftproof.app",
+    email: "priya@shiftproof.app",
     password: "Tenant@456",
-    name: "Suresh Mehta",
+    name: "Priya Verma",
     role: "tenant",
     phone: "9876543213",
-    pgName: "Green Nest PG, Baner",
+    pgName: "Green Haven, Indiranagar",
   },
 ];
 
