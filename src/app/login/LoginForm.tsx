@@ -110,10 +110,10 @@ export default function LoginForm() {
         </p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Owner 1", email: "ravi@shiftproof.app", pw: "Owner@123" },
-            { label: "Owner 2", email: "priya@shiftproof.app", pw: "Owner@456" },
-            { label: "Tenant 1", email: "ananya@shiftproof.app", pw: "Tenant@123" },
-            { label: "Tenant 2", email: "suresh@shiftproof.app", pw: "Tenant@456" },
+            { label: "Owner 1",  email: "ravi@shiftproof.app",  pw: "Owner@123"  },
+            { label: "Owner 2",  email: "priya@shiftproof.app", pw: "Owner@456"  },
+            { label: "Tenant 1", email: "rahul@shiftproof.app", pw: "Tenant@123" },
+            { label: "Tenant 2", email: "priya@shiftproof.app", pw: "Tenant@456" },
           ].map((u) => (
             <button
               key={u.email}
