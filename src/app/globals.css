@@ -99,11 +99,14 @@ body {
   font-feature-settings: "ss01", "cv11";
 }
 
-h1, h2, .serif {
-  font-family: var(--font-dm-serif), ui-serif, Georgia, serif;
-  letter-spacing: -0.01em;
-  color: var(--foreground);
+@layer base {
+  h1, h2, .serif {
+    font-family: var(--font-dm-serif), ui-serif, Georgia, serif;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
 }
+
 
 /* Fade-in section entry */
 @keyframes fadeUpIn {
@@ -178,6 +181,8 @@ h1, h2, .serif {
 [data-dash-theme="dark"] .shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,0.5) !important; }
 [data-dash-theme="dark"] .shadow-xl  { box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important; }
 [data-dash-theme="dark"] .shadow-2xl { box-shadow: 0 12px 48px rgba(0,0,0,0.7) !important; }
+
+
 
 /* ── Dashboard compact density ────────────────────────────────────────────── */
 [data-dash-density="compact"] [data-card] { padding: 0.875rem; }

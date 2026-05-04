@@ -23,7 +23,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-colors duration-300 ${
+      className={`sticky top-0 z-50 w-full transition-colors duration-300 ${
         scrolled
           ? "bg-[color:var(--background)]/90 backdrop-blur-md border-b border-[color:var(--line)]"
           : "bg-[color:var(--background)]/70 backdrop-blur-sm"

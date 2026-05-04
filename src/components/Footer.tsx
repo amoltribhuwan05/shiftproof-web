@@ -24,7 +24,7 @@ export default function Footer() {
       {/* CTA banner */}
       <div className="border-b border-white/10">
         <div className="mx-auto max-w-7xl px-5 sm:px-6 py-16 sm:py-20 text-center">
-          <h2 className="text-4xl sm:text-5xl md:text-6xl leading-[1.05] text-white">
+          <h2 className="text-4xl sm:text-5xl md:text-6xl leading-tight !text-white">
             Your PGs, managed.
             <br />
             <span className="text-[color:var(--accent-200)]">Starting tonight.</span>

@@ -114,19 +114,26 @@ Tailwind v4 syntax differs significantly from v3:
 
 ## Design System
 
-| Token | Value |
-|---|---|
-| Primary | `violet-600` / `violet-700` |
-| Accent / CTA | `orange-500` |
-| Background | `slate-50` |
-| Text primary | `slate-900` |
-| Border | `slate-200` |
-| Brand gradient | `from-violet-900 via-violet-800 to-indigo-900` |
+> **All accent colors come from CSS variables defined in `globals.css` — never use Tailwind violet, indigo, or purple classes.**
+
+| Token | CSS variable | Value |
+|---|---|---|
+| Accent (primary) | `var(--accent-500)` | `#2D6A4F` forest green |
+| Accent hover | `var(--accent-600)` | `#245A41` |
+| Accent dark | `var(--accent-700)` | `#1B4432` |
+| Accent tint | `var(--accent-50)` | `#E8F1EC` |
+| Accent light | `var(--accent-100)` | `#D0E3D6` |
+| Accent mid | `var(--accent-200)` | `#A2C7AD` |
+| Background | `var(--background)` | `#F7F6F2` |
+| Text primary | `var(--foreground)` | `#1A1A18` |
+| Border | `var(--line)` | slate-200 equivalent |
+| Brand gradient (dark) | — | `#0E2118 → #1B4432 → #0E2118` |
 
 - Cards use `rounded-2xl`, `border border-slate-200`, `hover:shadow-lg`
-- Buttons: filled = `bg-violet-600 rounded-xl`, ghost = `border border-slate-200`
+- Buttons: filled = `bg-[color:var(--accent-500)] rounded-xl`, ghost = `border border-slate-200`
+- **Never** use `violet-*`, `purple-*`, `indigo-*`, or `orange-500` as primary brand colors
 - All pages are **fully responsive** — always test mobile (375px) → desktop (1440px+)
-- The site is a **SPA** — `Navbar` and `Footer` are in `layout.tsx` and never re-mount
+- The site is a **SPA** — `Navbar` is `sticky top-0`; content never needs manual `pt-[65px]`
 
 ---
 
