@@ -15,12 +15,42 @@ export const CITY_ALIASES: Record<string, string> = {
   "Bombay":      "Mumbai",
   "Navi Mumbai": "Mumbai",
   "Thane":       "Mumbai",
+  "Vasai":       "Mumbai",
+  "Kalyan":      "Mumbai",
   "Calcutta":    "Kolkata",
   "Madras":      "Chennai",
   "Delhi":       "Noida",
   "New Delhi":   "Noida",
   "Gurugram":    "Noida",
   "Gurgaon":     "Noida",
+  "Faridabad":   "Noida",
+  "Secunderabad": "Hyderabad",
+  "Cyberabad":   "Hyderabad",
+};
+
+// Centre coordinates for each supported city — used to find nearest city from GPS coords
+export const CITY_COORDS: Record<string, { lat: number; lng: number }> = {
+  "Bangalore": { lat: 12.9716, lng: 77.5946 },
+  "Hyderabad": { lat: 17.3850, lng: 78.4867 },
+  "Pune":      { lat: 18.5204, lng: 73.8567 },
+  "Chennai":   { lat: 13.0827, lng: 80.2707 },
+  "Kolkata":   { lat: 22.5726, lng: 88.3639 },
+  "Mumbai":    { lat: 19.0760, lng: 72.8777 },
+  "Noida":     { lat: 28.5355, lng: 77.3910 },
+  "Delhi NCR": { lat: 28.6139, lng: 77.2090 },
+};
+
+// Maps ipapi.co region names to nearest supported city when the user's city isn't in allCities
+export const REGION_ALIASES: Record<string, string> = {
+  "Maharashtra":       "Mumbai",
+  "Karnataka":         "Bangalore",
+  "Telangana":         "Hyderabad",
+  "Andhra Pradesh":    "Hyderabad",
+  "Tamil Nadu":        "Chennai",
+  "West Bengal":       "Kolkata",
+  "Uttar Pradesh":     "Noida",
+  "Haryana":           "Noida",
+  "Delhi":             "Noida",
 };
 
 // ─── Amenity icons ────────────────────────────────────────────────────────────

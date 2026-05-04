@@ -27,6 +27,8 @@ import {
   PRICE_MAX,
   PRICE_STEP,
   CITY_ALIASES,
+  REGION_ALIASES,
+  CITY_COORDS,
   AMENITY_ICONS,
 } from "@/lib/constants";
 
@@ -549,6 +551,7 @@ export default function FindPGClient() {
   const [locationDetecting, setLocationDetecting] = useState(true);
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [outsideIndia, setOutsideIndia] = useState(false);
+  const [gpsState, setGpsState] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
   const resultsRef = useRef<HTMLDivElement>(null);
 
   // ─── Fetch results from API ──────────────────────────────────────────────────
@@ -619,35 +622,59 @@ export default function FindPGClient() {
     setPage(1);
   }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy]);
 
-  // Auto-detect user's city + coords from IP on mount
+  // Resolve a city name + region to a canonical supported city
+  const resolveCity = (raw: string, region: string) =>
+    allCities.find((c) => c.toLowerCase() === raw.toLowerCase()) ??
+    allCities.find((c) => c.toLowerCase() === (CITY_ALIASES[raw] ?? "").toLowerCase()) ??
+    allCities.find((c) => c.toLowerCase() === (REGION_ALIASES[region] ?? "").toLowerCase());
+
+  // Find the nearest supported city to a GPS coordinate
+  const nearestCity = (lat: number, lng: number): string | undefined =>
+    Object.entries(CITY_COORDS)
+      .map(([city, coords]) => ({ city, dist: haversineKm(lat, lng, coords.lat, coords.lng) }))
+      .sort((a, b) => a.dist - b.dist)[0]?.city;
+
+  // Auto-detect user's city + coords on mount — Cloudflare headers first, ipapi.co fallback
   useEffect(() => {
     let cancelled = false;
-    fetch("https://ipapi.co/json/")
-      .then((r) => r.json())
-      .then((data: { city?: string; latitude?: number; longitude?: number; country?: string; region?: string }) => {
+
+    const fromCF = fetch("/api/geo")
+      .then((r) => r.json() as Promise<{ city?: string; country?: string; region?: string; latitude?: number | null; longitude?: number | null }>)
+      .then((d) => (d.city ? d : Promise.reject("cf-empty")));
+
+    const fromIP = fetch("https://ipapi.co/json/")
+      .then((r) => r.json() as Promise<{ city?: string; country?: string; region?: string; latitude?: number; longitude?: number }>);
+
+    fromCF.catch(() => fromIP)
+      .then((data) => {
         if (cancelled) return;
-
-        // Country check
-        if (data.country && data.country !== "IN") {
-          setOutsideIndia(true);
-        }
-
-        // Store user coords for distance sort
-        if (data.latitude && data.longitude) {
-          setUserCoords({ lat: data.latitude, lng: data.longitude });
-        }
-
-        // Resolve city — try direct match, then alias, then region fallback
-        const raw = data.city ?? "";
-        const canonical =
-          allCities.find((c) => c.toLowerCase() === raw.toLowerCase()) ??
-          allCities.find((c) => c.toLowerCase() === (CITY_ALIASES[raw] ?? "").toLowerCase());
+        if (data.country && data.country !== "IN") setOutsideIndia(true);
+        if (data.latitude && data.longitude) setUserCoords({ lat: data.latitude, lng: data.longitude });
+        const canonical = resolveCity(data.city ?? "", data.region ?? "");
         if (canonical) changeCity(canonical);
       })
-      .catch(() => { /* keep "All" on network failure */ })
+      .catch(() => { /* keep "All" on total failure */ })
       .finally(() => { if (!cancelled) setLocationDetecting(false); });
+
     return () => { cancelled = true; };
   }, []);
+
+  // Upgrade to GPS precision on user request
+  const detectPreciseLocation = () => {
+    if (!navigator.geolocation || gpsState === "requesting") return;
+    setGpsState("requesting");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setUserCoords({ lat: latitude, lng: longitude });
+        const city = nearestCity(latitude, longitude);
+        if (city) changeCity(city);
+        setGpsState("granted");
+      },
+      () => setGpsState("denied"),
+      { timeout: 10000, maximumAge: 300_000 },
+    );
+  };
 
   const toggle = <T,>(setter: React.Dispatch<React.SetStateAction<T[]>>, val: T) =>
     setter((p) => p.includes(val) ? p.filter((x) => x !== val) : [...p, val]);
@@ -855,21 +882,49 @@ export default function FindPGClient() {
         {/* Results */}
         <div ref={resultsRef} className="flex-1 min-w-0 bg-[color:var(--background)] flex flex-col">
 
-          {/* Location detection banner */}
-          {locationDetecting && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-accent-50 border-b border-accent-100 text-xs text-accent-600">
+          {/* Location banner */}
+          {locationDetecting ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-600">
               <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
               Detecting your location…
             </div>
-          )}
-
-          {/* Outside India notice */}
-          {!locationDetecting && outsideIndia && (
+          ) : outsideIndia ? (
             <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
               <Info size={13} strokeWidth={1.75} />
               ShiftProof is available in India. Showing all listings.
             </div>
-          )}
+          ) : gpsState === "requesting" ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-600">
+              <Loader2 size={12} strokeWidth={2.5} className="animate-spin" />
+              Getting your precise location…
+            </div>
+          ) : gpsState === "granted" ? (
+            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border-b border-green-100 text-xs text-green-700">
+              <MapPin size={12} strokeWidth={2.5} />
+              Using your precise GPS location
+            </div>
+          ) : gpsState === "denied" ? (
+            <div className="flex items-center justify-between px-4 py-2 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+              <span className="flex items-center gap-2">
+                <Info size={12} strokeWidth={2} />
+                Location access denied — showing results based on your IP
+              </span>
+            </div>
+          ) : city !== "All" ? (
+            <div className="flex items-center justify-between px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-700">
+              <span className="flex items-center gap-1.5">
+                <MapPin size={12} strokeWidth={2} />
+                Showing results near <strong>{city}</strong>
+              </span>
+              <button
+                onClick={detectPreciseLocation}
+                className="flex items-center gap-1 font-medium text-violet-600 hover:text-violet-800 transition-colors"
+              >
+                Use precise location
+                <ArrowRight size={11} strokeWidth={2.5} />
+              </button>
+            </div>
+          ) : null}
 
           {/* Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-5 py-3 bg-white border-b border-slate-200 sticky top-[65px] z-10">
