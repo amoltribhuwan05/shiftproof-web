@@ -22,7 +22,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: blob: https:",
-      `connect-src 'self' https://ipapi.co ${apiUrl} https://*.firebaseapp.com https://*.googleapis.com https://*.firebase.com`.trim(),
+      `connect-src 'self' https://ipapi.co https://cloudflareinsights.com ${apiUrl} https://*.firebaseapp.com https://*.googleapis.com https://*.firebase.com`.trim(),
       "frame-src 'self' https://*.firebaseapp.com https://www.google.com https://recaptcha.google.com",
       "frame-ancestors 'none'",
     ].filter(Boolean).join("; "),

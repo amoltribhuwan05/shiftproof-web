@@ -304,6 +304,69 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
   );
 }
 
+// ─── Skeleton loaders ─────────────────────────────────────────────────────────
+
+function PGCardSkeleton() {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col animate-pulse">
+      <div className="h-52 bg-slate-200 flex-shrink-0" />
+      <div className="flex flex-col flex-1 p-4 gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="h-4 bg-slate-200 rounded w-3/4" />
+          <div className="h-4 bg-slate-200 rounded w-12 flex-shrink-0" />
+        </div>
+        <div className="h-3 bg-slate-200 rounded w-1/2" />
+        <div className="flex gap-2">
+          {[...Array(5)].map((_, i) => <div key={i} className="w-8 h-8 bg-slate-200 rounded-md" />)}
+        </div>
+        <div className="mt-auto pt-3 border-t border-slate-100 flex items-end justify-between">
+          <div className="space-y-1.5">
+            <div className="h-2 bg-slate-200 rounded w-16" />
+            <div className="h-5 bg-slate-200 rounded w-24" />
+          </div>
+          <div className="h-8 bg-slate-200 rounded-xl w-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PGRowSkeleton() {
+  return (
+    <div className="flex bg-white rounded-2xl overflow-hidden border border-slate-100 animate-pulse">
+      <div className="w-44 sm:w-52 h-40 flex-shrink-0 bg-slate-200" />
+      <div className="flex flex-1 flex-col sm:flex-row min-w-0">
+        <div className="flex-1 p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <div className="h-4 bg-slate-200 rounded w-1/3" />
+            <div className="h-4 bg-slate-200 rounded w-12" />
+            <div className="h-4 bg-slate-200 rounded w-12" />
+          </div>
+          <div className="h-3 bg-slate-200 rounded w-1/2" />
+          <div className="h-5 bg-slate-200 rounded w-16" />
+          <div className="flex gap-1.5">
+            {[...Array(3)].map((_, i) => <div key={i} className="h-5 bg-slate-200 rounded-md w-20" />)}
+          </div>
+          <div className="flex gap-1.5">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-5 bg-slate-200 rounded-md w-14" />)}
+          </div>
+        </div>
+        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 px-4 pb-4 sm:py-4 sm:border-l border-slate-100 sm:w-40 flex-shrink-0">
+          <div className="space-y-1.5 sm:text-right">
+            <div className="h-2 bg-slate-200 rounded w-16" />
+            <div className="h-6 bg-slate-200 rounded w-24" />
+            <div className="h-2 bg-slate-200 rounded w-14" />
+          </div>
+          <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+            <div className="h-9 bg-slate-200 rounded-xl flex-1 sm:w-28" />
+            <div className="h-9 bg-slate-200 rounded-xl flex-1 sm:w-28" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Filter Accordion Section ─────────────────────────────────────────────────
 
 // ─── Price Range Slider ───────────────────────────────────────────────────────
@@ -997,7 +1060,17 @@ export default function FindPGClient() {
                 Too many requests — search is paused for a moment. Results will refresh automatically.
               </div>
             )}
-            {properties.length > 0 ? (
+            {loading ? (
+              viewMode === "grid" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {[...Array(8)].map((_, i) => <PGCardSkeleton key={i} />)}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {[...Array(5)].map((_, i) => <PGRowSkeleton key={i} />)}
+                </div>
+              )
+            ) : properties.length > 0 ? (
               viewMode === "grid" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {properties.map((pg) => (
