@@ -243,10 +243,10 @@ export default function HelpPage() {
             <p className="text-sm text-slate-500">Our support team is online Monday – Friday, 10 AM – 6 PM IST.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4">
-            <a href="mailto:support@shiftproof.app" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
+            <a href="mailto:support@shiftproof.in" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
               <Mail size={20} className="text-accent-500" />
               <p className="text-sm font-bold text-slate-800">Email</p>
-              <p className="text-xs text-slate-400">support@shiftproof.app</p>
+              <p className="text-xs text-slate-400">support@shiftproof.in</p>
             </a>
             <a href="tel:+918045678900" className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-white border border-slate-200 hover:border-accent-200 transition-colors text-center">
               <Phone size={20} className="text-emerald-600" />

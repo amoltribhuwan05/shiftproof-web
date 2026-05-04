@@ -24,7 +24,7 @@ These Terms constitute a legally binding agreement between you and ShiftProof Te
 • "Tenant" means a person who uses ShiftProof to find, join, or manage a rental accommodation
 • "Listing" means a property advertisement published by an Owner on the ShiftProof platform
 • "Subscription" means an Owner's paid access to ShiftProof's management features
-• "Platform" means the ShiftProof Android app and the website shiftproof.app
+• "Platform" means the ShiftProof Android app and the website shiftproof.in
 • "Content" means any text, images, data, or other material uploaded to or generated on the Platform`,
   },
   {
@@ -34,7 +34,7 @@ These Terms constitute a legally binding agreement between you and ShiftProof Te
 
 3.2 You are responsible for maintaining the confidentiality of your password and for all activity that occurs under your account.
 
-3.3 You must immediately notify us at support@shiftproof.app if you suspect unauthorized use of your account.
+3.3 You must immediately notify us at support@shiftproof.in if you suspect unauthorized use of your account.
 
 3.4 You may not create more than one personal account. Owners may have one account linked to multiple properties.
 
@@ -134,7 +134,7 @@ These Terms constitute a legally binding agreement between you and ShiftProof Te
   {
     id: "termination",
     title: "11. Termination",
-    content: `11.1 You may terminate your account at any time by going to Settings → Account → Delete Account, or by emailing support@shiftproof.app.
+    content: `11.1 You may terminate your account at any time by going to Settings → Account → Delete Account, or by emailing support@shiftproof.in.
 
 11.2 We may suspend or terminate your access immediately if you violate these Terms, if required by law, or if you engage in conduct harmful to other users or the Platform.
 
@@ -165,7 +165,7 @@ These Terms constitute a legally binding agreement between you and ShiftProof Te
     title: "14. Contact",
     content: `ShiftProof Technologies Pvt. Ltd.
 #42, 3rd Floor, Koramangala 4th Block, Bengaluru, Karnataka — 560034
-Email: legal@shiftproof.app
+Email: legal@shiftproof.in
 Phone: +91 80 4567 8900
 CIN: U72900KA2024PTC180000
 GST: 29AAGCS1234A1Z5`,

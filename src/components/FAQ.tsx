@@ -91,7 +91,7 @@ export default function FAQ() {
         <p className="mt-10 text-center text-sm text-[color:var(--muted)]">
           Still have questions?{" "}
           <a
-            href="mailto:support@shiftproof.app"
+            href="mailto:support@shiftproof.in"
             className="text-[color:var(--foreground)] underline underline-offset-2 hover:text-[color:var(--accent-500)] transition-colors"
           >
             Email us

@@ -12,7 +12,7 @@ const sections = [
   {
     id: "overview",
     title: "1. Overview",
-    content: `ShiftProof ("we", "us", "our") operates the ShiftProof Android application and this website (shiftproof.app). We are committed to protecting your personal data in accordance with the Information Technology Act, 2000, the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and applicable Indian data protection regulations.
+    content: `ShiftProof ("we", "us", "our") operates the ShiftProof Android application and this website (shiftproof.in). We are committed to protecting your personal data in accordance with the Information Technology Act, 2000, the Information Technology (Reasonable Security Practices and Procedures and Sensitive Personal Data or Information) Rules, 2011, and applicable Indian data protection regulations.
 
 This Privacy Policy explains what data we collect, why we collect it, how we use it, and the choices you have. By using ShiftProof, you agree to the practices described below.`,
   },
@@ -22,7 +22,7 @@ This Privacy Policy explains what data we collect, why we collect it, how we use
     content: `This policy applies to all users of the ShiftProof platform including:
 • Property Owners ("Owners") who subscribe to manage their PGs and rental properties
 • Tenants who use ShiftProof free of charge to find, join, and manage their rental life
-• Visitors to this website (shiftproof.app) who have not created an account
+• Visitors to this website (shiftproof.in) who have not created an account
 
 If you are under 18 years of age, you may not use ShiftProof without the consent of a parent or guardian.`,
   },
@@ -128,7 +128,7 @@ Despite these measures, no system is 100% secure. In the event of a data breach 
 • Withdrawal of consent: Withdraw consent for optional processing at any time
 • Grievance redressal: Lodge a complaint with our Grievance Officer
 
-To exercise any of these rights, email us at privacy@shiftproof.app. We will respond within 30 days.`,
+To exercise any of these rights, email us at privacy@shiftproof.in. We will respond within 30 days.`,
   },
   {
     id: "cookies",
@@ -143,7 +143,7 @@ The ShiftProof Android app does not use browser cookies but may use device ident
   {
     id: "children",
     title: "11. Children's Privacy",
-    content: `ShiftProof is not intended for users under 18. We do not knowingly collect data from minors. If you believe a minor has provided us with personal data, contact privacy@shiftproof.app and we will delete it promptly.`,
+    content: `ShiftProof is not intended for users under 18. We do not knowingly collect data from minors. If you believe a minor has provided us with personal data, contact privacy@shiftproof.in and we will delete it promptly.`,
   },
   {
     id: "grievance",
@@ -152,7 +152,7 @@ The ShiftProof Android app does not use browser cookies but may use device ident
 
 Name: Rahul Kumar
 Designation: Grievance Officer, ShiftProof Technologies Pvt. Ltd.
-Email: grievance@shiftproof.app
+Email: grievance@shiftproof.in
 Address: #42, 3rd Floor, Koramangala 4th Block, Bengaluru, Karnataka — 560034
 Response time: Within 30 days of receiving a complaint`,
   },
@@ -165,7 +165,7 @@ Response time: Within 30 days of receiving a complaint`,
     id: "contact-us",
     title: "14. Contact Us",
     content: `For privacy-related questions or to exercise your rights:
-Email: privacy@shiftproof.app
+Email: privacy@shiftproof.in
 Postal address: ShiftProof Technologies Pvt. Ltd., #42, 3rd Floor, Koramangala 4th Block, Bengaluru, Karnataka — 560034`,
   },
 ];

@@ -193,10 +193,16 @@ Tailwind v4 syntax differs significantly from v3:
 | `src/lib/mockData.ts` | ~562 | **Single source of truth** — 25 tenants, 3 properties, 7 maintenance tickets, notices, transactions, CURRENT_TENANT, CURRENT_TENANT_ROOMMATES |
 | `src/lib/orgData.ts` | ~120 | Two mock orgs (org1=Ravi Kumar/p1–p3, org2=Nova Stays/np1–np2) |
 | `src/lib/users.ts` | ~101 | Auth user store; t1=Rahul Sharma matches TenantDashboard demo user |
+| `src/lib/mockApi.ts` | ~900 | In-memory Swagger mock backend; powers `/api/v1/*`, `/health`, `/webhooks/razorpay` |
 | `src/lib/orgTypes.ts` | — | OrgRole, OrgMember, Organization types; ROLE_PERMISSIONS; PLAN_LIMITS |
 | `src/lib/pgData.ts` | 226 | 12 mock PG listings + types |
 | `src/lib/bst.ts` | ~80 | Generic BST; used for price-range queries |
 | `src/components/Navbar.tsx` | ~160 | Sticky nav, mobile hamburger, Dashboard link — "use client" |
+| `src/app/auth/register/RegisterForm.tsx` | ~150 | Firebase email/password signup collects identity only, sends verification email, and shows pending state instead of creating an app session |
+| `src/app/login/LoginForm.tsx` | ~340 | Email login blocks unverified Firebase password users, phone OTP handles collision guidance, and UI now explains progressive provider linking paths |
+| `src/app/api/auth/session/route.ts` | ~130 | Session issuance rejects unverified Firebase email/password tokens before setting cookie |
+| `src/app/auth/action/ActionHandler.tsx` | ~240 | Firebase email action handler for `verifyEmail` and `resetPassword`; applies action codes client-side with branded UX |
+| `src/lib/users.ts` | ~120 | Mock auth user store; now supports phone-number lookup for phone-auth collision checks |
 | `src/app/layout.tsx` | 26 | Root shell — fonts/globals only; NO Navbar/Footer |
 | `src/app/(marketing)/layout.tsx` | 10 | Marketing shell — adds Navbar + Footer |
 | `src/app/(marketing)/page.tsx` | 23 | Landing page — assembles section components |
@@ -234,6 +240,23 @@ Tailwind v4 syntax differs significantly from v3:
 - **Sort options**: `relevance` (by reviews), `price_asc`, `price_desc`, `rating`.
 
 - **Save/favourite**: local `Set<string>` state — no persistence.
+
+### Auth verification flow — key implementation details
+
+- **Firebase email/password signup**: `RegisterForm.tsx` now collects only basic identity data, calls `sendEmailVerification()` immediately after account creation, signs the Firebase user out, and shows a "check your inbox" state instead of creating the app session.
+- **Firebase email/password login**: `LoginForm.tsx` checks `user.emailVerified` after `signInWithEmailAndPassword()`. If unverified, it re-sends the verification email, signs the Firebase user out, and blocks dashboard access.
+- **Server-side session gate**: `src/app/api/auth/session/route.ts` now reads `email_verified` and `firebase.sign_in_provider` from the Firebase ID token payload and rejects unverified `password` logins before setting the web session cookie.
+- **Branded email action page**: `src/app/auth/action/page.tsx` + `ActionHandler.tsx` now handle Firebase `verifyEmail` and `resetPassword` links on the frontend using Firebase SDK methods instead of Firebase’s default hosted UI.
+- **Phone auth guard**: phone OTP verification now performs the account-collision check after Firebase OTP confirmation but before the app session is established. Numbers already tied to email-first accounts are blocked from creating a separate phone session.
+- **Linking guidance UI**: login UI now explains that sign-in methods can converge into one account later. Collision states for phone and Google push the user toward email-first recovery instead of leaving them with a generic auth failure.
+
+### Mock API backend — key implementation details
+
+- **Swagger coverage**: `src/app/api/v1/[...slug]/route.ts` delegates the full documented `/api/v1/*` surface to `src/lib/mockApi.ts`
+- **Storage model**: uses a singleton in-memory store on `globalThis` seeded from `mockData.ts`, `orgData.ts`, and API-aligned types; state resets on process restart
+- **Default API base**: `src/lib/api/client.ts` now defaults to same-origin when `NEXT_PUBLIC_API_URL` is unset, so the app can talk to the local mock backend without a separate service on port 8080
+- **Auth model**: mock API accepts either the existing signed-in session cookie or a Firebase Bearer token payload; roles are mapped into API `AppUser` records and persisted in-memory
+- **Extra utility routes**: `/health` returns service health JSON and `/webhooks/razorpay` returns an acknowledgment payload for local integration flows
 
 ### lib/bst.ts — API
 

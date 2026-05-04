@@ -1,25 +1,7 @@
 import type { Metadata } from "next";
-import { DM_Sans, DM_Serif_Display, Noto_Sans_Devanagari } from "next/font/google";
+import type { CSSProperties } from "react";
 import Providers from "@/components/Providers";
 import "./globals.css";
-
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-});
-
-const dmSerif = DM_Serif_Display({
-  variable: "--font-dm-serif",
-  subsets: ["latin"],
-  weight: ["400"],
-});
-
-const notoDevanagari = Noto_Sans_Devanagari({
-  variable: "--font-devanagari",
-  subsets: ["devanagari"],
-  weight: ["400", "500", "600", "700"],
-});
 
 export const metadata: Metadata = {
   title: "ShiftProof — Rent collected. Paper handled. Sunday back.",
@@ -38,7 +20,14 @@ export default function RootLayout({
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={`${dmSans.variable} ${dmSerif.variable} ${notoDevanagari.variable} h-full antialiased`}
+      className="h-full antialiased"
+      style={
+        {
+          "--font-dm-sans": "\"Segoe UI\", \"Avenir Next\", \"Helvetica Neue\", Arial, sans-serif",
+          "--font-dm-serif": "\"Iowan Old Style\", \"Palatino Linotype\", Georgia, serif",
+          "--font-devanagari": "\"Nirmala UI\", \"Kohinoor Devanagari\", sans-serif",
+        } as CSSProperties
+      }
     >
       <body className="min-h-full flex flex-col bg-[color:var(--background)] text-[color:var(--foreground)]">
         <Providers>{children}</Providers>

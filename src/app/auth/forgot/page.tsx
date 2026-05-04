@@ -20,7 +20,7 @@ export default function ForgotPage() {
             Reset your password
           </h1>
           <p className="text-sm text-[color:var(--muted)] mb-6">
-            Enter your email and we&rsquo;ll send you an OTP.
+            Enter your email and we&rsquo;ll send you a secure reset link.
           </p>
           <ForgotForm />
         </div>

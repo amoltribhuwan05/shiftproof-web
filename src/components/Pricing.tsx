@@ -113,7 +113,7 @@ export default function Pricing() {
           {PLANS.map((plan) => {
             const displayPrice = annual ? plan.annualPrice : plan.price;
             const isSales = plan.cta === "Talk to sales";
-            const href = isSales ? "mailto:sales@shiftproof.app" : `/signup?plan=${plan.key}`;
+            const href = isSales ? "mailto:sales@shiftproof.in" : `/signup?plan=${plan.key}`;
 
             return (
               <div

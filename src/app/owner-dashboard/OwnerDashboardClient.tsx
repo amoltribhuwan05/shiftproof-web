@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -23,6 +23,9 @@ import {
   type OrgRole, type OrgMember, type OrgPermissions, type Organization,
   ROLE_PERMISSIONS, PLAN_LIMITS,
 } from "@/lib/orgTypes";
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { api, ApiError, type AppUser } from "@/lib/api";
 import {
   ReactFlow, Handle, Position, MarkerType, Background,
   type Node, type Edge,
@@ -32,14 +35,7 @@ import Dagre from "@dagrejs/dagre";
 
 // ─── Display-only config (not shared data) ────────────────────────────────────
 
-const OWNER = { name: "Ravi Kumar", initials: "RK", properties: 3, beds: 28 };
-
-const KPI = [
-  { label: "Monthly Revenue", value: "₹2,34,500", sub: "↑ 8.2% vs last month", up: true, icon: IndianRupee, color: "accent" },
-  { label: "Occupancy Rate",  value: "83.5%",     sub: "24 of 28 beds filled", up: true, icon: BedDouble,     color: "trust" },
-  { label: "Rent Collected",  value: "₹1,89,000", sub: "80% of total due",     up: true, icon: CheckCircle2,  color: "success" },
-  { label: "Pending Amount",  value: "₹45,500",   sub: "From 5 tenants",       up: false, icon: Clock,        color: "warning" },
-];
+// (KPI and other constants moved inside component to be dynamic)
 
 const ALERTS = [
   { type: "error",   icon: AlertCircle,  title: "3 overdue rent payments",    action: "Review" },
@@ -50,12 +46,6 @@ const ALERTS = [
 const CHART_MONTHS = [
   { label: "Nov", val: 62 }, { label: "Dec", val: 48 }, { label: "Jan", val: 71 },
   { label: "Feb", val: 55 }, { label: "Mar", val: 88 }, { label: "Apr", val: 75 },
-];
-
-const AT_A_GLANCE = [
-  { label: "Occupied Beds",    value: "24", sub: "Across 3 properties", icon: BedDouble,    color: "text-[color:var(--accent-400)]" },
-  { label: "Vacant Beds",      value: "4",  sub: "Ready for move-in",   icon: Home,         color: "text-slate-400" },
-  { label: "Overdue Accounts", value: "5",  sub: "Requires attention",  icon: AlertCircle,  color: "text-[color:var(--error)]" },
 ];
 
 type AmenityOption = { label: string; icon: React.ElementType | null };
@@ -133,12 +123,13 @@ const NAV_ITEMS = [
 
 // ─── Tab sections ─────────────────────────────────────────────────────────────
 
-function OverviewTab() {
+function OverviewTab({ stats }: { stats: any }) {
+  const { kpi, atAGlance } = stats;
   return (
     <div className="space-y-6">
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {KPI.map((k) => (
+        {kpi.map((k: any) => (
           <div key={k.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -221,7 +212,7 @@ function OverviewTab() {
         <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-sm">
           <h3 className="text-sm font-bold text-white mb-5">At a Glance</h3>
           <div className="space-y-4">
-            {AT_A_GLANCE.map((g) => (
+            {atAGlance.map((g: any) => (
               <div key={g.label} className="flex items-center gap-3 pb-4 border-b border-white/10 last:border-0 last:pb-0">
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                   <g.icon size={16} className={g.color} />
@@ -1021,7 +1012,7 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
   const onTimeRate   = Math.round((paidCount / total) * 100);
   const totalPaidAmt = ext.rentHistory
     .filter(r => r.status === "paid")
-    .reduce((s, r) => s + parseInt(r.amount.replace(/[^\d]/g, ""), 10), 0);
+    .reduce((s, r) => s + r.amount, 0);
   const verifiedDocs = docs.filter(d => d.status === "verified").length;
   const pendingDocs  = docs.filter(d => d.status === "pending").length;
   const missingDocs  = docs.filter(d => d.status === "missing").length;
@@ -1411,15 +1402,12 @@ function TenantsTab({ initialTenantId, onNav }: { initialTenantId?: string | nul
   );
 }
 
-function PaymentsTab() {
+function PaymentsTab({ stats }: { stats: any }) {
+  const { financials } = stats;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {[
-          { label: "Total Collected", value: "₹1,89,000", color: "success" },
-          { label: "Pending",         value: "₹28,500",   color: "warning" },
-          { label: "Overdue",         value: "₹17,000",   color: "error" },
-        ].map((s) => (
+        {financials.map((s: any) => (
           <div key={s.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
             <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-2">{s.label}</p>
             <p className={`text-2xl font-bold ${
@@ -1465,12 +1453,13 @@ function PaymentsTab() {
 }
 
 function MaintenanceTab() {
+  const pendingCount = MAINTENANCE.filter(m => m.status === "pending").length;
   return (
     <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--line)]">
         <h3 className="text-sm font-bold text-[color:var(--foreground)]">Maintenance Requests</h3>
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted)]">
-          <span className="w-2 h-2 rounded-full bg-[color:var(--error)]" /> 2 pending
+          <span className="w-2 h-2 rounded-full bg-[color:var(--error)]" /> {pendingCount} pending
         </div>
       </div>
       <div className="divide-y divide-[color:var(--line)]">
@@ -1513,11 +1502,11 @@ function ReportsTab() {
   );
 }
 
-function AccountTab() {
+function AccountTab({ user }: { user: AppUser | null }) {
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: "Ravi Kumar", email: "ravi.kumar@gmail.com",
-    phone: "9876543210", gst: "29AABCU9603R1ZX", pan: "AABCU9603R",
+    name: user?.name || "Ravi Kumar", email: user?.email || "ravi.kumar@gmail.com",
+    phone: user?.phoneNumber || "9876543210", gst: "29AABCU9603R1ZX", pan: "AABCU9603R",
   });
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -1534,7 +1523,7 @@ function AccountTab() {
   });
 
   const [bankForm, setBankForm] = useState({
-    accountName: "Ravi Kumar", accountNumber: "••••••••4821",
+    accountName: user?.name || "Ravi Kumar", accountNumber: "••••••••4821",
     ifsc: "HDFC0001234", bank: "HDFC Bank",
   });
   const [editingBank, setEditingBank] = useState(false);
@@ -2524,7 +2513,7 @@ function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTa
 
 // ─── OrganizationTab — multi-org management ───────────────────────────────────
 
-function OrganizationTab({ onNavigate }: { onNavigate: (t: NavTarget) => void }) {
+function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate: (t: NavTarget) => void }) {
   const [orgs, setOrgs]           = React.useState<Organization[]>(MOCK_ORGS);
   const [activeOrgId, setActiveOrgId] = React.useState<string | null>(
     MOCK_ORGS.length > 0 ? MOCK_ORGS[0].id : null
@@ -2595,8 +2584,8 @@ function OrganizationTab({ onNavigate }: { onNavigate: (t: NavTarget) => void })
       createdAt: today,
       members: [{
         id: `m${Date.now()}`,
-        name: OWNER.name,
-        email: "ravi@shiftproof.app",
+        name: ownerInfo.name,
+        email: "ravi@shiftproof.in",
         role: "owner",
         assignedProperties: [],
         status: "active",
@@ -3104,6 +3093,51 @@ export default function OwnerDashboardClient() {
   const [deepPropVer,   setDeepPropVer]   = useState(0);
   const [deepTenantVer, setDeepTenantVer] = useState(0);
 
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const me = await api.auth.me();
+        setUser(me);
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        if (typeof status === "number") {
+          if (status === 409 || (err as Error).message?.toLowerCase().includes("conflict")) {
+            await signOut(auth);
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.replace("/login?error=identity_conflict");
+            return;
+          }
+          // Any other API error — backend doesn't have this user yet, use mock data.
+          return;
+        }
+        console.error("Failed to load owner data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  useEffect(() => { setAvatarError(false); }, [user?.avatarUrl]);
+
+  const ownerDefaults = {
+    name: user?.name || "Ravi Kumar",
+    initials: (user?.name || "Ravi Kumar").split(" ").map(n => n[0]).join("").slice(0, 2),
+    properties: PROPERTIES.length,
+    beds: PROPERTIES.reduce((sum, p) => sum + (p as any).beds, 0),
+  };
+
+  const ownerInfo = {
+    ...ownerDefaults,
+    name: user?.name || ownerDefaults.name,
+    initials: (user?.name || ownerDefaults.name).split(" ").map(n => n[0]).join("").slice(0, 2),
+    avatarUrl: user?.avatarUrl || "",
+  };
+
   // Nav initiated by the user (sidebar / search / notifs) — clears any deep link
   function navTo(tab: string) {
     setDeepPropId(null);
@@ -3141,13 +3175,70 @@ export default function OwnerDashboardClient() {
 
   const unreadCount = NOTIF_DATA.filter(n => !n.read).length;
 
+  const stats = React.useMemo(() => {
+    const totalBeds = PROPERTIES.reduce((sum, p) => sum + (p as any).beds, 0);
+    const occupiedBeds = PROPERTIES.reduce((sum, p) => sum + (p as any).occupied, 0);
+    const totalRentDue = TENANTS.reduce((sum, t) => sum + (t as any).rent, 0);
+    const overdueTenants = TENANTS.filter(t => (t as any).risk === "late").length;
+    
+    const pendingAmount = TENANTS.reduce((sum, t) => {
+      const history = TENANTS_EXT[t.id]?.rentHistory || [];
+      const currentMonthPending = history.some(h => h.status === "pending") ? (t as any).rent : 0;
+      return sum + currentMonthPending;
+    }, 0);
+
+    const overdueAmount = TENANTS.reduce((sum, t) => {
+      const history = TENANTS_EXT[t.id]?.rentHistory || [];
+      const currentOverdue = history.some(h => h.status === "overdue") ? (t as any).rent : 0;
+      return sum + currentOverdue;
+    }, 0);
+
+    const totalCollected = totalRentDue - pendingAmount - overdueAmount;
+
+    const kpi = [
+      { label: "Monthly Revenue", value: `₹${totalRentDue.toLocaleString("en-IN")}`, sub: "↑ 8.2% vs last month", up: true, icon: IndianRupee, color: "accent" },
+      { label: "Occupancy Rate",  value: `${((occupiedBeds / totalBeds) * 100).toFixed(1)}%`, sub: `${occupiedBeds} of ${totalBeds} beds filled`, up: true, icon: BedDouble, color: "trust" },
+      { label: "Rent Collected",  value: `₹${totalCollected.toLocaleString("en-IN")}`, sub: `${((totalCollected / totalRentDue) * 100).toFixed(0)}% of total due`, up: true, icon: CheckCircle2, color: "success" },
+      { label: "Pending Amount",  value: `₹${(pendingAmount + overdueAmount).toLocaleString("en-IN")}`, sub: `From ${TENANTS.filter(t => {
+        const history = TENANTS_EXT[t.id]?.rentHistory || [];
+        return history.some(h => h.status === "pending" || h.status === "overdue");
+      }).length} tenants`, up: false, icon: Clock, color: "warning" },
+    ];
+
+    const atAGlance = [
+      { label: "Occupied Beds",    value: occupiedBeds.toString(), sub: `Across ${PROPERTIES.length} properties`, icon: BedDouble, color: "text-[color:var(--accent-400)]" },
+      { label: "Vacant Beds",      value: (totalBeds - occupiedBeds).toString(), sub: "Ready for move-in", icon: Home, color: "text-slate-400" },
+      { label: "Overdue Accounts", value: overdueTenants.toString(), sub: "Requires attention", icon: AlertCircle, color: "text-[color:var(--error)]" },
+    ];
+
+    const financials = [
+      { label: "Total Collected", value: `₹${totalCollected.toLocaleString("en-IN")}`, color: "success" },
+      { label: "Pending",         value: `₹${pendingAmount.toLocaleString("en-IN")}`,   color: "warning" },
+      { label: "Overdue",         value: `₹${overdueAmount.toLocaleString("en-IN")}`,   color: "error" },
+    ];
+
+    return { kpi, atAGlance, financials };
+  }, []);
+
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    if (auth) await signOut(auth);
     router.push("/login");
   }
 
   const sidebarW  = settings.sidebarCollapsed ? "w-14"    : "w-[240px]";
   const mainML    = settings.sidebarCollapsed ? "lg:ml-14" : "lg:ml-[240px]";
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[color:var(--background)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-accent-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-medium text-slate-500">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -3199,19 +3290,21 @@ export default function OwnerDashboardClient() {
         <div className={`pt-4 border-t border-white/10 ${settings.sidebarCollapsed ? "px-2" : "px-4"}`}>
           <button
             onClick={() => { navTo("account"); setSidebarOpen(false); }}
-            title={settings.sidebarCollapsed ? `${OWNER.name} · Account` : undefined}
+            title={settings.sidebarCollapsed ? `${ownerInfo.name} · Account` : undefined}
             className={`w-full flex items-center gap-3 mb-2 px-2 py-2 rounded-xl transition-colors text-left ${
               activeNav === "account" ? "bg-[color:var(--accent-500)]/20" : "hover:bg-white/5"
             } ${settings.sidebarCollapsed ? "justify-center" : ""}`}
           >
-            <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)]/20 flex items-center justify-center text-xs font-bold text-[color:var(--accent-400)] shrink-0">
-              {OWNER.initials}
+            <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)]/20 flex items-center justify-center text-xs font-bold text-[color:var(--accent-400)] shrink-0 overflow-hidden">
+              {ownerInfo.avatarUrl && !avatarError
+                ? <img src={ownerInfo.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setAvatarError(true)} />
+                : ownerInfo.initials}
             </div>
             {!settings.sidebarCollapsed && (
               <>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-white truncate">{OWNER.name}</p>
-                  <p className="text-[10px] text-white/40 truncate">{OWNER.properties} properties · {OWNER.beds} beds</p>
+                  <p className="text-xs font-bold text-white truncate">{ownerInfo.name}</p>
+                  <p className="text-[10px] text-white/40 truncate">{ownerInfo.properties} properties · {ownerInfo.beds} beds</p>
                 </div>
                 <Settings size={13} className="text-white/30 shrink-0" />
               </>
@@ -3290,14 +3383,14 @@ export default function OwnerDashboardClient() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {activeNav === "overview"      && <OverviewTab />}
+          {activeNav === "overview"      && <OverviewTab stats={stats} />}
           {activeNav === "properties"    && <PropertiesTab key={deepPropVer}   initialPropId={deepPropId} />}
           {activeNav === "tenants"       && <TenantsTab   key={deepTenantVer} initialTenantId={deepTenantId} onNav={navTo} />}
-          {activeNav === "payments"      && <PaymentsTab />}
+          {activeNav === "payments"      && <PaymentsTab stats={stats} />}
           {activeNav === "maintenance"   && <MaintenanceTab />}
           {activeNav === "reports"       && <ReportsTab />}
-          {activeNav === "organization"  && <OrganizationTab onNavigate={handleDeepNav} />}
-          {activeNav === "account"       && <AccountTab />}
+          {activeNav === "organization"  && <OrganizationTab ownerInfo={ownerInfo} onNavigate={handleDeepNav} />}
+          {activeNav === "account"       && <AccountTab user={user} />}
         </main>
       </div>
 

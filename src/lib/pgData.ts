@@ -48,6 +48,8 @@ export interface PGListing {
   lat: number;            // approximate latitude of the locality
   lng: number;            // approximate longitude of the locality
   images: string[];       // Unsplash photo URLs (3 per listing); replace with real photos in production
+  imageUrl?: string;      // Optional single cover image
+  ownerName?: string;     // Optional custom owner name
   description: string;   // 2–3 sentence property overview
 }
 
@@ -286,6 +288,200 @@ export const pgListings: PGListing[] = [
     images: [EXT[2], INT[2], INT[4]],
     description: "A well-equipped PG for working professionals in Sector 62, Noida's thriving IT corridor. Golden Gate offers AC rooms, meal services, and dedicated parking, with seamless metro connectivity to Delhi NCR — making long commutes a thing of the past.",
   },
+  {
+    id: "prop_seed_8",
+    name: "V M Mansion 401",
+    locality: "Yelahanka",
+    location: "Yelahanka, Bangalore",
+    city: "Bangalore",
+    price: 7500,
+    rating: 4.5,
+    reviews: 0,
+    gender: "Mixed",
+    roomTypes: ["Single"],
+    amenities: ["WiFi", "AC"],
+    gradient: "from-violet-500 to-indigo-600",
+    occupancy: 0,
+    distanceFromMetro: "2.5 km",
+    lat: 13.1007,
+    lng: 77.5963,
+    images: [], // Demonstrate empty images array
+    imageUrl: "https://picsum.photos/seed/prop8img0/800/600",
+    ownerName: "Seed Owner",
+    description: "This beautiful 1 BK semi_furnished, house is located in the heart of Yelahanka, Bengaluru. Priced at ₹7500 for full house.",
+  },
+  // Additional seeds for pagination testing
+  {
+    id: "seed_20",
+    name: "Lakeview PG",
+    locality: "Powai",
+    location: "Powai, Mumbai",
+    city: "Mumbai",
+    price: 15000,
+    rating: 4.6,
+    reviews: 28,
+    gender: "Mixed",
+    roomTypes: ["Single", "Double"],
+    amenities: ["WiFi", "AC", "Gym", "Parking"],
+    gradient: "from-blue-500 to-indigo-600",
+    occupancy: 85,
+    distanceFromMetro: "2.0 km",
+    lat: 19.1176, lng: 72.9060,
+    images: [EXT[0], INT[3]],
+    description: "Upscale co-living with a view of the lake in Mumbai's tech hub.",
+  },
+  {
+    id: "seed_21",
+    name: "Cyber Nest",
+    locality: "DLF Phase 3",
+    location: "Gurgaon, Delhi NCR",
+    city: "Delhi NCR",
+    price: 11000,
+    rating: 4.3,
+    reviews: 52,
+    gender: "Male",
+    roomTypes: ["Single", "Double"],
+    amenities: ["WiFi", "AC", "Meals", "Power Backup"],
+    gradient: "from-orange-500 to-red-600",
+    occupancy: 90,
+    distanceFromMetro: "0.3 km",
+    lat: 28.4893, lng: 77.0896,
+    images: [EXT[1], INT[0]],
+    description: "Perfect for corporate professionals in Gurgaon with instant metro connectivity.",
+  },
+  {
+    id: "seed_22",
+    name: "The Student House",
+    locality: "North Campus",
+    location: "North Campus, Delhi",
+    city: "Delhi NCR",
+    price: 6500,
+    rating: 4.1,
+    reviews: 115,
+    gender: "Mixed",
+    roomTypes: ["Double", "Triple"],
+    amenities: ["WiFi", "Meals", "Laundry"],
+    gradient: "from-yellow-500 to-orange-600",
+    occupancy: 95,
+    distanceFromMetro: "0.8 km",
+    lat: 28.6892, lng: 77.2144,
+    images: [EXT[2], INT[4]],
+    description: "Vibrant student community in the heart of Delhi University North Campus.",
+  },
+  {
+    id: "seed_23",
+    name: "Metro Palace",
+    locality: "Indiranagar",
+    location: "Indiranagar, Bangalore",
+    city: "Bangalore",
+    price: 14000,
+    rating: 4.7,
+    reviews: 89,
+    gender: "Mixed",
+    roomTypes: ["Single"],
+    amenities: ["WiFi", "AC", "Meals", "TV", "CCTV"],
+    gradient: "from-purple-500 to-indigo-600",
+    occupancy: 88,
+    distanceFromMetro: "0.2 km",
+    lat: 12.9784, lng: 77.6408,
+    images: [EXT[0], INT[2]],
+    description: "Luxury PG in Bangalore's most happening locality. Walk to metro and top pubs.",
+  },
+  {
+    id: "seed_24",
+    name: "Green Garden PG",
+    locality: "Aundh",
+    location: "Aundh, Pune",
+    city: "Pune",
+    price: 7800,
+    rating: 4.4,
+    reviews: 41,
+    gender: "Female",
+    roomTypes: ["Double", "Triple"],
+    amenities: ["WiFi", "Meals", "Laundry", "Parking"],
+    gradient: "from-green-500 to-emerald-600",
+    occupancy: 70,
+    distanceFromMetro: "4.5 km",
+    lat: 18.5580, lng: 73.8075,
+    images: [EXT[1], INT[5]],
+    description: "Quiet and safe residential PG in Pune with lush green surroundings.",
+  },
+  {
+    id: "seed_25",
+    name: "Silicon Stay",
+    locality: "Electronic City",
+    location: "Electronic City, Bangalore",
+    city: "Bangalore",
+    price: 6000,
+    rating: 4.0,
+    reviews: 22,
+    gender: "Male",
+    roomTypes: ["Double", "Triple"],
+    amenities: ["WiFi", "Meals", "TV"],
+    gradient: "from-cyan-500 to-blue-600",
+    occupancy: 60,
+    distanceFromMetro: "3.5 km",
+    lat: 12.8452, lng: 77.6632,
+    images: [EXT[2], INT[1]],
+    description: "Affordable stay for tech professionals in Electronic City Phase 1.",
+  },
+  {
+    id: "seed_26",
+    name: "Heritage PG",
+    locality: "Mylapore",
+    location: "Mylapore, Chennai",
+    city: "Chennai",
+    price: 5000,
+    rating: 4.2,
+    reviews: 15,
+    gender: "Female",
+    roomTypes: ["Triple"],
+    amenities: ["WiFi", "Meals"],
+    gradient: "from-amber-500 to-orange-700",
+    occupancy: 40,
+    distanceFromMetro: "1.0 km",
+    lat: 13.0333, lng: 80.2667,
+    images: [EXT[0], INT[3]],
+    description: "Traditional stay with home-like atmosphere in cultural Mylapore.",
+  },
+  {
+    id: "seed_27",
+    name: "Tech Haven",
+    locality: "Gachibowli",
+    location: "Gachibowli, Hyderabad",
+    city: "Hyderabad",
+    price: 10500,
+    rating: 4.5,
+    reviews: 63,
+    gender: "Mixed",
+    roomTypes: ["Single", "Double"],
+    amenities: ["WiFi", "AC", "Gym", "Meals"],
+    gradient: "from-indigo-500 to-violet-600",
+    occupancy: 82,
+    distanceFromMetro: "1.2 km",
+    lat: 17.4401, lng: 78.3489,
+    images: [EXT[1], INT[4]],
+    description: "Premium co-living with gym and chef-prepared meals in Hyderabad's IT hub.",
+  },
+  {
+    id: "seed_28",
+    name: "Skyline PG",
+    locality: "Banjara Hills",
+    location: "Banjara Hills, Hyderabad",
+    city: "Hyderabad",
+    price: 12000,
+    rating: 4.8,
+    reviews: 77,
+    gender: "Mixed",
+    roomTypes: ["Single", "Double"],
+    amenities: ["WiFi", "AC", "TV", "Laundry"],
+    gradient: "from-blue-600 to-purple-700",
+    occupancy: 90,
+    distanceFromMetro: "0.5 km",
+    lat: 17.4156, lng: 78.4347,
+    images: [EXT[2], INT[0]],
+    description: "Luxurious skyline views in Hyderabad's most premium neighbourhood.",
+  },
 ];
 
 export const allCities = [...new Set(pgListings.map((p) => p.city))].sort();
@@ -303,3 +499,25 @@ export const allAmenities: Amenity[] = [
   "WiFi", "AC", "Meals", "Laundry", "Parking",
   "CCTV", "Gym", "Power Backup", "Hot Water", "TV",
 ];
+
+import { PRICE_MIN, PRICE_MAX } from "./constants";
+
+/**
+ * Calculates the min and max price bounds for a given city (or all listings).
+ * Used to initialize and scale the price filter slider.
+ */
+export function getPriceBounds(city: string): [number, number] {
+  const filtered = city === "All"
+    ? pgListings
+    : pgListings.filter(p => p.city === city);
+
+  if (filtered.length === 0) return [PRICE_MIN, PRICE_MAX]; // Fallback to constants if no data
+
+  const prices = filtered.map(p => p.price);
+  const min = Math.floor(Math.min(...prices) / 500) * 500; // Round down to nearest 500
+  const max = Math.ceil(Math.max(...prices) / 500) * 500;  // Round up to nearest 500
+
+  // Ensure a reasonable spread
+  if (min === max) return [min - 1000, max + 1000];
+  return [min, max];
+}

@@ -46,7 +46,7 @@ Hero → Owner Features → Tenant Features → How It Works → Pricing → Tes
 | 8 | **Minor** | **The `KeyFeatures` component referenced in AGENTS.md does not appear in the landing page assembly (`page.tsx`).** If this section was removed, the component is dead code. If it was intended, it's missing. |
 | 9 | **Minor** | **FAQ opens with Q1 already expanded (index 0).** This is a valid UX choice, but "Is ShiftProof really free for tenants?" is not the highest-anxiety question for an owner. Opening on "How do tenants pay rent?" or the UPI question would be more conversion-effective. |
 | 10 | **Minor** | **Footer has no social media links.** In 2026, zero social links in a footer reads as "we are not sure this company is active." Even placeholder LinkedIn/Twitter/Instagram links signal legitimacy. |
-| 11 | **Minor** | **"Enterprise" plan CTA links to `mailto:sales@shiftproof.app`.** Opening the user's mail client is a high-friction, context-breaking action. A modal form or a dedicated `/contact?from=enterprise` page is dramatically better. |
+| 11 | **Minor** | **"Enterprise" plan CTA links to `mailto:sales@shiftproof.in`.** Opening the user's mail client is a high-friction, context-breaking action. A modal form or a dedicated `/contact?from=enterprise` page is dramatically better. |
 
 ### Responsiveness Audit
 

@@ -84,7 +84,7 @@ export default function RefundPage() {
           <h2 className="text-lg font-bold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--background)]">3. How to Request a Refund</h2>
           <div className="space-y-4">
             {[
-              { step: "01", title: "Email us", body: "Send your refund request to billing@shiftproof.app with the subject line \"Refund Request — [your registered email]\"." },
+              { step: "01", title: "Email us", body: "Send your refund request to billing@shiftproof.in with the subject line \"Refund Request — [your registered email]\"." },
               { step: "02", title: "Include details", body: "Attach your payment receipt, transaction ID, and reason for the refund request." },
               { step: "03", title: "We'll review", body: "We will acknowledge your request within 2 business days and make a decision within 7 business days." },
               { step: "04", title: "Credit processed", body: "Approved refunds are returned to the original payment method within 5–10 business days, depending on your bank or payment provider." },
@@ -131,7 +131,7 @@ export default function RefundPage() {
         <div id="contact-billing" className="scroll-mt-24 mb-12">
           <h2 className="text-lg font-bold text-[color:var(--foreground)] mb-4 pb-2 border-b border-[color:var(--background)]">6. Contact for Billing Queries</h2>
           <div className="p-5 rounded-2xl bg-[color:var(--background)] border border-slate-200 space-y-2 text-sm text-slate-600">
-            <p><span className="font-semibold text-slate-800">Email:</span> billing@shiftproof.app</p>
+            <p><span className="font-semibold text-slate-800">Email:</span> billing@shiftproof.in</p>
             <p><span className="font-semibold text-slate-800">Phone:</span> +91 80 4567 8900 (Mon–Fri, 10 AM – 6 PM IST)</p>
             <p><span className="font-semibold text-slate-800">Response time:</span> Within 2 business days</p>
           </div>

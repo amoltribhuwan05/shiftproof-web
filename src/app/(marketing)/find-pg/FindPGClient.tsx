@@ -9,15 +9,17 @@ import {
   CheckCircle2, Check, Loader2, Info,
 } from "lucide-react";
 import {
-  pgListings,
   allCities,
   allAmenities,
   localitiesForCity,
+  getPriceBounds,
   type PGListing,
   type Amenity,
   type Gender,
   type RoomType,
 } from "@/lib/pgData";
+import { apiFetch } from "@/lib/api/client";
+import type { Property, Paginated } from "@/lib/api/types";
 import { buildBST } from "@/lib/bst";
 import { haversineKm, fmtDistance } from "@/lib/geo";
 import {
@@ -31,7 +33,7 @@ import {
 // ─── types ────────────────────────────────────────────────────────────────────
 
 type SortOption = "relevance" | "price_asc" | "price_desc" | "rating" | "nearest";
-type ViewMode   = "grid" | "list";
+type ViewMode = "grid" | "list";
 
 
 // ─── small icons ─────────────────────────────────────────────────────────────
@@ -47,9 +49,9 @@ function StarFilled() {
 // ─── availability ─────────────────────────────────────────────────────────────
 
 function availTag(occ: number) {
-  if (occ >= 90) return { label: "Filling Fast", cls: "text-red-500 bg-red-50"   };
-  if (occ >= 70) return { label: "Limited",      cls: "text-amber-600 bg-amber-50" };
-  return               { label: "Available",     cls: "text-emerald-600 bg-emerald-50" };
+  if (occ >= 90) return { label: "Filling Fast", cls: "text-red-500 bg-red-50" };
+  if (occ >= 70) return { label: "Limited", cls: "text-amber-600 bg-amber-50" };
+  return { label: "Available", cls: "text-emerald-600 bg-emerald-50" };
 }
 
 // ─── Amenity icon + label ─────────────────────────────────────────────────────
@@ -66,7 +68,7 @@ function AmenityIcon({ name }: { name: string }) {
 // ─── PG Card (grid) ───────────────────────────────────────────────────────────
 
 function PGCard({ pg, saved, onSave, distanceKm }: {
-  pg: PGListing; saved: boolean; onSave: () => void; distanceKm?: number;
+  pg: Property; saved: boolean; onSave: () => void; distanceKm?: number;
 }) {
   const router = useRouter();
   const [imgIdx, setImgIdx] = useState(0);
@@ -82,8 +84,8 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
       {/* ── Image carousel ─────────────────────────────────────────────────── */}
       <div className="relative h-52 flex-shrink-0 overflow-hidden bg-[color:var(--background)]">
         <img
-          src={pg.images[imgIdx]}
-          alt={pg.name}
+          src={pg.images[imgIdx]?.url || pg.imageUrl || "/placeholder-pg.jpg"}
+          alt={pg.title}
           className="w-full h-full object-cover transition-opacity duration-300"
         />
 
@@ -119,9 +121,8 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
               key={i}
               onClick={(e) => { e.stopPropagation(); setImgIdx(i); }}
               aria-label={`Go to photo ${i + 1}`}
-              className={`h-1.5 rounded-full transition-all duration-200 ${
-                i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-200 ${i === imgIdx ? "w-5 bg-white" : "w-1.5 bg-white/60 hover:bg-white/90"
+                }`}
             />
           ))}
         </div>
@@ -153,7 +154,7 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
         {/* Name + rating */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-bold text-[color:var(--foreground)] text-[15px] leading-snug line-clamp-1 group-hover:text-accent-600 transition-colors flex-1">
-            {pg.name}
+            {pg.title}
           </h3>
           <div className="flex items-center gap-1 flex-shrink-0">
             <StarFilled />
@@ -218,14 +219,14 @@ function PGCard({ pg, saved, onSave, distanceKm }: {
 // ─── PG Row (list view) ───────────────────────────────────────────────────────
 
 function PGRow({ pg, saved, onSave, distanceKm }: {
-  pg: PGListing; saved: boolean; onSave: () => void; distanceKm?: number;
+  pg: Property; saved: boolean; onSave: () => void; distanceKm?: number;
 }) {
   const avail = availTag(pg.occupancy);
   return (
     <div className="group flex bg-white rounded-2xl overflow-hidden border border-[color:var(--background)] hover:border-slate-300 hover:shadow-md transition-[border-color,box-shadow] duration-200 cursor-pointer">
       {/* Thumbnail */}
       <div className="relative w-44 sm:w-52 flex-shrink-0 bg-[color:var(--background)] overflow-hidden">
-        <img src={pg.images[0]} alt={pg.name} className="w-full h-full object-cover" />
+        <img src={pg.images[0]?.url || pg.imageUrl || "/placeholder-pg.jpg"} alt={pg.title} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
         <span className="absolute top-3 left-3 flex items-center gap-1 rounded-full bg-accent-500 px-2 py-0.5 text-[9px] font-bold text-white shadow">
           <CheckCircle2 size={8} strokeWidth={2} />
@@ -242,12 +243,11 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
       <div className="flex flex-1 flex-col sm:flex-row min-w-0">
         <div className="flex-1 p-4 flex flex-col gap-2 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-bold text-[color:var(--foreground)] text-base group-hover:text-accent-600 transition-colors">{pg.name}</h3>
-            <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${
-              pg.gender === "Female" ? "bg-pink-50 text-pink-600"
-              : pg.gender === "Male" ? "bg-sky-50 text-sky-600"
-              : "bg-[color:var(--background)] text-slate-500"
-            }`}>{pg.gender}</span>
+            <h3 className="font-bold text-[color:var(--foreground)] text-base group-hover:text-accent-600 transition-colors">{pg.title}</h3>
+            <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${pg.gender === "Female" ? "bg-pink-50 text-pink-600"
+                : pg.gender === "Male" ? "bg-sky-50 text-sky-600"
+                  : "bg-[color:var(--background)] text-slate-500"
+              }`}>{pg.gender}</span>
             <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${avail.cls}`}>{avail.label}</span>
           </div>
           <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
@@ -291,9 +291,8 @@ function PGRow({ pg, saved, onSave, distanceKm }: {
               View Details
             </Link>
             <button onClick={(e) => { e.stopPropagation(); onSave(); }}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-colors ${
-                saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-accent-200 hover:text-accent-500"
-              }`}>
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-semibold transition-colors ${saved ? "border-red-200 bg-red-50 text-red-500" : "border-slate-200 text-slate-500 hover:border-accent-200 hover:text-accent-500"
+                }`}>
               <Heart size={15} strokeWidth={1.75} fill={saved ? "#ef4444" : "none"} className={saved ? "text-red-500" : "text-slate-400"} />{saved ? "Saved" : "Save"}
             </button>
           </div>
@@ -374,7 +373,7 @@ function PriceRangeSlider({
     const dLo = Math.abs(v - lo);
     const dHi = Math.abs(v - hi);
     if (dLo <= dHi) onChange([Math.min(v, hi - PRICE_STEP), hi]);
-    else            onChange([lo, Math.max(v, lo + PRICE_STEP)]);
+    else onChange([lo, Math.max(v, lo + PRICE_STEP)]);
   };
 
   return (
@@ -446,19 +445,18 @@ function PriceRangeSlider({
       {/* Quick presets */}
       <div className="flex flex-wrap gap-1.5">
         {[
-          { label: "< ₹5k",  lo: minBound, hi: Math.min(5000, maxBound) },
-          { label: "₹5–8k",  lo: Math.max(minBound, 5000), hi: Math.min(8000, maxBound) },
+          { label: "< ₹5k", lo: minBound, hi: Math.min(5000, maxBound) },
+          { label: "₹5–8k", lo: Math.max(minBound, 5000), hi: Math.min(8000, maxBound) },
           { label: "₹8–12k", lo: Math.max(minBound, 8000), hi: Math.min(12000, maxBound) },
           { label: "> ₹12k", lo: Math.max(minBound, 12000), hi: maxBound },
         ].filter(p => p.lo < p.hi).map((p) => (
           <button
             key={p.label}
             onClick={() => onChange([p.lo, p.hi])}
-            className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium border transition-colors ${
-              lo === p.lo && hi === p.hi
+            className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium border transition-colors ${lo === p.lo && hi === p.hi
                 ? "bg-accent-500 text-white border-accent-500"
                 : "bg-white text-slate-500 border-slate-200 hover:border-accent-200 hover:text-accent-600"
-            }`}
+              }`}
           >
             {p.label}
           </button>
@@ -499,16 +497,14 @@ function LocalitySlider({ city, locality, setLocality }: {
       </button>
       <div ref={ref} className="flex overflow-x-auto scrollbar-none flex-1">
         <button onClick={() => setLocality("All")}
-          className={`flex-shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-            locality === "All" ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
-          }`}>
+          className={`flex-shrink-0 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${locality === "All" ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}>
           {city === "All" ? "All Areas" : `All ${city}`}
         </button>
         {localities.map((l) => (
           <button key={l} onClick={() => setLocality(l)}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              locality === l ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
-            }`}>
+            className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${locality === l ? "border-accent-500 text-accent-600" : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}>
             <MapPin size={10} strokeWidth={1.5} className="flex-shrink-0" />
             {l}
           </button>
@@ -524,36 +520,104 @@ function LocalitySlider({ city, locality, setLocality }: {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 const getCityBounds = (c: string): [number, number] => {
-  let list = pgListings;
-  if (c !== "All") list = list.filter(p => p.city === c);
-  if (list.length === 0) return [PRICE_MIN, PRICE_MAX];
-  const cMin = Math.min(...list.map(p => p.price));
-  const cMax = Math.max(...list.map(p => p.price));
-  const bMin = Math.max(PRICE_MIN, Math.floor(cMin / PRICE_STEP) * PRICE_STEP - PRICE_STEP);
-  const bMax = Math.min(PRICE_MAX, Math.ceil(cMax / PRICE_STEP) * PRICE_STEP + PRICE_STEP);
-  return [bMin, Math.max(bMin + PRICE_STEP, bMax)];
+  return getPriceBounds(c);
 };
 
 export default function FindPGClient() {
-  const [search,            setSearch]            = useState("");
-  const [city,              setCity]              = useState("All");
-  const [locality,          setLocality]          = useState("All");
-  const [gender,            setGender]            = useState<Gender | "All">("All");
-  const [roomTypes,         setRoomTypes]         = useState<RoomType[]>([]);
-  const [amenities,         setAmenities]         = useState<Amenity[]>([]);
-  const [priceRange,        setPriceRange]        = useState<[number, number]>(() => getCityBounds("All"));
-  const [sortBy,            setSortBy]            = useState<SortOption>("relevance");
-  const [viewMode,          setViewMode]          = useState<ViewMode>("grid");
-  const [filterOpen,        setFilterOpen]        = useState(false);
-  const [savedIds,          setSavedIds]          = useState<Set<string>>(() => {
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [city, setCity] = useState("All");
+  const [locality, setLocality] = useState("All");
+  const [gender, setGender] = useState<Gender | "All">("All");
+  const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+  const [amenities, setAmenities] = useState<Amenity[]>([]);
+  const [priceRange, setPriceRange] = useState<[number, number]>(() => getCityBounds("All"));
+  const [sortBy, setSortBy] = useState<SortOption>("relevance");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem("sp_saved_pgs") : null;
       return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
     } catch { return new Set<string>(); }
   });
   const [locationDetecting, setLocationDetecting] = useState(true);
-  const [userCoords,        setUserCoords]        = useState<{ lat: number; lng: number } | null>(null);
-  const [outsideIndia,      setOutsideIndia]      = useState(false);
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [outsideIndia, setOutsideIndia] = useState(false);
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  // ─── Fetch results from API ──────────────────────────────────────────────────
+
+  const userCoordsRef = useRef(userCoords);
+  useEffect(() => { userCoordsRef.current = userCoords; }, [userCoords]);
+
+  useEffect(() => {
+    if (rateLimited) return;
+
+    const fetchResults = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (search) params.set("query", search);
+        if (locality !== "All") params.set("location", locality);
+        else if (city !== "All") params.set("location", city);
+
+        if (gender !== "All") params.set("gender", gender);
+        roomTypes.forEach(rt => params.append("roomTypes", rt));
+        amenities.forEach(a => params.append("amenities", a));
+
+        if (priceActive) {
+          params.set("minPrice", priceRange[0].toString());
+          params.set("maxPrice", priceRange[1].toString());
+        }
+        params.set("page", page.toString());
+        params.set("limit", "20");
+
+        const res = await apiFetch<Paginated<Property>>(`/api/v1/public/search?${params.toString()}`);
+        if (res && res.data) {
+          const coords = userCoordsRef.current;
+          const list = [...res.data].sort((a, b) => {
+            if (sortBy === "price_asc") return a.price - b.price;
+            if (sortBy === "price_desc") return b.price - a.price;
+            if (sortBy === "rating") return b.rating - a.rating;
+            if (sortBy === "nearest" && coords) {
+              return haversineKm(coords.lat, coords.lng, a.lat, a.lng)
+                   - haversineKm(coords.lat, coords.lng, b.lat, b.lng);
+            }
+            return b.reviews - a.reviews;
+          });
+          setProperties(list);
+          setTotal(res.meta?.total ?? list.length);
+          setTotalPages(res.meta?.totalPages ?? 1);
+        }
+      } catch (err: unknown) {
+        const status = (err as { status?: number }).status;
+        if (status === 429) {
+          setRateLimited(true);
+          // Auto-clear after 60 s so the user can retry
+          setTimeout(() => setRateLimited(false), 60_000);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Always debounce — prevents bursts when multiple filters change at once
+    const timer = setTimeout(fetchResults, 300);
+    return () => clearTimeout(timer);
+  // userCoords intentionally excluded: it only affects local sort, not the API call
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy, page, rateLimited]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy]);
 
   // Auto-detect user's city + coords from IP on mount
   useEffect(() => {
@@ -597,9 +661,9 @@ export default function FindPGClient() {
   }, [savedIds]);
 
   // Changing city always resets locality selection and bounds
-  const changeCity = (c: string) => { 
-    setCity(c); 
-    setLocality("All"); 
+  const changeCity = (c: string) => {
+    setCity(c);
+    setLocality("All");
     setPriceRange(getCityBounds(c));
   };
 
@@ -607,34 +671,6 @@ export default function FindPGClient() {
     setSearch(""); setCity("All"); setLocality("All"); setGender("All");
     setRoomTypes([]); setAmenities([]); setPriceRange(getCityBounds("All")); setSortBy("relevance");
   };
-
-  // BST built once from static data; price range query is O(log n + k)
-  const priceBST = useMemo(() => buildBST(pgListings, (pg) => pg.price), []);
-
-  const results = useMemo(() => {
-    let list = priceBST.rangeQuery(priceRange[0], priceRange[1]).filter((pg) => {
-      const q = search.trim().toLowerCase();
-      if (q && !pg.name.toLowerCase().includes(q) && !pg.locality.toLowerCase().includes(q) && !pg.location.toLowerCase().includes(q) && !pg.city.toLowerCase().includes(q)) return false;
-      if (city !== "All" && pg.city !== city) return false;
-      if (locality !== "All" && pg.locality !== locality) return false;
-      if (gender !== "All" && pg.gender !== gender) return false;
-      if (roomTypes.length && !roomTypes.some((rt) => pg.roomTypes.includes(rt))) return false;
-      if (amenities.length && !amenities.every((a) => pg.amenities.includes(a))) return false;
-      return true;
-    });
-    return [...list].sort((a, b) => {
-      if (sortBy === "price_asc")  return a.price - b.price;
-      if (sortBy === "price_desc") return b.price - a.price;
-      if (sortBy === "rating")     return b.rating - a.rating;
-      if (sortBy === "nearest" && userCoords) {
-        const distA = haversineKm(userCoords.lat, userCoords.lng, a.lat, a.lng);
-        const distB = haversineKm(userCoords.lat, userCoords.lng, b.lat, b.lng);
-        return distA - distB;
-      }
-      return b.reviews - a.reviews;
-    });
-  }, [search, city, locality, gender, roomTypes, amenities, priceRange, sortBy, userCoords]);
-
 
   const cityBounds = useMemo(() => getCityBounds(city), [city]);
   const priceActive = priceRange[0] !== cityBounds[0] || priceRange[1] !== cityBounds[1];
@@ -667,9 +703,8 @@ export default function FindPGClient() {
           <div className="space-y-2.5">
             {(["All", ...allCities]).map((c) => (
               <label key={c} onClick={() => changeCity(c)} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  city === c ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
-                }`}>
+                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${city === c ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
+                  }`}>
                   {city === c && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                 </div>
                 <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">
@@ -684,9 +719,8 @@ export default function FindPGClient() {
           <div className="space-y-2.5">
             {(["All", "Male", "Female", "Mixed"] as const).map((g) => (
               <label key={g} onClick={() => setGender(g)} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                  gender === g ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
-                }`}>
+                <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${gender === g ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
+                  }`}>
                   {gender === g && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                 </div>
                 <span className="text-sm text-slate-700 group-hover:text-[color:var(--foreground)]">
@@ -698,11 +732,11 @@ export default function FindPGClient() {
         </Section>
 
         <Section title="Monthly Budget">
-          <PriceRangeSlider 
-            value={priceRange} 
-            onChange={setPriceRange} 
-            minBound={cityBounds[0]} 
-            maxBound={cityBounds[1]} 
+          <PriceRangeSlider
+            value={priceRange}
+            onChange={setPriceRange}
+            minBound={cityBounds[0]}
+            maxBound={cityBounds[1]}
           />
         </Section>
 
@@ -710,9 +744,8 @@ export default function FindPGClient() {
           <div className="space-y-2.5">
             {(["Single", "Double", "Triple"] as RoomType[]).map((rt) => (
               <label key={rt} onClick={() => toggle(setRoomTypes, rt)} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                  roomTypes.includes(rt) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
-                }`}>
+                <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${roomTypes.includes(rt) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
+                  }`}>
                   {roomTypes.includes(rt) && (
                     <Check size={9} strokeWidth={2.5} color="white" />
                   )}
@@ -727,9 +760,8 @@ export default function FindPGClient() {
           <div className="space-y-2.5">
             {allAmenities.map((a) => (
               <label key={a} onClick={() => toggle(setAmenities, a)} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
-                  amenities.includes(a) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
-                }`}>
+                <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${amenities.includes(a) ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
+                  }`}>
                   {amenities.includes(a) && (
                     <Check size={9} strokeWidth={2.5} color="white" />
                   )}
@@ -765,11 +797,11 @@ export default function FindPGClient() {
             {locality !== "All"
               ? `PGs in ${locality}`
               : city !== "All"
-              ? `Find a PG in ${city}`
-              : "Find Your Perfect PG"}
+                ? `Find a PG in ${city}`
+                : "Find Your Perfect PG"}
           </h1>
-          <p className="text-accent-200/80 text-sm sm:text-base mb-8">
-            {results.length} verified properties · filters applied {activeCount > 0 ? `(${activeCount})` : ""}
+          <p className="mt-2 text-accent-100 text-sm max-w-lg mx-auto leading-relaxed">
+            Browse {total}+ verified PG accommodations across India. Filter by city, budget, gender, and more to find your perfect stay.
           </p>
 
           {/* Search bar */}
@@ -795,11 +827,10 @@ export default function FindPGClient() {
               <button
                 key={c}
                 onClick={() => changeCity(c)}
-                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${
-                  city === c
+                className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-colors ${city === c
                     ? "bg-white text-accent-600 shadow-md"
                     : "bg-white/10 text-white/80 hover:bg-white/20 border border-white/10"
-                }`}
+                  }`}
               >
                 {c === "All" ? "All Cities" : c}
               </button>
@@ -822,7 +853,7 @@ export default function FindPGClient() {
         </aside>
 
         {/* Results */}
-        <div className="flex-1 min-w-0 bg-[color:var(--background)] flex flex-col">
+        <div ref={resultsRef} className="flex-1 min-w-0 bg-[color:var(--background)] flex flex-col">
 
           {/* Location detection banner */}
           {locationDetecting && (
@@ -864,7 +895,7 @@ export default function FindPGClient() {
                     {gender !== "All" && <Chip label={gender} onRemove={() => setGender("All")} />}
                     {roomTypes.map((rt) => <Chip key={rt} label={rt} onRemove={() => toggle(setRoomTypes, rt)} />)}
                     {amenities.map((a) => <Chip key={a} label={a} onRemove={() => toggle(setAmenities, a)} />)}
-                    {priceActive && <Chip label={`₹${priceRange[0].toLocaleString("en-IN")} – ₹${priceRange[1].toLocaleString("en-IN")}`} onRemove={() => setPriceRange([PRICE_MIN, PRICE_MAX])} />}
+                    {priceActive && <Chip label={`₹${priceRange[0].toLocaleString("en-IN")} – ₹${priceRange[1].toLocaleString("en-IN")}`} onRemove={() => setPriceRange(getCityBounds(city))} />}
                   </>
                 )}
               </div>
@@ -906,42 +937,78 @@ export default function FindPGClient() {
 
           {/* Cards */}
           <div className="flex-1 p-4 sm:p-5">
-            {results.length > 0 ? (
+            {rateLimited && (
+              <div className="mb-4 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                Too many requests — search is paused for a moment. Results will refresh automatically.
+              </div>
+            )}
+            {properties.length > 0 ? (
               viewMode === "grid" ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {results.map((pg) => (
+                  {properties.map((pg) => (
                     <PGCard key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)}
                       distanceKm={userCoords ? haversineKm(userCoords.lat, userCoords.lng, pg.lat, pg.lng) : undefined} />
                   ))}
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {results.map((pg) => (
+                  {properties.map((pg) => (
                     <PGRow key={pg.id} pg={pg} saved={savedIds.has(pg.id)} onSave={() => toggleSave(pg.id)}
                       distanceKm={userCoords ? haversineKm(userCoords.lat, userCoords.lng, pg.lat, pg.lng) : undefined} />
                   ))}
                 </div>
               )
             ) : (
-              <div className="flex flex-col items-center justify-center h-96 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-50 mb-4">
-                  <Search size={26} strokeWidth={1.5} className="text-accent-500" />
+              <div className="flex flex-col items-center justify-center h-[500px] text-center px-6">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent-50 mb-6 animate-pulse">
+                  <MapPin size={32} strokeWidth={1.5} className="text-accent-500" />
                 </div>
-                <p className="font-bold text-slate-800">No PGs match your filters</p>
-                <p className="text-sm text-slate-500 mt-1">Try adjusting your search or filters.</p>
-                <button onClick={clearAll} className="mt-4 rounded-xl bg-accent-500 px-5 py-2 text-sm font-bold text-white hover:bg-accent-600 transition-colors">
-                  Reset filters
-                </button>
+                <h3 className="text-xl font-bold text-slate-800">
+                  {locality !== "All" 
+                    ? `Coming Soon to ${locality}!` 
+                    : city !== "All" 
+                      ? `Coming Soon to ${city}!` 
+                      : "No PGs match your filters"}
+                </h3>
+                <p className="text-slate-500 mt-2 max-w-sm mx-auto">
+                  {city !== "All" || locality !== "All"
+                    ? `We haven't launched our verified listings in this area yet. We're expanding rapidly—stay tuned!`
+                    : "Try adjusting your search or filters to find more properties."}
+                </p>
+                <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                  <button 
+                    onClick={clearAll} 
+                    className="rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-white hover:bg-accent-600 transition-all shadow-lg shadow-accent-200"
+                  >
+                    View All Cities
+                  </button>
+                  <Link 
+                    href="/#contact"
+                    className="rounded-xl bg-white border border-slate-200 px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all"
+                  >
+                    Suggest a Location
+                  </Link>
+                </div>
               </div>
             )}
-            {results.length > 0 && (
-              <p className="text-center text-xs text-slate-400 pt-6 pb-2">
-                Showing {results.length} of {pgListings.length} properties
-              </p>
+            {properties.length > 0 && (
+              <div className="flex flex-col items-center">
+                <p className="text-center text-xs text-slate-400 pt-6 pb-4">
+                  Showing {((page - 1) * 20) + 1} – {Math.min(page * 20, total)} of {total} properties
+                </p>
+                <Pagination
+                  current={page}
+                  total={totalPages}
+                  onChange={(p) => {
+                    setPage(p);
+                    resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                />
+              </div>
             )}
 
             {/* Owner acquisition block — shown to tenants at end of search */}
-            {results.length > 0 && (
+            {properties.length > 0 && (
               <div className="mx-4 sm:mx-5 mb-8 mt-2 rounded-2xl bg-accent-500 p-5 sm:p-6 flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex-1 text-center sm:text-left">
                   <p className="text-xs font-semibold text-accent-200 uppercase tracking-wide mb-1">Own a PG in {city !== "All" ? city : "your city"}?</p>
@@ -960,6 +1027,58 @@ export default function FindPGClient() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Pagination ──────────────────────────────────────────────────────────────
+
+function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
+  if (total <= 1) return null;
+
+  const pages: number[] = [];
+  for (let i = 1; i <= total; i++) {
+    if (i === 1 || i === total || (i >= current - 2 && i <= current + 2)) {
+      pages.push(i);
+    } else if (pages[pages.length - 1] !== -1) {
+      pages.push(-1);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-center gap-2 mb-8">
+      <button
+        onClick={() => onChange(current - 1)}
+        disabled={current === 1}
+        className="p-2 rounded-xl border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors bg-white shadow-sm"
+      >
+        <ChevronLeft size={16} className="text-slate-600" />
+      </button>
+
+      {pages.map((p, i) => (
+        p === -1 ? (
+          <span key={`gap-${i}`} className="px-1 text-slate-400 text-xs">•••</span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onChange(p)}
+            className={`h-9 min-w-[36px] px-2 rounded-xl border text-sm font-bold transition-all ${current === p
+                ? "bg-accent-500 border-accent-500 text-white shadow-md shadow-accent-200"
+                : "border-slate-200 text-slate-600 hover:border-accent-300 hover:text-accent-600 bg-white"
+              }`}
+          >
+            {p}
+          </button>
+        )
+      ))}
+
+      <button
+        onClick={() => onChange(current + 1)}
+        disabled={current === total}
+        className="p-2 rounded-xl border border-slate-200 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors bg-white shadow-sm"
+      >
+        <ChevronRight size={16} className="text-slate-600" />
+      </button>
     </div>
   );
 }
