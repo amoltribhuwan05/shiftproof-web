@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import PhoneInput from "@/components/PhoneInput";
 import {
   LayoutDashboard, Building2, Users, CreditCard, Wrench, BarChart3,
   Bell, Search, Settings, Plus, LogOut, Menu, X,
@@ -1503,18 +1505,17 @@ function ReportsTab() {
 }
 
 function AccountTab({ user }: { user: AppUser | null }) {
+  const toast = useToast();
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: user?.name || "Ravi Kumar", email: user?.email || "ravi.kumar@gmail.com",
     phone: user?.phoneNumber || "9876543210", gst: "29AABCU9603R1ZX", pan: "AABCU9603R",
   });
-  const [profileSaved, setProfileSaved] = useState(false);
 
   const [showOldPwd, setShowOldPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
   const [pwdError, setPwdError] = useState<string | null>(null);
-  const [pwdSaved, setPwdSaved] = useState(false);
 
   const [notifs, setNotifs] = useState({
     rentReminders: true, maintenanceAlerts: true,
@@ -1530,8 +1531,7 @@ function AccountTab({ user }: { user: AppUser | null }) {
 
   function saveProfile() {
     setEditingProfile(false);
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
+    toast.success("Profile updated");
   }
 
   function savePwd() {
@@ -1540,8 +1540,7 @@ function AccountTab({ user }: { user: AppUser | null }) {
     if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
     setPwdError(null);
     setPwdForm({ old: "", next: "", confirm: "" });
-    setPwdSaved(true);
-    setTimeout(() => setPwdSaved(false), 2500);
+    toast.success("Password changed successfully");
   }
 
   const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -1594,22 +1593,26 @@ function AccountTab({ user }: { user: AppUser | null }) {
           ].map(({ label, key, type }) => (
             <div key={key} className="flex flex-col gap-1.5">
               <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
-              <input
-                type={type}
-                disabled={!editingProfile}
-                value={profileForm[key as keyof typeof profileForm]}
-                onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
-                className={INPUT}
-              />
+              {type === "tel" ? (
+                <PhoneInput
+                  disabled={!editingProfile}
+                  value={profileForm[key as keyof typeof profileForm]}
+                  onChange={val => setProfileForm(f => ({ ...f, [key]: val }))}
+                  className="bg-[color:var(--background)]"
+                />
+              ) : (
+                <input
+                  type={type}
+                  disabled={!editingProfile}
+                  value={profileForm[key as keyof typeof profileForm]}
+                  onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                  className={INPUT}
+                />
+              )}
             </div>
           ))}
         </div>
 
-        {profileSaved && (
-          <p className="mt-3 text-xs text-[color:var(--success-700)] bg-[color:var(--success-50)] rounded-lg px-3 py-2 flex items-center gap-1.5">
-            <CheckCircle2 size={12} /> Profile updated successfully.
-          </p>
-        )}
       </div>
 
       {/* Subscription card */}
@@ -1770,11 +1773,6 @@ function AccountTab({ user }: { user: AppUser | null }) {
         </div>
         {pwdError && (
           <p className="mt-3 text-xs text-[color:var(--error-700)] bg-[color:var(--error-50)] rounded-lg px-3 py-2">{pwdError}</p>
-        )}
-        {pwdSaved && (
-          <p className="mt-3 text-xs text-[color:var(--success-700)] bg-[color:var(--success-50)] rounded-lg px-3 py-2 flex items-center gap-1.5">
-            <CheckCircle2 size={12} /> Password changed successfully.
-          </p>
         )}
         <button onClick={savePwd}
           className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">
@@ -2667,7 +2665,12 @@ function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[color:var(--muted)]">Contact phone <span className="text-[color:var(--error)]">*</span></label>
-              <input placeholder="+91 98765 43210" value={cPhone} onChange={e => setCPhone(e.target.value)} className={INP} />
+              <PhoneInput
+                placeholder="98765 43210"
+                value={cPhone}
+                onChange={setCPhone}
+                className="bg-[color:var(--surface-card)]"
+              />
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -2953,7 +2956,7 @@ function SettingsDropdown({
   onSave: () => void;
   onClose: () => void;
 }) {
-  const [saved, setSaved] = useState(false);
+  const toast = useToast();
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
@@ -2963,8 +2966,8 @@ function SettingsDropdown({
 
   function save() {
     onSave();
-    setSaved(true);
-    setTimeout(() => { setSaved(false); onClose(); }, 1200);
+    onClose();
+    toast.success("Preferences saved");
   }
 
   const ROW  = "flex items-center justify-between py-3 border-b border-[color:var(--line)] last:border-0";
@@ -3067,12 +3070,9 @@ function SettingsDropdown({
         </div>
 
         <div className="px-4 py-3 border-t border-[color:var(--line)] flex items-center justify-between">
-          {saved
-            ? <p className="text-xs text-[color:var(--success-700)] flex items-center gap-1.5"><CheckCircle2 size={12} /> Saved to browser</p>
-            : <button onClick={save} className="text-xs font-semibold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2 rounded-xl transition-colors">
-                Save preferences
-              </button>
-          }
+          <button onClick={save} className="text-xs font-semibold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2 rounded-xl transition-colors">
+            Save preferences
+          </button>
           <button onClick={onClose} className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">Discard</button>
         </div>
       </div>

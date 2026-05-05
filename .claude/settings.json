@@ -47,7 +47,9 @@
       "Bash(node -e \"const v=require\\('/dev/stdin'\\);const v16=JSON.parse\\(v\\).filter\\(x=>x.startsWith\\('16.'\\)\\).slice\\(-8\\); console.log\\(v16.join\\('\\\\n'\\)\\)\")",
       "Bash(npm view *)",
       "Bash(python3 -c \"import sys,json; vs=[v for v in json.load\\(sys.stdin\\) if v.startswith\\('16.'\\)]; print\\('\\\\n'.join\\(vs[-8:]\\)\\)\")",
-      "Bash(curl -sI \"https://ipapi.co/json/\")"
+      "Bash(curl -sI \"https://ipapi.co/json/\")",
+      "Bash(curl -s http://localhost:3000/find-pg/nonexistent-xyz)",
+      "Bash(python3 -c \"import sys; c=sys.stdin.read\\(\\); print\\('✓ nf-scale-in' if 'nf-scale-in' in c else '✗ nf-scale-in missing'\\); print\\('✓ Yeh PG' if 'Yeh PG' in c else '✗ Yeh PG missing'\\); print\\('✓ nf-banner' if 'nf-banner' in c else '✗ nf-banner missing'\\); print\\('✓ nf-wave' if 'nf-wave' in c else '✗ nf-wave missing'\\); print\\('✓ meme strip' if 'book ho gaya' in c else '✗ meme missing'\\); print\\('✓ waitlist queue' if 'nf-p1' in c else '✗ waitlist missing'\\)\")"
     ]
   },
   "hooks": {

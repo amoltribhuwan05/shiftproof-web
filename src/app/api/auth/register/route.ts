@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addUser, findUserByEmail, SESSION_COOKIE, Session, upsertUserByEmail } from "@/lib/users";
-import type { Role } from "@/lib/users";
 
-const PHONE_RE = /^[6-9]\d{9}$/;
+const PHONE_RE = /^\+\d{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
@@ -11,39 +10,43 @@ export async function POST(req: NextRequest) {
     email?: string;
     phone?: string;
     password?: string;
-    role?: string;
-    orgName?: string;
+    gender?: string;
     deferSession?: boolean;
   };
 
-  const { name, email, phone, password, role, orgName, deferSession } = body;
+  const { name, email, phone, password, gender, deferSession } = body;
 
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 });
   if (!email || !EMAIL_RE.test(email)) return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
-  if (!phone || !PHONE_RE.test(phone.replace(/\D/g, ""))) return NextResponse.json({ error: "Valid 10-digit mobile number is required" }, { status: 400 });
   if (!password || password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-  if (!deferSession && role !== "owner" && role !== "tenant") {
-    return NextResponse.json({ error: "Role must be owner or tenant" }, { status: 400 });
-  }
-  if (!deferSession && role === "owner" && !orgName?.trim()) {
-    return NextResponse.json({ error: "Organization name is required for owner accounts" }, { status: 400 });
+  // Phone is optional — validate format only when provided
+  const cleanPhone = phone?.replace(/[^\d+]/g, "") ?? "";
+  if (cleanPhone && !PHONE_RE.test(cleanPhone)) {
+    return NextResponse.json({ error: "Valid mobile number with country code is required" }, { status: 400 });
   }
 
   if (!deferSession && findUserByEmail(email)) {
-    // Return same shape as a validation error — don't confirm whether the email is registered
     return NextResponse.json(
       { error: "Registration unsuccessful. If you already have an account, please sign in." },
       { status: 400 }
     );
   }
 
+  const VALID_GENDERS = ["MALE", "FEMALE", "CO_LIVING"] as const;
+  type ValidGender = typeof VALID_GENDERS[number];
+  const normalizedGender = gender?.toUpperCase() as ValidGender | undefined;
+  const safeGender = normalizedGender && VALID_GENDERS.includes(normalizedGender)
+    ? normalizedGender
+    : undefined;
+
+  // Role is determined server-side by subscription/residency — default to tenant in mock
   const userData = {
     name: name.trim(),
     email: email.toLowerCase(),
-    phone: phone.replace(/\D/g, ""),
+    phone: cleanPhone,
     password,
-    role: (role === "owner" || role === "tenant" ? role : "tenant") as Role,
-    ...(role === "owner" && orgName?.trim() ? { pgName: orgName.trim() } : {}),
+    role: "tenant" as const,
+    ...(safeGender ? { gender: safeGender } : {}),
   };
   const user = deferSession ? upsertUserByEmail(userData) : addUser(userData);
 

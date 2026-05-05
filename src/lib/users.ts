@@ -7,6 +7,7 @@ export interface MockUser {
   name: string;
   role: Role;
   phone: string;
+  gender?: "MALE" | "FEMALE" | "CO_LIVING";
   properties?: number;
   tenants?: number;
   pgName?: string;

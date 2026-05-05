@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useToast } from "@/components/Toast";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import PhoneInput from "@/components/PhoneInput";
 import {
   Home, CreditCard, Wrench, Bell, ChevronLeft, Menu,
   CheckCircle2, Clock, IndianRupee, Calendar,
@@ -477,6 +479,7 @@ function PaymentsSection({ payments }: { payments: any[] }) {
 // ─── Section: Maintenance ──────────────────────────────────────────────────────
 
 function MaintenanceSection({ tickets }: { tickets: any[] }) {
+  const toast = useToast();
   const [showForm, setShowForm] = useState(false);
   const [title,    setTitle]    = useState("");
   const [category, setCategory] = useState("Electrical");
@@ -559,7 +562,7 @@ function MaintenanceSection({ tickets }: { tickets: any[] }) {
               Cancel
             </button>
             <button
-              onClick={() => { setShowForm(false); setTitle(""); setDesc(""); }}
+              onClick={() => { setShowForm(false); setTitle(""); setDesc(""); toast.success("Request submitted", "We'll notify your owner shortly"); }}
               className="flex items-center gap-1.5 px-5 py-2 bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold rounded-xl transition-colors"
             >
               <Send size={11} /> Submit Request
@@ -671,18 +674,17 @@ function NoticesSection() {
 }
 
 function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
+  const toast = useToast();
   const [avatarImgError, setAvatarImgError] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: tenant.name, email: tenant.email, phone: tenant.phone,
   });
-  const [profileSaved, setProfileSaved] = useState(false);
 
   const [showOldPwd, setShowOldPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
   const [pwdError, setPwdError] = useState<string | null>(null);
-  const [pwdSaved, setPwdSaved] = useState(false);
 
   const [notifs, setNotifs] = useState({
     rentReminders: true, maintenanceUpdates: true, notices: true,
@@ -701,8 +703,7 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
 
   function saveProfile() {
     setEditingProfile(false);
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 2500);
+    toast.success("Profile updated");
   }
 
   function savePwd() {
@@ -711,8 +712,7 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
     if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
     setPwdError(null);
     setPwdForm({ old: "", next: "", confirm: "" });
-    setPwdSaved(true);
-    setTimeout(() => setPwdSaved(false), 2500);
+    toast.success("Password updated");
   }
 
   const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-success-600 focus:ring-2 focus:ring-success-50 placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -762,21 +762,25 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
           ].map(({ label, key, type }) => (
             <div key={key} className="flex flex-col gap-1">
               <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
-              <input
-                type={type}
-                disabled={!editingProfile}
-                value={profileForm[key as keyof typeof profileForm]}
-                onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
-                className={INPUT}
-              />
+              {type === "tel" ? (
+                <PhoneInput
+                  disabled={!editingProfile}
+                  value={profileForm[key as keyof typeof profileForm]}
+                  onChange={val => setProfileForm(f => ({ ...f, [key]: val }))}
+                  className="bg-[color:var(--background)]"
+                />
+              ) : (
+                <input
+                  type={type}
+                  disabled={!editingProfile}
+                  value={profileForm[key as keyof typeof profileForm]}
+                  onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
+                  className={INPUT}
+                />
+              )}
             </div>
           ))}
         </div>
-        {profileSaved && (
-          <p className="mt-3 text-xs text-success-700 bg-success-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
-            <CheckCircle2 size={12} /> Profile updated.
-          </p>
-        )}
       </div>
 
       {/* Current tenancy (read-only summary) */}
@@ -895,11 +899,6 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
         </div>
         {pwdError && (
           <p className="mt-2 text-xs text-error-700 bg-error-50 rounded-lg px-3 py-2">{pwdError}</p>
-        )}
-        {pwdSaved && (
-          <p className="mt-2 text-xs text-success-700 bg-success-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
-            <CheckCircle2 size={12} /> Password updated.
-          </p>
         )}
         <button onClick={savePwd}
           className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">

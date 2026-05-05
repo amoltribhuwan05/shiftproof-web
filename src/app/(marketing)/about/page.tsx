@@ -229,7 +229,7 @@ export default function AboutPage() {
             Whether you manage 1 PG or 10, ShiftProof runs the operations so you don&rsquo;t have to.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link href="/signup?plan=growth" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-500 hover:bg-accent-600 px-7 py-3 text-sm font-bold text-white transition-colors">
+            <Link href="/auth/register" className="inline-flex items-center justify-center gap-2 rounded-full bg-accent-500 hover:bg-accent-600 px-7 py-3 text-sm font-bold text-white transition-colors">
               Try it free <ArrowRight size={14} />
             </Link>
             <Link href="/contact" className="inline-flex items-center justify-center gap-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-7 py-3 text-sm font-semibold text-white transition-colors">

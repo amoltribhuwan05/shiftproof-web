@@ -1144,7 +1144,7 @@ export default function FindPGClient() {
                   <p className="text-xs text-accent-200 mt-1">14-day free trial · No credit card · Setup in 5 minutes</p>
                 </div>
                 <a
-                  href="/signup?plan=growth"
+                  href="/auth/register"
                   className="shrink-0 inline-flex items-center gap-2 rounded-full bg-white text-accent-600 font-semibold text-sm px-5 py-2.5 hover:bg-accent-50 transition-colors shadow"
                 >
                   List My PG

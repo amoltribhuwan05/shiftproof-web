@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
   let role: "owner" | "tenant" = clientRole === "owner" ? "owner" : "tenant";
   let name = clientName ?? decoded.name;
   let backendVerified = false;
+  let profileCompleted = false;
 
   try {
     const apiRes = await fetch(`${apiBase}/api/v1/auth/me`, {
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
       if (user.roles?.includes("OWNER"))       role = "owner";
       else if (user.roles?.includes("TENANT")) role = "tenant";
       if (user.name) name = user.name;
+      if (typeof user.profileCompleted === "boolean") profileCompleted = user.profileCompleted;
       backendVerified = true;
     }
   } catch {
@@ -156,7 +158,7 @@ export async function POST(req: NextRequest) {
   };
 
   const isSecure = process.env.NODE_ENV === "production";
-  const res = NextResponse.json({ role, name, backendVerified });
+  const res = NextResponse.json({ role, name, backendVerified, profileCompleted });
   res.cookies.set(SESSION_COOKIE, JSON.stringify(session), {
     httpOnly:  true,
     sameSite:  "lax",

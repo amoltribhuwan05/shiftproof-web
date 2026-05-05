@@ -15,6 +15,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { DEMO_EMAILS } from "@/lib/users";
+import PhoneInput from "@/components/PhoneInput";
 
 declare global {
   interface Window {
@@ -91,6 +92,11 @@ export default function LoginForm() {
       throw { status: res.status, message: data.error ?? "Authentication failed" } satisfies SessionError;
     }
     
+    if (data.profileCompleted === false) {
+      router.push("/auth/onboarding");
+      return;
+    }
+
     const next = params.get("next");
     router.push(next ?? (data.role === "owner" ? "/owner-dashboard" : "/tenant-dashboard"));
   }
@@ -406,15 +412,13 @@ export default function LoginForm() {
             <label className="text-xs font-medium text-[color:var(--muted)]" htmlFor="phone">
               Phone Number
             </label>
-            <input
+            <PhoneInput
               id="phone"
-              type="tel"
-              autoComplete="tel"
               required
-              placeholder="+91 9876543210"
+              placeholder="98765 43210"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-3 text-sm text-[color:var(--foreground)] outline-none transition-colors focus:border-[color:var(--trust-700)] focus:ring-4 focus:ring-[color:var(--trust-50)] placeholder:text-[color:var(--muted)]"
+              onChange={setPhone}
+              className="bg-[color:var(--background)]"
             />
             <span className="text-[11px] text-[color:var(--muted)]">
               We&rsquo;ll verify the number after OTP. If it already belongs to an email account, use email sign in instead.
@@ -483,15 +487,6 @@ export default function LoginForm() {
       </button>
 
       <div id="recaptcha-container"></div>
-
-      <div className="rounded-xl border border-dashed border-[color:var(--line)] bg-white/70 p-4">
-        <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[color:var(--muted)]">
-          Progressive Sign In
-        </p>
-        <p className="text-xs text-[color:var(--muted)]">
-          Start with the method you already own today. Email, phone, and Google can be linked into one ShiftProof account after verification so profile completion can stay progressive.
-        </p>
-      </div>
 
       {/* Quick-fill demo credentials (only show in email mode) */}
       {authMode === "email" && (

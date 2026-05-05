@@ -67,7 +67,7 @@ export default function Navbar() {
             Sign in
           </Link>
           <Link
-            href="/signup?plan=growth"
+            href="/auth/register"
             className="inline-flex items-center rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-5 py-2.5 text-sm font-semibold text-white transition-colors"
           >
             Start free
@@ -107,7 +107,7 @@ export default function Navbar() {
             Sign in
           </Link>
           <Link
-            href="/signup?plan=growth"
+            href="/auth/register"
             className="mt-2 inline-flex items-center justify-center rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-5 py-3.5 text-base font-semibold text-white transition-colors"
             onClick={() => setMobileOpen(false)}
           >

@@ -35,7 +35,7 @@ export default function Footer() {
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
             <Link
-              href="/signup?plan=growth"
+              href="/auth/register"
               className="inline-flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-7 py-3.5 text-sm font-semibold text-white transition-colors"
             >
               Try it free for 14 days

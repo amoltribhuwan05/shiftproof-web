@@ -256,6 +256,7 @@ Tailwind v4 syntax differs significantly from v3:
 - **Branded email action page**: `src/app/auth/action/page.tsx` + `ActionHandler.tsx` now handle Firebase `verifyEmail` and `resetPassword` links on the frontend using Firebase SDK methods instead of Firebase’s default hosted UI.
 - **Phone auth guard**: phone OTP verification now performs the account-collision check after Firebase OTP confirmation but before the app session is established. Numbers already tied to email-first accounts are blocked from creating a separate phone session.
 - **Linking guidance UI**: login UI now explains that sign-in methods can converge into one account later. Collision states for phone and Google push the user toward email-first recovery instead of leaving them with a generic auth failure.
+- **Onboarding flow**: New phone auth users with incomplete profiles are redirected to `/auth/onboarding` to collect Name, Gender, and Role before dashboard access.
 
 ### Mock API backend — key implementation details
 

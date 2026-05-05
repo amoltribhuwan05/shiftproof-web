@@ -30,7 +30,7 @@ export default function Hero() {
 
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               <Link
-                href="/signup?plan=growth"
+                href="/auth/register"
                 className="group inline-flex items-center justify-center gap-2 rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-7 py-4 text-base font-semibold text-white transition-colors"
               >
                 Try it free for 14 days
