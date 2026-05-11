@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { type PGListing, type RoomType } from "@/lib/pgData";
+import { type RoomType } from "@/lib/pgData";
 import type { Property } from "@/lib/api/types";
 import { haversineKm } from "@/lib/geo";
 import {
@@ -293,14 +293,11 @@ function Gallery({ images, name }: { images: string[]; name: string }) {
 // ─── Bed Matrix ───────────────────────────────────────────────────────────────
 
 function BedMatrix({ pg }: { pg: Property }) {
-  const mockPg: PGListing = {
-    ...pg,
-    name: pg.title,
-    badge: pg.badge,
-    roomTypes: pg.roomTypes ?? [],
-    amenities: pg.amenities ?? [],
-  } as any;
-  const [rooms, setRooms] = useState<Room[]>(() => generateMockRooms(mockPg));
+  const [rooms, setRooms] = useState<Room[]>(() => generateMockRooms({
+    id: pg.id,
+    roomTypes: (pg.roomTypes ?? []) as RoomType[],
+    occupancy: pg.occupancy,
+  }));
   const [ownerMode, setOwnerMode] = useState(false);
   const [activeBed, setActiveBed] = useState<string | null>(null);
 

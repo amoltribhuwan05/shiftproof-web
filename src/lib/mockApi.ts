@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import { parseSession, SESSION_COOKIE, findUserByEmail, findUserByPhone } from "@/lib/users";
+import { parseSession, SESSION_COOKIE } from "@/lib/users";
+import { findUserByEmail, findUserByPhone } from "@/lib/serverUsers";
+import { loadAppUsers, saveAppUsers } from "@/lib/mockPersistence";
 import { pgListings, type PGListing } from "@/lib/pgData";
 import {
   CURRENT_STAY_MOCK,
+  MAINTENANCE,
+  MAINTENANCE_EXT,
   NOTICES,
   PAYMENTS,
   PROPERTIES,
@@ -19,14 +23,18 @@ import type {
   AuthLinkingStartResponse,
   AuthSessionEvaluateResponse,
   AuthSessionState,
+  BankAccount,
   BulkAssignOrgMemberPropertiesRequest,
+  CreateMaintenanceRequest,
   CreatePaymentRequest,
   CreatePropertyRequest,
   CreateRoomRequest,
   CurrentStay,
   ImageUploadRequest,
   InviteTenantRequest,
+  MaintenanceRequest,
   Notification,
+  NotificationPreferences,
   OnboardingCompleteResponse,
   OnboardingRequest,
   OrgMember,
@@ -48,6 +56,7 @@ import type {
   Subscription,
   Tenant,
   TenantInviteResponse,
+  UpdateMaintenanceRequest,
   UpdateProfileRequest,
   UpdateRoomRequest,
   UpdateTenantRequest,
@@ -72,6 +81,7 @@ type Store = {
   rooms: Room[];
   tenants: Tenant[];
   payments: Payment[];
+  maintenance: MaintenanceRequest[];
   notifications: Notification[];
   orgs: (Organization & { members: OrgMember[] })[];
   subscriptions: Subscription[];
@@ -81,6 +91,8 @@ type Store = {
   deviceTokens: Record<string, string>;
   idempotencyKeys: Map<string, Payment>;
   preferredContexts: Record<string, string>;
+  bankAccounts: Record<string, BankAccount>;
+  notifPrefs: Record<string, NotificationPreferences>;
 };
 
 const globalStore = globalThis as typeof globalThis & {
@@ -206,13 +218,44 @@ function buildStore(): Store {
     })),
   }));
 
+  const propertyIdByKeyword: Record<string, string> = {
+    "Sunshine PG": "p1",
+    "Green Haven": "p2",
+    "Royal Residency": "p3",
+  };
+
+  const maintenance: MaintenanceRequest[] = MAINTENANCE.map((m) => {
+    const ext = MAINTENANCE_EXT[m.id];
+    const propertyId = Object.entries(propertyIdByKeyword).find(([kw]) =>
+      m.property?.includes(kw)
+    )?.[1] ?? "p1";
+    const statusMap: Record<string, MaintenanceRequest["status"]> = {
+      in_progress: "in_progress",
+      pending: "open",
+      resolved: "resolved",
+    };
+    return {
+      id: m.id,
+      title: m.title,
+      description: ext?.description ?? "",
+      priority: (m.priority as MaintenanceRequest["priority"]) ?? "medium",
+      status: statusMap[m.status] ?? "open",
+      propertyId,
+      reportedBy: m.tenantId ?? "unknown",
+      createdAt: "2025-04-01T00:00:00Z",
+      updatedAt: "2025-04-01T00:00:00Z",
+      resolvedAt: m.status === "resolved" ? "2025-04-02T00:00:00Z" : null,
+    };
+  });
+
   return {
-    appUsers: seedAppUsers(),
+    appUsers: loadAppUsers(seedAppUsers()),
     properties,
     propertyMembers: buildPropertyMembers(),
     rooms,
     tenants: clone(TENANTS),
     payments: clone(PAYMENTS),
+    maintenance,
     notifications: clone(NOTICES),
     orgs,
     subscriptions: [
@@ -273,6 +316,8 @@ function buildStore(): Store {
     deviceTokens: {},
     idempotencyKeys: new Map<string, Payment>(),
     preferredContexts: {},
+    bankAccounts: {},
+    notifPrefs: {},
   };
 }
 
@@ -380,6 +425,26 @@ function tenantIdForUser(user: AppUser): string | null {
   return direct?.id ?? null;
 }
 
+function tenantForIdentity(email: string, phone: string): Tenant | undefined {
+  const normalizedPhone = normalizePhone(phone);
+  return store.tenants.find((tenant) =>
+    (Boolean(email) && tenant.email.toLowerCase() === email.toLowerCase()) ||
+    (Boolean(normalizedPhone) && normalizePhone(tenant.phone) === normalizedPhone)
+  );
+}
+
+function orgMemberForEmail(email: string): OrgMember | undefined {
+  if (!email) return undefined;
+  const lowerEmail = email.toLowerCase();
+  return store.orgs
+    .flatMap((org) => org.members)
+    .find((member) => member.email.toLowerCase() === lowerEmail);
+}
+
+function hasProviderProfile(signInProvider: string, email: string, name: string): boolean {
+  return signInProvider !== "phone" && Boolean(email.trim() && name.trim());
+}
+
 function orgForUser(user: AppUser): Organization | null {
   if (!user.roles.includes("OWNER")) return null;
   const org =
@@ -406,9 +471,11 @@ function upsertAppUser(user: AppUser): AppUser {
   );
   if (index >= 0) {
     store.appUsers[index] = { ...store.appUsers[index], ...user };
+    saveAppUsers(store.appUsers);
     return store.appUsers[index];
   }
   store.appUsers.push(user);
+  saveAppUsers(store.appUsers);
   return user;
 }
 
@@ -477,38 +544,52 @@ function userFromBearer(req: NextRequest): AppUser | null {
     const providers = existing.providers.includes(nextProvider)
       ? existing.providers
       : [...existing.providers, nextProvider];
+    const knownTenant = tenantForIdentity(payload.email || existing.email, payload.phone || existing.phoneNumber);
+    const knownOrgMember = orgMemberForEmail(payload.email || existing.email);
+    const roles = new Set<AppUser["roles"][number]>(existing.roles);
+    if (knownTenant) roles.add("TENANT");
+    if (knownOrgMember) roles.add("OWNER");
+    const nextName = payload.name || knownTenant?.name || knownOrgMember?.name || existing.name;
+    const nextEmail = payload.email ? payload.email.toLowerCase() : existing.email;
     return upsertAppUser({
       ...existing,
       authIdentifier: payload.uid,
-      name: payload.name || existing.name,
-      email: payload.email ? payload.email.toLowerCase() : existing.email,
-      phoneNumber: payload.phone ? normalizePhone(payload.phone) : existing.phoneNumber,
+      name: nextName,
+      email: nextEmail,
+      phoneNumber: payload.phone ? normalizePhone(payload.phone) : knownTenant ? normalizePhone(knownTenant.phone) : existing.phoneNumber,
       // Preserve a manually-set avatar; fall back to the Google photo only when empty.
       avatarUrl: existing.avatarUrl || payload.picture,
+      profileCompleted: existing.profileCompleted || hasProviderProfile(payload.signInProvider, nextEmail, nextName) || Boolean(knownTenant || knownOrgMember),
       providers,
+      roles: [...roles],
     });
   }
 
   const mockUser =
     (payload.email ? findUserByEmail(payload.email) : undefined) ??
     (payload.phone ? findUserByPhone(payload.phone) : undefined);
-  const role = mockUser?.role === "owner" ? "OWNER" : "TENANT";
+  const knownTenant = tenantForIdentity(payload.email, payload.phone);
+  const knownOrgMember = orgMemberForEmail(payload.email);
+  const role = mockUser?.role === "owner" || knownOrgMember ? "OWNER" : "TENANT";
   const fallbackName =
     payload.name ||
     mockUser?.name ||
+    knownTenant?.name ||
+    knownOrgMember?.name ||
     (payload.phone ? `User ${payload.phone.slice(-4)}` : "ShiftProof User");
+  const email = payload.email ? payload.email.toLowerCase() : knownTenant?.email ?? knownOrgMember?.email ?? "";
 
   return upsertAppUser({
-    id: mockUser?.id ?? payload.uid,
+    id: mockUser?.id ?? knownTenant?.id ?? knownOrgMember?.userId ?? payload.uid,
     authIdentifier: payload.uid,
     name: fallbackName,
-    email: payload.email ? payload.email.toLowerCase() : "",
-    phoneNumber: payload.phone ? normalizePhone(payload.phone) : mockUser?.phone ?? "",
+    email,
+    phoneNumber: payload.phone ? normalizePhone(payload.phone) : knownTenant ? normalizePhone(knownTenant.phone) : mockUser?.phone ?? "",
     gender: role === "OWNER" ? "MALE" : "CO_LIVING",
     avatarUrl: payload.picture,
     city: "Bangalore",
     area: "",
-    profileCompleted: Boolean(mockUser),
+    profileCompleted: Boolean(mockUser || knownTenant || knownOrgMember || hasProviderProfile(payload.signInProvider, email, fallbackName)),
     providers: [payload.signInProvider === "phone" ? "phone" : "firebase"],
     roles: [role],
     createdAt: today(),
@@ -563,6 +644,7 @@ function currentStayForUser(user: AppUser): CurrentStay | null {
 
   const owner = store.appUsers.find((entry) => entry.roles.includes("OWNER")) ?? store.appUsers[0];
   return {
+    propertyId: property.id,
     propertyName: property.title,
     address: property.location,
     imageUrl: property.imageUrl,
@@ -706,6 +788,7 @@ async function handleAuth(req: NextRequest, parts: string[]): Promise<NextRespon
       if (!user.roles.includes(role)) user.roles.push(role);
     }
     user.profileCompleted = true;
+    saveAppUsers(store.appUsers);
     const onboardingResponse: OnboardingCompleteResponse = {
       user,
       roleStatus: body.role ? "assigned" : "pending",
@@ -798,12 +881,12 @@ async function handleNotifications(req: NextRequest, parts: string[]): Promise<N
       const tenant = tenantId ? tenantById(tenantId) : null;
       if (tenant) {
         items = items.filter((n) =>
-          // Notification type cast — propertyId is not in model, so we use
-          // the tenantId on the Notification extended type when present
           (n as Notification & { propertyId?: string }).propertyId === tenant.propertyId ||
-          // Fall back: include all if not tagged (keeps existing seed data visible)
           !(n as Notification & { propertyId?: string }).propertyId,
         );
+      } else {
+        // User has no property association yet — no notifications
+        items = [];
       }
     }
     // For owners: scope to their properties only
@@ -1237,6 +1320,19 @@ async function handlePayments(req: NextRequest, parts: string[]): Promise<NextRe
     return json(payment);
   }
 
+  if (parts.length === 2 && parts[1] === "receipt" && req.method === "GET") {
+    if (!userCanReadPayment(user, payment)) return error(403, "Forbidden");
+    if (payment.status !== "paid") return error(422, "Receipt only available for paid payments");
+    const pdf = `%PDF-1.4\n1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n3 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>\nendobj\nxref\n0 4\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \ntrailer\n<</Size 4/Root 1 0 R>>\nstartxref\n188\n%%EOF`;
+    return new NextResponse(pdf, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="receipt-${payment.id}.pdf"`,
+      },
+    });
+  }
+
   return error(404, "Not found");
 }
 
@@ -1383,6 +1479,18 @@ async function handleProperties(req: NextRequest, parts: string[]): Promise<Next
     return noContent();
   }
 
+  // PATCH /properties/{id}/images/{imageId}/cover
+  if (parts.length === 4 && parts[1] === "images" && parts[3] === "cover" && req.method === "PATCH") {
+    const user = requirePropertyOwner(req, propertyId);
+    if (user instanceof NextResponse) return user;
+    const imageId = parts[2];
+    const img = property.images.find((i) => i.id === imageId);
+    if (!img) return error(404, "Image not found");
+    property.images.forEach((i) => { i.isCover = i.id === imageId; });
+    property.imageUrl = img.url;
+    return json({ ...img, isCover: true });
+  }
+
   if (parts.length === 2 && parts[1] === "members" && req.method === "GET") {
     const user = requireUser(req);
     if (user instanceof NextResponse) return user;
@@ -1507,33 +1615,148 @@ async function handleProperties(req: NextRequest, parts: string[]): Promise<Next
     return json(response, 201);
   }
 
+  if (parts.length === 2 && parts[1] === "maintenance" && req.method === "GET") {
+    const user = requirePropertyOwner(req, propertyId);
+    if (user instanceof NextResponse) return user;
+    const page = Number(req.nextUrl.searchParams.get("page") ?? "1");
+    const limit = Number(req.nextUrl.searchParams.get("limit") ?? "20");
+    const statusFilter = req.nextUrl.searchParams.get("status");
+    const priorityFilter = req.nextUrl.searchParams.get("priority");
+    let items = store.maintenance.filter((m) => m.propertyId === propertyId);
+    if (statusFilter) items = items.filter((m) => m.status === statusFilter);
+    if (priorityFilter) items = items.filter((m) => m.priority === priorityFilter);
+    return json(paginated(items, page, limit));
+  }
+
+  if (parts.length === 2 && parts[1] === "maintenance" && req.method === "POST") {
+    const user = requireUser(req);
+    if (user instanceof NextResponse) return user;
+    const body = await readJson<CreateMaintenanceRequest>(req);
+    if (!body.title?.trim()) return error(400, "title is required");
+    const validPriorities = ["low", "medium", "high", "urgent"];
+    if (body.priority && !validPriorities.includes(body.priority)) {
+      return error(400, "priority must be one of: low, medium, high, urgent");
+    }
+    const ticket: MaintenanceRequest = {
+      id: nextId("m", store.maintenance),
+      title: body.title.trim(),
+      description: body.description?.trim() ?? "",
+      priority: body.priority ?? "medium",
+      status: "open",
+      propertyId,
+      reportedBy: user.id,
+      createdAt: nowIso(),
+      updatedAt: nowIso(),
+      resolvedAt: null,
+    };
+    store.maintenance.unshift(ticket);
+    return json(ticket, 201);
+  }
+
   return error(404, "Not found");
 }
 
 async function handleReports(req: NextRequest, parts: string[]): Promise<NextResponse> {
   const propertyId = parts[1];
   if (parts[0] !== "properties" || !propertyId) return error(404, "Not found");
-  // Must be a member of this specific property (not just any owner)
   const user = requirePropertyOwner(req, propertyId);
   if (user instanceof NextResponse) return user;
   const property = propertyById(propertyId);
   if (!property) return error(400, "Property not found");
+
+  const now = new Date();
+  const currentMonthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  // GET /api/v1/reports/properties/{id}/chart
+  if (parts[2] === "chart") {
+    const monthsParam = Number(req.nextUrl.searchParams.get("months") ?? "6");
+    const numMonths = Math.min(24, Math.max(1, isNaN(monthsParam) ? 6 : monthsParam));
+    const allPayments = store.payments.filter((p) => p.propertyId === propertyId);
+    const points = [];
+    for (let i = numMonths - 1; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const mp = allPayments.filter((p) => p.date.startsWith(label));
+      points.push({
+        month: label,
+        collected: mp.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0),
+        pending:   mp.filter((p) => p.status === "pending" || p.status === "overdue").reduce((s, p) => s + p.amount, 0),
+      });
+    }
+    return json({ points });
+  }
+
+  // GET /api/v1/reports/properties/{id}
   const month = req.nextUrl.searchParams.get("month");
   if (month && !/^\d{4}-\d{2}$/.test(month)) return error(400, "month must be in YYYY-MM format");
-  let payments = store.payments.filter((payment) => payment.propertyId === propertyId);
-  if (month) payments = payments.filter((payment) => payment.date.startsWith(month));
+  let payments = store.payments.filter((p) => p.propertyId === propertyId);
+  if (month) payments = payments.filter((p) => p.date.startsWith(month));
+
+  const totalCollected = payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const totalPending   = payments.filter((p) => p.status === "pending" || p.status === "overdue").reduce((s, p) => s + p.amount, 0);
+
+  // Compute revenueChangePercent vs prior month
+  const targetMonth = month ?? currentMonthLabel;
+  const [yr, mo] = targetMonth.split("-").map(Number);
+  const priorDate = new Date(yr, mo - 2, 1);
+  const priorLabel = `${priorDate.getFullYear()}-${String(priorDate.getMonth() + 1).padStart(2, "0")}`;
+  const priorCollected = store.payments
+    .filter((p) => p.propertyId === propertyId && p.date.startsWith(priorLabel) && p.status === "paid")
+    .reduce((s, p) => s + p.amount, 0);
+  const revenueChangePercent = priorCollected > 0
+    ? Math.round(((totalCollected - priorCollected) / priorCollected) * 1000) / 10
+    : null;
+
+  const activeTenants = store.tenants.filter((t) => t.propertyId === propertyId && t.status === "active").length;
+
   const report: PropertyReport = {
-    totalCollected: payments
-      .filter((payment) => payment.status === "paid")
-      .reduce((sum, payment) => sum + payment.amount, 0),
-    totalPending: payments
-      .filter((payment) => payment.status === "pending" || payment.status === "overdue")
-      .reduce((sum, payment) => sum + payment.amount, 0),
-    overdueCount: payments.filter((payment) => payment.status === "overdue").length,
+    totalCollected,
+    totalPending,
+    overdueCount: payments.filter((p) => p.status === "overdue").length,
     occupancyRate: property.totalRooms > 0 ? property.occupiedRooms / property.totalRooms : 0,
+    activeTenants,
+    revenueChangePercent,
     payments,
   };
   return json(report);
+}
+
+async function handleMaintenance(req: NextRequest, parts: string[]): Promise<NextResponse> {
+  const user = requireUser(req);
+  if (user instanceof NextResponse) return user;
+
+  const ticket = store.maintenance.find((m) => m.id === parts[0]);
+  if (!ticket) return error(404, "Maintenance request not found");
+
+  if (parts.length === 1 && req.method === "GET") {
+    return json(ticket);
+  }
+
+  if (parts.length === 1 && req.method === "PATCH") {
+    const ownerCheck = requirePropertyOwner(req, ticket.propertyId);
+    if (ownerCheck instanceof NextResponse) return ownerCheck;
+    const body = await readJson<UpdateMaintenanceRequest>(req);
+    if (body.title !== undefined) ticket.title = body.title.trim();
+    if (body.description !== undefined) ticket.description = body.description.trim();
+    if (body.priority !== undefined) ticket.priority = body.priority;
+    if (body.status !== undefined) {
+      ticket.status = body.status;
+      if ((body.status === "resolved" || body.status === "closed") && !ticket.resolvedAt) {
+        ticket.resolvedAt = nowIso();
+      }
+    }
+    ticket.updatedAt = nowIso();
+    return json(ticket);
+  }
+
+  if (parts.length === 1 && req.method === "DELETE") {
+    const ownerCheck = requirePropertyOwner(req, ticket.propertyId);
+    if (ownerCheck instanceof NextResponse) return ownerCheck;
+    store.maintenance = store.maintenance.filter((m) => m.id !== ticket.id);
+    return noContent();
+  }
+
+  return error(404, "Not found");
 }
 
 async function handleRooms(req: NextRequest, parts: string[]): Promise<NextResponse> {
@@ -1741,6 +1964,7 @@ async function handleUsers(req: NextRequest, parts: string[]): Promise<NextRespo
     if (!body.provider?.trim()) return error(400, "provider is required");
     if (!user.providers.includes(body.provider)) {
       user.providers = [...user.providers, body.provider];
+      saveAppUsers(store.appUsers);
     }
     return json(user);
   }
@@ -1753,6 +1977,7 @@ async function handleUsers(req: NextRequest, parts: string[]): Promise<NextRespo
     user.city = body.city ?? user.city;
     user.area = body.area ?? user.area;
     user.profileCompleted = true;
+    saveAppUsers(store.appUsers);
     return json(user);
   }
 
@@ -1763,6 +1988,7 @@ async function handleUsers(req: NextRequest, parts: string[]): Promise<NextRespo
     if (body.phoneNumber !== undefined) user.phoneNumber = body.phoneNumber;
     if (body.city !== undefined) user.city = body.city;
     if (body.area !== undefined) user.area = body.area;
+    saveAppUsers(store.appUsers);
     return json(user);
   }
 
@@ -1772,7 +1998,41 @@ async function handleUsers(req: NextRequest, parts: string[]): Promise<NextRespo
     if (!ALLOWED_IMAGE_TYPES.includes(body.contentType as never)) return error(400, "Unsupported image type");
     if (body.data.length > 6_800_000) return error(400, "Image too large (max 5 MB)");
     user.avatarUrl = `data:${body.contentType};base64,${body.data}`;
+    saveAppUsers(store.appUsers);
     return json(user);
+  }
+
+  if (parts.length === 1 && parts[0] === "password" && req.method === "POST") {
+    const body = await readJson<{ newPassword?: string }>(req);
+    if (!body.newPassword || body.newPassword.length < 6) return error(400, "Password must be at least 6 characters");
+    return json({ message: "Password updated" });
+  }
+
+  if (parts.length === 1 && parts[0] === "bank-account") {
+    if (req.method === "GET") {
+      const acct = store.bankAccounts[user.id] ?? null;
+      if (!acct) return new NextResponse(null, { status: 204 });
+      return json(acct);
+    }
+    if (req.method === "POST") {
+      const body = await readJson<BankAccount>(req);
+      if (!body.accountHolderName || !body.accountNumber || !body.ifscCode)
+        return error(400, "accountHolderName, accountNumber, and ifscCode are required");
+      store.bankAccounts[user.id] = body;
+      return json(body);
+    }
+  }
+
+  if (parts.length === 1 && parts[0] === "notification-preferences") {
+    const defaults: NotificationPreferences = { email: true, push: true, sms: false };
+    if (req.method === "GET") {
+      return json(store.notifPrefs[user.id] ?? defaults);
+    }
+    if (req.method === "PATCH") {
+      const body = await readJson<Partial<NotificationPreferences>>(req);
+      store.notifPrefs[user.id] = { ...defaults, ...store.notifPrefs[user.id], ...body };
+      return json(store.notifPrefs[user.id]);
+    }
   }
 
   return error(404, "Not found");
@@ -1805,6 +2065,8 @@ export async function handleMockApiRoute(
       if (user instanceof NextResponse) return user;
       return req.method === "GET" ? json(store.plans) : error(404, "Not found");
     }
+    case "maintenance":
+      return handleMaintenance(req, parts);
     case "properties":
       return handleProperties(req, parts);
     case "reports":
@@ -1819,6 +2081,12 @@ export async function handleMockApiRoute(
       return handleUsers(req, parts);
     case "public":
       return handlePublic(req, parts);
+    case "contact": {
+      if (req.method !== "POST") return error(404, "Not found");
+      const body = await readJson<{ email?: string; message?: string }>(req);
+      if (!body.email || !body.message) return error(400, "email and message are required");
+      return json({ ok: "true" });
+    }
     default:
       return error(404, "Not found");
   }
@@ -1860,6 +2128,11 @@ function mapPGListingToProperty(pg: PGListing): Property {
 }
 
 async function handlePublic(req: NextRequest, parts: string[]): Promise<NextResponse> {
+  if (parts.length === 1 && parts[0] === "cities" && req.method === "GET") {
+    const cities = [...new Set(pgListings.map(p => p.city).filter(Boolean))].sort();
+    return json(cities);
+  }
+
   if (parts.length === 1 && parts[0] === "search" && req.method === "GET") {
     const q = req.nextUrl.searchParams.get("query")?.toLowerCase() ?? "";
     const loc = req.nextUrl.searchParams.get("location")?.toLowerCase() ?? "";
@@ -1890,11 +2163,20 @@ async function handlePublic(req: NextRequest, parts: string[]): Promise<NextResp
   }
 
   if (parts.length === 1 && parts[0] === "properties" && req.method === "GET") {
-    const city = req.nextUrl.searchParams.get("city")?.toLowerCase() ?? "";
+    const location = (
+      req.nextUrl.searchParams.get("location") ??
+      req.nextUrl.searchParams.get("city") ??
+      ""
+    ).toLowerCase();
     const page = Number(req.nextUrl.searchParams.get("page") ?? "1");
     const limit = Number(req.nextUrl.searchParams.get("limit") ?? "20");
     let list: Property[] = store.properties;
-    if (city) list = list.filter(p => p.city.toLowerCase() === city);
+    if (location) {
+      list = list.filter(p =>
+        p.city.toLowerCase().includes(location) ||
+        p.location.toLowerCase().includes(location),
+      );
+    }
     return json(paginated(list, page, limit));
   }
 

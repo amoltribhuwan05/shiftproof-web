@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserByPhone, SESSION_COOKIE, type Session } from "@/lib/users";
+import { SESSION_COOKIE, type Session } from "@/lib/users";
+import { findUserByPhone } from "@/lib/serverUsers";
 import type { AppUser } from "@/lib/api/types";
+import { getBackendApiBase } from "@/lib/serverEnv";
 
 /**
  * Decodes a Firebase ID token payload WITHOUT verifying the signature.
@@ -106,11 +108,16 @@ export async function POST(req: NextRequest) {
   // Only if the backend is genuinely unreachable (network error / timeout)
   // do we fall back to the client-supplied role hint, and only in non-production.
 
-  const apiBase =
-    process.env.NEXT_PUBLIC_API_URL ??
-    `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+  const apiBase = getBackendApiBase(`${req.nextUrl.protocol}//${req.nextUrl.host}`);
+  if (!apiBase) {
+    return NextResponse.json(
+      { error: "Backend API is not configured" },
+      { status: 503 },
+    );
+  }
 
   let role: "owner" | "tenant" = clientRole === "owner" ? "owner" : "tenant";
+  let allRoles: string[] = [role];
   let name = clientName ?? decoded.name;
   let backendVerified = false;
   let profileCompleted = false;
@@ -122,7 +129,6 @@ export async function POST(req: NextRequest) {
     });
 
     if (apiRes.status === 401 || apiRes.status === 403) {
-      // Token explicitly rejected — never issue a cookie
       return NextResponse.json({ error: "Token rejected by server" }, { status: 401 });
     }
 
@@ -130,9 +136,15 @@ export async function POST(req: NextRequest) {
       const user = (await apiRes.json()) as Partial<AppUser>;
       if (user.roles?.includes("OWNER"))       role = "owner";
       else if (user.roles?.includes("TENANT")) role = "tenant";
+      allRoles = (user.roles ?? [role.toUpperCase()]).map(r => r.toLowerCase());
       if (user.name) name = user.name;
       if (typeof user.profileCompleted === "boolean") profileCompleted = user.profileCompleted;
       backendVerified = true;
+    } else {
+      return NextResponse.json(
+        { error: "Auth service rejected the session" },
+        { status: apiRes.status >= 500 ? 503 : apiRes.status },
+      );
     }
   } catch {
     // Network error or timeout — backend genuinely unreachable
@@ -158,7 +170,7 @@ export async function POST(req: NextRequest) {
   };
 
   const isSecure = process.env.NODE_ENV === "production";
-  const res = NextResponse.json({ role, name, backendVerified, profileCompleted });
+  const res = NextResponse.json({ role, roles: allRoles, name, backendVerified, profileCompleted });
   res.cookies.set(SESSION_COOKIE, JSON.stringify(session), {
     httpOnly:  true,
     sameSite:  "lax",

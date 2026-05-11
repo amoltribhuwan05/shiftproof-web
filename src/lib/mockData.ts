@@ -526,6 +526,7 @@ export const CURRENT_TENANT = {
 
 // Convenience: matches CurrentStay API shape for when real API is connected
 export const CURRENT_STAY_MOCK = {
+  propertyId: _u1prop.id,
   propertyName: _u1prop.title,
   address: _u1prop.location,
   imageUrl: _u1prop.imageUrl,

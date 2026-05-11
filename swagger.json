@@ -523,6 +523,233 @@
                 }
             }
         },
+        "/api/v1/contact": {
+            "post": {
+                "description": "Accepts a contact form submission and logs it. Returns 200 immediately.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Submit contact form",
+                "operationId": "submitContact",
+                "parameters": [
+                    {
+                        "description": "Contact form",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ContactRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/contact",
+                    "path_translation": "CONSTANT_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/maintenance/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Returns a single maintenance ticket. Access is scoped by RLS to the caller's properties/stays.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Get maintenance request",
+                "operationId": "getMaintenanceRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Maintenance Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.MaintenanceRequest"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Permanently removes a maintenance ticket. Only property owners and managers may delete.",
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Delete maintenance request",
+                "operationId": "deleteMaintenanceRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Maintenance Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Applies a partial patch. Tenants can update their own open/in_progress tickets; owners/managers can update any ticket including status transitions.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Update maintenance request",
+                "operationId": "updateMaintenanceRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Maintenance Request ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Fields to update (all optional)",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.UpdateMaintenanceRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.MaintenanceRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
         "/api/v1/notifications": {
             "get": {
                 "security": [
@@ -658,8 +885,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/notifications/{id}/read",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -832,8 +1059,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "patch": {
@@ -893,8 +1120,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -956,8 +1183,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/logo",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1004,8 +1231,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/members",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "post": {
@@ -1056,8 +1283,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/members",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1102,8 +1329,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/members/{userId}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1163,8 +1390,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/members/{userId}/properties",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1205,8 +1432,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/properties",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1256,8 +1483,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/orgs/{id}/transfer-ownership",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1533,8 +1760,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/payments/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1596,8 +1823,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/payments/{id}/checkout",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1659,8 +1886,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/payments/{id}/confirm",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1740,8 +1967,62 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/payments/{id}/pay",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/payments/{id}/receipt": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Generates and streams a PDF receipt for a paid payment. Returns 400 if the payment is not yet in \"paid\" status.",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "summary": "Download payment receipt PDF",
+                "operationId": "downloadPaymentReceipt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Payment ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "PDF receipt (application/pdf binary stream)"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -1969,8 +2250,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "put": {
@@ -2030,8 +2311,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "delete": {
@@ -2076,8 +2357,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2139,8 +2420,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/images",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2185,8 +2466,202 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/images/{imageId}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/properties/{id}/images/{imageId}/cover": {
+            "patch": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Marks the specified image as the property's cover photo. Idempotent: safe to call if already cover.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Properties"
+                ],
+                "summary": "Set cover image",
+                "operationId": "setPropertyCoverImage",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Property ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Image ID",
+                        "name": "imageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.PropertyImage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/properties/{id}/maintenance": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Returns paginated maintenance tickets for a property. Owners/managers see all; tenants see tickets for their active stay property.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "List maintenance requests",
+                "operationId": "listMaintenanceRequests",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Property ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by status (open|in_progress|resolved|closed)",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Filter by priority (low|medium|high|urgent)",
+                        "name": "priority",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page (default 20, max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.PaginatedMaintenanceResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Raises a new maintenance ticket for a property. Tenants must have an active stay; owners/managers must have a property role.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Maintenance"
+                ],
+                "summary": "Create maintenance request",
+                "operationId": "createMaintenanceRequest",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Property ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Maintenance request details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CreateMaintenanceRequestInput"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.MaintenanceRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2227,8 +2702,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/members",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "post": {
@@ -2279,8 +2754,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/members",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2319,8 +2794,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/members/{userId}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2358,8 +2833,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/privacy",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "patch": {
@@ -2407,8 +2882,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/privacy",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2455,8 +2930,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/rooms",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "post": {
@@ -2516,8 +2991,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/rooms",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2573,8 +3048,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/tenants",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2636,7 +3111,41 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/properties/{id}/tenants/invite",
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/public/cities": {
+            "get": {
+                "description": "Returns distinct city names derived from non-private, active property listings.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Properties"
+                ],
+                "summary": "List cities with active listings",
+                "operationId": "listPublicCities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/public/cities",
                     "path_translation": "CONSTANT_ADDRESS"
                 }
             }
@@ -2733,8 +3242,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/public/properties/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2865,8 +3374,65 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/reports/properties/{propertyId}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/reports/properties/{propertyId}/chart": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Returns monthly collected and pending revenue for the last N months (max 24). Gaps are filled with zeros.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Reports"
+                ],
+                "summary": "Get revenue chart data",
+                "operationId": "getPropertyRevenueChart",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Property ID",
+                        "name": "propertyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of months to return (1–24, default 6)",
+                        "name": "months",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.RevenueChartResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -2910,8 +3476,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/rooms/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "delete": {
@@ -2953,8 +3519,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/rooms/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "patch": {
@@ -3014,8 +3580,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/rooms/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -3160,8 +3726,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/subscriptions/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             }
         },
@@ -3255,8 +3821,8 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/tenants/{id}",
-                    "path_translation": "CONSTANT_ADDRESS"
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
                 }
             },
             "patch": {
@@ -3310,7 +3876,100 @@
                     }
                 },
                 "x-google-backend": {
-                    "address": "${CLOUD_RUN_URL}/api/v1/tenants/{id}",
+                    "address": "${CLOUD_RUN_URL}",
+                    "path_translation": "APPEND_PATH_TO_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/users/bank-account": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Returns the authenticated user's saved payout bank account, or null when not configured.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get saved bank account",
+                "operationId": "getBankAccount",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.BankAccount"
+                        }
+                    },
+                    "204": {
+                        "description": "Not configured"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/users/bank-account",
+                    "path_translation": "CONSTANT_ADDRESS"
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Creates or replaces the authenticated user's payout bank account details.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Save or update bank account",
+                "operationId": "upsertBankAccount",
+                "parameters": [
+                    {
+                        "description": "Bank account details",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.BankAccount"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.BankAccount"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/users/bank-account",
                     "path_translation": "CONSTANT_ADDRESS"
                 }
             }
@@ -3365,6 +4024,96 @@
                 }
             }
         },
+        "/api/v1/users/notification-preferences": {
+            "get": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Returns the authenticated user's per-channel notification toggles.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get notification preferences",
+                "operationId": "getNotifPreferences",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationPreferences"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/users/notification-preferences",
+                    "path_translation": "CONSTANT_ADDRESS"
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Replaces the authenticated user's notification toggles with the provided values.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Update notification preferences",
+                "operationId": "patchNotifPreferences",
+                "parameters": [
+                    {
+                        "description": "Notification toggles",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationPreferences"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.NotificationPreferences"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/users/notification-preferences",
+                    "path_translation": "CONSTANT_ADDRESS"
+                }
+            }
+        },
         "/api/v1/users/onboarding": {
             "post": {
                 "security": [
@@ -3411,6 +4160,65 @@
                 },
                 "x-google-backend": {
                     "address": "${CLOUD_RUN_URL}/api/v1/users/onboarding",
+                    "path_translation": "CONSTANT_ADDRESS"
+                }
+            }
+        },
+        "/api/v1/users/password": {
+            "post": {
+                "security": [
+                    {
+                        "firebase": []
+                    }
+                ],
+                "description": "Updates the authenticated user's Firebase password. Client must re-authenticate before calling.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Change password",
+                "operationId": "changePassword",
+                "parameters": [
+                    {
+                        "description": "New password",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/model.ErrorResponse"
+                        }
+                    }
+                },
+                "x-google-backend": {
+                    "address": "${CLOUD_RUN_URL}/api/v1/users/password",
                     "path_translation": "CONSTANT_ADDRESS"
                 }
             }
@@ -3691,10 +4499,16 @@
                     "description": "MALE, FEMALE, CO_LIVING",
                     "type": "string"
                 },
+                "gstin": {
+                    "type": "string"
+                },
                 "id": {
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "pan": {
                     "type": "string"
                 },
                 "phoneNumber": {
@@ -3917,6 +4731,48 @@
                 }
             }
         },
+        "model.BankAccount": {
+            "type": "object",
+            "properties": {
+                "accountHolderName": {
+                    "type": "string"
+                },
+                "accountNumber": {
+                    "type": "string"
+                },
+                "bankName": {
+                    "type": "string"
+                },
+                "ifscCode": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ChangePasswordRequest": {
+            "type": "object",
+            "properties": {
+                "newPassword": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.ContactRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
         "model.CurrentStay": {
             "type": "object",
             "properties": {
@@ -3987,6 +4843,46 @@
                 }
             }
         },
+        "model.MaintenanceRequest": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "description": "RFC3339",
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "priority": {
+                    "description": "\"low\"|\"medium\"|\"high\"|\"urgent\"",
+                    "type": "string"
+                },
+                "propertyId": {
+                    "type": "string"
+                },
+                "reportedBy": {
+                    "type": "string"
+                },
+                "resolvedAt": {
+                    "description": "RFC3339, null until resolved/closed",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "\"open\"|\"in_progress\"|\"resolved\"|\"closed\"",
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "description": "RFC3339",
+                    "type": "string"
+                }
+            }
+        },
         "model.Notification": {
             "type": "object",
             "properties": {
@@ -4010,6 +4906,20 @@
                 "type": {
                     "description": "\"rentDue\"|\"message\"|\"maintenance\"|\"leaseRenewal\"|\"general\"",
                     "type": "string"
+                }
+            }
+        },
+        "model.NotificationPreferences": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "boolean"
+                },
+                "push": {
+                    "type": "boolean"
+                },
+                "sms": {
+                    "type": "boolean"
                 }
             }
         },
@@ -4123,6 +5033,20 @@
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "model.PaginatedMaintenanceResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.MaintenanceRequest"
+                    }
+                },
+                "meta": {
+                    "$ref": "#/definitions/model.PaginationMeta"
                 }
             }
         },
@@ -4489,6 +5413,9 @@
         "model.PropertyReport": {
             "type": "object",
             "properties": {
+                "activeTenants": {
+                    "type": "integer"
+                },
                 "occupancyRate": {
                     "description": "0.0–1.0",
                     "type": "number"
@@ -4502,12 +5429,44 @@
                         "$ref": "#/definitions/model.Payment"
                     }
                 },
+                "revenueChangePercent": {
+                    "description": "nil when no prior-month data; otherwise (+/-)%",
+                    "type": "number"
+                },
                 "totalCollected": {
                     "description": "rupees, int64",
                     "type": "integer"
                 },
                 "totalPending": {
                     "type": "integer"
+                }
+            }
+        },
+        "model.RevenueChartPoint": {
+            "type": "object",
+            "properties": {
+                "collected": {
+                    "description": "rupees, int64",
+                    "type": "integer"
+                },
+                "month": {
+                    "description": "\"YYYY-MM\"",
+                    "type": "string"
+                },
+                "pending": {
+                    "description": "rupees, int64",
+                    "type": "integer"
+                }
+            }
+        },
+        "model.RevenueChartResponse": {
+            "type": "object",
+            "properties": {
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.RevenueChartPoint"
+                    }
                 }
             }
         },
@@ -4674,11 +5633,46 @@
                 "gender": {
                     "type": "string"
                 },
+                "gstin": {
+                    "type": "string"
+                },
                 "name": {
+                    "type": "string"
+                },
+                "pan": {
                     "type": "string"
                 },
                 "phoneNumber": {
                     "type": "string"
+                }
+            }
+        },
+        "service.CreateMaintenanceRequestInput": {
+            "type": "object",
+            "required": [
+                "propertyId",
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                    ]
+                },
+                "propertyId": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "minLength": 3
                 }
             }
         },
@@ -4861,6 +5855,36 @@
                 }
             }
         },
+        "service.UpdateMaintenanceRequestInput": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "description": "nil = leave unchanged; explicit null clears it",
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "urgent"
+                    ]
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "in_progress",
+                        "resolved",
+                        "closed"
+                    ]
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
         "service.UpdateRoomRequest": {
             "type": "object",
             "properties": {
@@ -4958,6 +5982,10 @@
         {
             "description": "Property financial reports",
             "name": "Reports"
+        },
+        {
+            "description": "Property maintenance request tracking",
+            "name": "Maintenance"
         }
     ]
 }

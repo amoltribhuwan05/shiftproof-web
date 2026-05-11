@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE, parseSession } from "@/lib/users";
 import type { AppUser } from "@/lib/api/types";
+import { getBackendApiBase } from "@/lib/serverEnv";
 
 export async function POST(req: NextRequest) {
   const cookieValue = req.cookies.get(SESSION_COOKIE)?.value;
@@ -21,7 +22,13 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { name, gender, phoneNumber, city, area, role } = body;
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? `${req.nextUrl.protocol}//${req.nextUrl.host}`;
+  const apiBase = getBackendApiBase(`${req.nextUrl.protocol}//${req.nextUrl.host}`);
+  if (!apiBase) {
+    return NextResponse.json(
+      { error: "Backend API is not configured" },
+      { status: 503 },
+    );
+  }
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (authHeader)   headers["Authorization"] = authHeader;

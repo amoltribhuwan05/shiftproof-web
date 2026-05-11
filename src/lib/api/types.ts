@@ -49,6 +49,7 @@ export type AvatarUploadRequest = {
 // ── Current Stay (tenant) ─────────────────────────────────────────────────────
 
 export type CurrentStay = {
+  propertyId: string;
   propertyName: string;
   address: string;
   imageUrl: string;
@@ -356,11 +357,87 @@ export type TransferOrgOwnershipRequest = {
 // ── Reports ───────────────────────────────────────────────────────────────────
 
 export type PropertyReport = {
-  totalCollected: number; // rupees, integer
+  totalCollected: number;       // rupees, integer
   totalPending: number;
   overdueCount: number;
-  occupancyRate: number;  // 0.0–1.0
+  occupancyRate: number;        // 0.0–1.0
+  activeTenants: number;
+  revenueChangePercent: number | null; // null when no prior-month data
   payments: Payment[];
+};
+
+export type RevenueChartPoint = {
+  month: string;      // "YYYY-MM"
+  collected: number;  // rupees, int64
+  pending: number;    // rupees, int64
+};
+
+export type RevenueChartResponse = {
+  points: RevenueChartPoint[];
+};
+
+// ── Maintenance ───────────────────────────────────────────────────────────────
+
+export type MaintenanceStatus = "open" | "in_progress" | "resolved" | "closed";
+export type MaintenancePriority = "low" | "medium" | "high" | "urgent";
+
+export type MaintenanceRequest = {
+  id: string;
+  title: string;
+  description: string;
+  priority: MaintenancePriority;
+  status: MaintenanceStatus;
+  propertyId: string;
+  reportedBy: string;
+  createdAt: string;   // RFC3339
+  updatedAt: string;   // RFC3339
+  resolvedAt: string | null;
+};
+
+export type CreateMaintenanceRequest = {
+  propertyId: string;
+  title: string;
+  description?: string;
+  priority?: MaintenancePriority;
+};
+
+export type UpdateMaintenanceRequest = {
+  title?: string;
+  description?: string;
+  priority?: MaintenancePriority;
+  status?: MaintenanceStatus;
+};
+
+// ── Bank Account ──────────────────────────────────────────────────────────────
+
+export type BankAccount = {
+  accountHolderName: string;
+  accountNumber: string;
+  bankName: string;
+  ifscCode: string;
+};
+
+// ── Notification Preferences ─────────────────────────────────────────────────
+
+export type NotificationPreferences = {
+  email: boolean;
+  push: boolean;
+  sms: boolean;
+};
+
+// ── Password ──────────────────────────────────────────────────────────────────
+
+export type ChangePasswordRequest = {
+  newPassword: string;
+};
+
+// ── Contact ───────────────────────────────────────────────────────────────────
+
+export type ContactRequest = {
+  name?: string;
+  email: string;
+  subject?: string;
+  message: string;
 };
 
 // ── Auth Session / Linking ────────────────────────────────────────────────────

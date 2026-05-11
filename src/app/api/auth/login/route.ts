@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUser, SESSION_COOKIE, Session } from "@/lib/users";
+import { SESSION_COOKIE, type Session } from "@/lib/users";
+import { findUser } from "@/lib/serverUsers";
+import { isDemoAuthAllowed } from "@/lib/serverEnv";
 
 export async function POST(req: NextRequest) {
+  if (!isDemoAuthAllowed()) {
+    return NextResponse.json({ error: "Demo password login is disabled" }, { status: 404 });
+  }
+
   const body = await req.json().catch(() => ({}));
   const { email, password } = body as { email?: string; password?: string };
 

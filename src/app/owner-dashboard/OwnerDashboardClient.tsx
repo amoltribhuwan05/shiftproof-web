@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/Toast";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,21 +13,16 @@ import {
   ArrowLeft, MapPin, Edit3, Camera, Wifi, Car, Dumbbell, Phone, Mail,
   ChevronDown, FileText, CalendarDays, Banknote, UserX, ShieldCheck,
   User, Lock, Smartphone, ToggleLeft, ToggleRight, Landmark, Trash2, Eye, EyeOff,
-  Globe, UserPlus, Send,
+  Globe, UserPlus, Send, Wallet, ArrowRightLeft, Link2, Upload, ImagePlus,
+  RefreshCw, Star, ExternalLink, ShieldAlert,
 } from "lucide-react";
-import { CURRENT_ORG, MOCK_ORGS } from "@/lib/orgData";
-import {
-  PROPERTIES, PROPERTY_ROOMS, PROPERTY_FLOORS, PROPERTY_AMENITIES,
-  PROPERTY_GALLERY, TENANTS, TENANTS_EXT, TENANT_DOCS, TENANT_BY_NAME,
-  ROOM_BY_ID, MAINTENANCE, MAINTENANCE_EXT, TRANSACTIONS,
-} from "@/lib/mockData";
 import {
   type OrgRole, type OrgMember, type OrgPermissions, type Organization,
   ROLE_PERMISSIONS, PLAN_LIMITS,
 } from "@/lib/orgTypes";
-import { signOut } from "firebase/auth";
+import { signOut, GoogleAuthProvider, linkWithPopup, PhoneAuthProvider } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { api, ApiError, type AppUser } from "@/lib/api";
+import { api, ApiError, type AppUser, type Property, type Room as ApiRoom, type Payment as ApiPayment, type PaymentSummary, type Notification as ApiNotification, type Tenant as ApiTenant, type PropertyReport, type RevenueChartPoint, type MaintenanceRequest as ApiMaintenanceRequest, type Organization as ApiOrganization, type OrgMember as ApiOrgMember } from "@/lib/api";
 import {
   ReactFlow, Handle, Position, MarkerType, Background,
   type Node, type Edge,
@@ -35,15 +30,44 @@ import {
 import "@xyflow/react/dist/style.css";
 import Dagre from "@dagrejs/dagre";
 
+// ─── Error boundary ───────────────────────────────────────────────────────────
+
+class DashboardErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+          <div className="text-center max-w-sm">
+            <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={22} className="text-red-400" />
+            </div>
+            <h2 className="text-white font-semibold text-lg mb-2">Something went wrong</h2>
+            <p className="text-slate-400 text-sm mb-6">An unexpected error occurred. Try refreshing the page.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              Refresh page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── Display-only config (not shared data) ────────────────────────────────────
 
 // (KPI and other constants moved inside component to be dynamic)
-
-const ALERTS = [
-  { type: "error",   icon: AlertCircle,  title: "3 overdue rent payments",    action: "Review" },
-  { type: "warning", icon: Clock,        title: "2 leases expiring in 30 days", action: "View" },
-  { type: "trust",   icon: Wrench,       title: "5 active maintenance requests", action: "Manage" },
-];
 
 const CHART_MONTHS = [
   { label: "Nov", val: 62 }, { label: "Dec", val: 48 }, { label: "Jan", val: 71 },
@@ -118,20 +142,130 @@ const NAV_ITEMS = [
   { id: "properties",    label: "Properties",    icon: Building2 },
   { id: "tenants",       label: "Tenants",       icon: Users },
   { id: "payments",      label: "Payments",      icon: CreditCard },
+  { id: "payouts",       label: "Payouts",       icon: Wallet },
   { id: "maintenance",   label: "Maintenance",   icon: Wrench },
   { id: "reports",       label: "Reports",       icon: BarChart3 },
   { id: "organization",  label: "Organization",  icon: Landmark },
 ];
 
+// ─── API → display mappers ─────────────────────────────────────────────────────
+
+type TxItem = {
+  id: string;
+  name: string;
+  initials: string;
+  property: string;
+  amount: string;
+  date: string;
+  status: string;
+};
+
+type AlertItem = {
+  type: "error" | "warning" | "trust";
+  icon: React.ElementType;
+  title: string;
+  action: string;
+};
+
+type KpiItem = {
+  label: string;
+  value: string;
+  sub: string;
+  up?: boolean;
+  icon: React.ElementType;
+  color: string;
+};
+
+type GlanceItem = {
+  label: string;
+  value: string;
+  sub: string;
+  icon: React.ElementType;
+  color: string;
+};
+
+type FinancialItem = {
+  label: string;
+  value: string;
+  color: string;
+};
+
+type DashStats = {
+  kpi: KpiItem[];
+  atAGlance: GlanceItem[];
+  financials: FinancialItem[];
+  alerts: AlertItem[];
+};
+
+type OwnerInfo = {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  avatarUrl: string;
+  properties: number;
+  beds: number;
+};
+
+function mapApiPaymentToTx(p: ApiPayment): TxItem {
+  return {
+    id:       p.id,
+    name:     p.tenantName,
+    initials: p.tenantName.split(" ").map((s: string) => s[0]).join("").slice(0, 2).toUpperCase(),
+    property: p.description || p.type,
+    amount:   `₹${p.amount.toLocaleString("en-IN")}`,
+    date:     p.date,
+    status:   p.status === "checkout_created" || p.status === "processing" ? "pending" : p.status,
+  };
+}
+
+type NotifItem = { id: string; type: string; title: string; body: string; time: string; read: boolean; nav: string };
+
+function mapApiNotif(n: ApiNotification): NotifItem {
+  const navMap: Record<string, string> = {
+    rentDue: "payments", maintenance: "maintenance", leaseRenewal: "tenants",
+    message: "overview", general: "overview",
+  };
+  const typeMap: Record<string, string> = {
+    rentDue: "warning", maintenance: "info", leaseRenewal: "warning",
+    message: "info", general: "info",
+  };
+  const ts = new Date(n.timestamp);
+  const diffH = Math.floor((Date.now() - ts.getTime()) / 3_600_000);
+  const diffD = Math.floor(diffH / 24);
+  const time = diffH < 24 ? `${diffH}h ago` : diffD < 7 ? `${diffD}d ago` : ts.toLocaleString("en-IN", { month: "short", day: "numeric" });
+  return {
+    id:   n.id,
+    type: typeMap[n.type] ?? "info",
+    title: n.title,
+    body:  n.description,
+    time,
+    read: n.isRead,
+    nav:  navMap[n.type] ?? "overview",
+  };
+}
+
 // ─── Tab sections ─────────────────────────────────────────────────────────────
 
-function OverviewTab({ stats }: { stats: any }) {
-  const { kpi, atAGlance } = stats;
+function OverviewTab({ stats, transactions, chartPoints }: { stats: DashStats; transactions: TxItem[]; chartPoints?: RevenueChartPoint[] | null }) {
+  const { kpi, atAGlance, alerts } = stats;
+
+  const displayChart = (() => {
+    if (chartPoints && chartPoints.length > 0) {
+      const maxVal = Math.max(...chartPoints.map(p => p.collected), 1);
+      return chartPoints.map((p, i) => ({
+        label: new Date(p.month + "-01").toLocaleString("default", { month: "short" }),
+        val: Math.round((p.collected / maxVal) * 85) + 5,
+        isLast: i === chartPoints.length - 1,
+      }));
+    }
+    return CHART_MONTHS.map((m, i) => ({ ...m, isLast: i === CHART_MONTHS.length - 1 }));
+  })();
   return (
     <div className="space-y-6">
       {/* KPI Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {kpi.map((k: any) => (
+        {kpi.map((k: KpiItem) => (
           <div key={k.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
@@ -160,7 +294,7 @@ function OverviewTab({ stats }: { stats: any }) {
 
       {/* Alerts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {ALERTS.map((a) => (
+        {alerts.map((a) => (
           <div key={a.title} className={`flex items-center gap-3 rounded-xl p-4 border-l-4 ${
             a.type === "error"   ? "bg-[color:var(--error-50)] border-[color:var(--error)]" :
             a.type === "warning" ? "bg-[color:var(--warning-50)] border-[color:var(--warning)]" :
@@ -194,11 +328,11 @@ function OverviewTab({ stats }: { stats: any }) {
             </select>
           </div>
           <div className="flex items-end justify-between gap-2 h-40">
-            {CHART_MONTHS.map((m, i) => (
+            {displayChart.map((m) => (
               <div key={m.label} className="flex-1 flex flex-col items-center gap-1.5">
                 <div
                   className={`w-full rounded-t-lg transition-colors ${
-                    i === CHART_MONTHS.length - 1
+                    m.isLast
                       ? "bg-[color:var(--accent-500)]"
                       : "bg-[color:var(--accent-100)] hover:bg-[color:var(--accent-200)]"
                   }`}
@@ -214,7 +348,7 @@ function OverviewTab({ stats }: { stats: any }) {
         <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-sm">
           <h3 className="text-sm font-bold text-white mb-5">At a Glance</h3>
           <div className="space-y-4">
-            {atAGlance.map((g: any) => (
+            {atAGlance.map((g: GlanceItem) => (
               <div key={g.label} className="flex items-center gap-3 pb-4 border-b border-white/10 last:border-0 last:pb-0">
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                   <g.icon size={16} className={g.color} />
@@ -253,7 +387,7 @@ function OverviewTab({ stats }: { stats: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--line)]">
-              {TRANSACTIONS.map((tx) => (
+              {transactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-[color:var(--background)] transition-colors">
                   <td className="px-6 py-3.5">
                     <div className="flex items-center gap-2.5">
@@ -275,73 +409,97 @@ function OverviewTab({ stats }: { stats: any }) {
   );
 }
 
-type Property = typeof PROPERTIES[number];
 type InnerTab = "details" | "photos" | "rooms" | "tenants" | "maintenance";
 
 function ManagePropertyView({ property, onBack }: { property: Property; onBack: () => void }) {
+  const toast = useToast();
   const [innerTab, setInnerTab] = useState<InnerTab>("details");
+  const [saving, setSaving] = useState(false);
 
   // Details form state
   const [form, setForm] = useState({
-    name: property.name, address: property.address,
-    rent: String(property.rent), deposit: String(property.rent * 2),
+    name: property.title, address: property.location,
+    rent: String(property.price), deposit: String(property.deposit),
     advance: "1", noticeDays: "30", checkIn: "10:00 AM",
-    gender: "Male Only", type: "PG", visitorPolicy: "Allowed till 9 PM", food: "Optional meals",
+    gender: property.gender === "Co-ed" ? "Co-ed" : property.gender === "Female" ? "Female Only" : "Male Only",
+    type: property.type, visitorPolicy: "Allowed till 9 PM", food: "Optional meals",
   });
   const upd = (k: keyof typeof form) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm((f) => ({ ...f, [k]: e.target.value }));
 
   // Amenities
-  const [amenities, setAmenities] = useState<Set<string>>(
-    new Set(PROPERTY_AMENITIES[property.id] ?? [])
-  );
+  const [amenities, setAmenities] = useState<Set<string>>(new Set(property.amenities ?? []));
   const toggleAmenity = (label: string) =>
     setAmenities((prev) => { const s = new Set(prev); s.has(label) ? s.delete(label) : s.add(label); return s; });
 
-  // Rooms
-  const [rooms, setRooms] = useState(PROPERTY_ROOMS[property.id] ?? []);
-  const [assigningRoomId, setAssigningRoomId] = useState<string | null>(null);
-  const [assignSelectVal, setAssignSelectVal] = useState("");
+  // Rooms — fetched from API
+  const [rooms, setRooms] = useState<ApiRoom[]>([]);
+  const [deletingRoomId, setDeletingRoomId] = useState<string | null>(null);
+  useEffect(() => {
+    api.rooms.list(property.id).then(setRooms).catch(() => {});
+  }, [property.id]);
 
-  // Tenant names already occupying a room across all properties.
-  // Uses live `rooms` state for this property so unassign → assign reflects immediately.
-  const assignedTenantNames = new Set<string>([
-    ...rooms.filter(r => r.tenant).map(r => r.tenant!),
-    ...Object.entries(PROPERTY_ROOMS)
-      .filter(([pid]) => pid !== property.id)
-      .flatMap(([, rs]) => rs.filter(r => r.tenant).map(r => r.tenant!)),
-  ]);
+  const vacantRooms = rooms.filter(r => r.isAvailable);
 
-  // Photos
-  const [gallery, setGallery] = useState(PROPERTY_GALLERY[property.id] ?? []);
-  const [coverIdx, setCoverIdx] = useState(0);
-
-  // Tenants
-  const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
+  // Tenants — fetched from API
+  const [propertyTenants, setPropertyTenants] = useState<ApiTenant[]>([]);
   const [tenantFilter, setTenantFilter] = useState<"all" | "active" | "notice">("all");
+  const [expandedTenantId, setExpandedTenantId] = useState<string | null>(null);
+  const [removingTenantId, setRemovingTenantId] = useState<string | null>(null);
   const [showAddTenant, setShowAddTenant] = useState(false);
-  const propertyTenants = TENANTS.filter((t) => t.property === property.name);
+  const [inviting, setInviting] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    roomId: "", rentAmount: String(property.price),
+    leaseStart: "", leaseEnd: "", email: "", phone: "",
+  });
+  useEffect(() => {
+    api.tenants.list(property.id).then(r => setPropertyTenants(r.data)).catch(() => {});
+  }, [property.id]);
   const filteredTenants = propertyTenants.filter((t) => {
-    const ext = TENANTS_EXT[t.id];
-    if (tenantFilter === "notice") return !!ext?.noticeGiven;
-    if (tenantFilter === "active") return !ext?.noticeGiven;
+    if (tenantFilter === "notice") return t.status === "pending";
+    if (tenantFilter === "active") return t.status === "active";
     return true;
   });
 
-  // Maintenance
+  // Maintenance — fetched from API
+  const [allTickets, setAllTickets] = useState<ApiMaintenanceRequest[]>([]);
   const [expandedTicketId, setExpandedTicketId] = useState<string | null>(null);
-  const [ticketStatuses, setTicketStatuses] = useState<Record<string, string>>({});
-  const [mFilter, setMFilter] = useState<"all" | "pending" | "in_progress" | "resolved">("all");
+  const [mFilter, setMFilter] = useState<"all" | "open" | "in_progress" | "resolved" | "closed">("all");
+  const [ticketStatuses, setTicketStatuses] = useState<Record<string, ApiMaintenanceRequest["status"]>>({});
   const [noteText, setNoteText] = useState("");
-  const allTickets = MAINTENANCE.filter((m) => m.property.startsWith(property.name));
-  const filteredTickets = allTickets.filter((m) => {
-    const st = ticketStatuses[m.id] ?? m.status;
-    return mFilter === "all" || st === mFilter;
-  });
+  useEffect(() => {
+    api.maintenance.list(property.id, { limit: 50 }).then(r => setAllTickets(r.data)).catch(() => {});
+  }, [property.id]);
+  const filteredTickets = allTickets.filter(m => mFilter === "all" || m.status === mFilter);
 
-  const revenue = rooms.filter((r) => r.status === "occupied").reduce((s, r) => s + r.rent, 0);
-  const openTickets = allTickets.filter((m) => (ticketStatuses[m.id] ?? m.status) !== "resolved").length;
+  // Privacy
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [togglingPrivacy, setTogglingPrivacy] = useState(false);
+  useEffect(() => {
+    api.properties.getPrivacy(property.id).then(r => setIsPrivate(r.isPrivate)).catch(() => {});
+  }, [property.id]);
+  async function togglePrivacy() {
+    setTogglingPrivacy(true);
+    try {
+      const r = await api.properties.updatePrivacy(property.id, !isPrivate);
+      setIsPrivate(r.isPrivate);
+      toast.success(r.isPrivate ? "Property set to private" : "Property set to public");
+    } catch {
+      toast.error("Failed to update visibility");
+    } finally {
+      setTogglingPrivacy(false);
+    }
+  }
+
+  // Photos — from API property images
+  const [gallery, setGallery] = useState(property.images ?? []);
+  const [coverImageId, setCoverImageId] = useState(property.images?.[0]?.id ?? "");
+  const [deletingImageId, setDeletingImageId] = useState<string | null>(null);
+  const [settingCoverId, setSettingCoverId] = useState<string | null>(null);
+
+  const revenue = rooms.filter(r => !r.isAvailable).reduce((s, r) => s + r.rentAmount, 0);
+  const openTickets = allTickets.filter(m => m.status !== "resolved").length;
 
   const INNER_TABS: { id: InnerTab; label: string; count?: number }[] = [
     { id: "details",     label: "Details" },
@@ -356,7 +514,7 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
 
       {/* ── Hero ── */}
       <div className="relative rounded-2xl overflow-hidden h-52 bg-gradient-to-br from-violet-900 via-violet-800 to-indigo-900">
-        {property.image && <img src={property.image} alt={property.name} className="absolute inset-0 w-full h-full object-cover" />}
+        {property.imageUrl && <img src={property.imageUrl} alt={property.title} className="absolute inset-0 w-full h-full object-cover" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <button onClick={onBack} className="absolute top-4 left-4 flex items-center gap-1.5 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
           <ArrowLeft size={14} /> Back
@@ -372,7 +530,6 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
           <div className="flex items-center gap-2 flex-wrap justify-end">
             <span className="text-[10px] font-bold bg-white/15 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">{form.type}</span>
             <span className="text-[10px] font-bold bg-white/15 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">{form.gender}</span>
-            <StatusChip status={property.pending > 0 ? "pending" : "paid"} />
           </div>
         </div>
       </div>
@@ -381,8 +538,8 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {([
           { label: "Monthly Revenue", value: `₹${revenue.toLocaleString("en-IN")}`, icon: IndianRupee, color: "accent" },
-          { label: "Occupancy",       value: `${Math.round((rooms.filter(r=>r.status==="occupied").length / Math.max(rooms.length,1)) * 100)}%`, icon: BedDouble, color: "trust" },
-          { label: "Vacant Beds",     value: String(rooms.filter(r=>r.status==="vacant").length), icon: Home, color: "muted" },
+          { label: "Occupancy",       value: `${Math.round((rooms.filter(r=>!r.isAvailable).length / Math.max(rooms.length,1)) * 100)}%`, icon: BedDouble, color: "trust" },
+          { label: "Vacant Rooms",    value: String(rooms.filter(r=>r.isAvailable).length), icon: Home, color: "muted" },
           { label: "Open Tickets",    value: String(openTickets), icon: Wrench, color: "warning" },
         ] as const).map((k) => (
           <div key={k.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-4 shadow-sm">
@@ -449,11 +606,11 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                   <div className="flex gap-2">
                     <div className="flex items-center gap-2 border border-[color:var(--line)] rounded-xl px-3 py-2.5 bg-[color:var(--background)] flex-1">
                       <Phone size={13} className="text-[color:var(--muted)] shrink-0" />
-                      <input defaultValue="+91 98765 43210" className="text-sm bg-transparent outline-none w-full" />
+                      <input defaultValue="" placeholder="+91 98765 00000" className="text-sm bg-transparent outline-none w-full" />
                     </div>
                     <div className="flex items-center gap-2 border border-[color:var(--line)] rounded-xl px-3 py-2.5 bg-[color:var(--background)] flex-1">
                       <Mail size={13} className="text-[color:var(--muted)] shrink-0" />
-                      <input defaultValue="ravi@shiftproof.in" className="text-sm bg-transparent outline-none w-full" />
+                      <input defaultValue="" placeholder="manager@example.com" className="text-sm bg-transparent outline-none w-full" />
                     </div>
                   </div>
                 </div>
@@ -514,9 +671,51 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
               </div>
             </div>
 
+            {/* Visibility */}
+            <div className="flex items-center justify-between p-4 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)]">
+              <div>
+                <p className="text-sm font-semibold text-[color:var(--foreground)]">Listing Visibility</p>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">
+                  {isPrivate ? "Private — only invited tenants can see this property" : "Public — appears in Find PG search results"}
+                </p>
+              </div>
+              <button onClick={togglePrivacy} disabled={togglingPrivacy}
+                className={`flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl border transition-colors ${
+                  isPrivate ? "bg-slate-800 text-white border-slate-800 hover:bg-slate-700" : "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)]"
+                } disabled:opacity-60`}>
+                {togglingPrivacy ? <RefreshCw size={12} className="animate-spin" /> : isPrivate ? <EyeOff size={12} /> : <Eye size={12} />}
+                {isPrivate ? "Private" : "Public"}
+              </button>
+            </div>
+
             <div className="flex justify-end gap-3 pt-2 border-t border-[color:var(--line)]">
-              <button className="text-xs font-semibold text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-4 py-2.5 rounded-xl border border-[color:var(--line)] hover:bg-[color:var(--background)] transition-colors">Discard</button>
-              <button className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-colors">Save Changes</button>
+              <button onClick={() => setForm({
+                name: property.title, address: property.location,
+                rent: String(property.price), deposit: String(property.deposit),
+                advance: "1", noticeDays: "30", checkIn: "10:00 AM",
+                gender: property.gender === "Co-ed" ? "Co-ed" : property.gender === "Female" ? "Female Only" : "Male Only",
+                type: property.type, visitorPolicy: "Allowed till 9 PM", food: "Optional meals",
+              })} className="text-xs font-semibold text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-4 py-2.5 rounded-xl border border-[color:var(--line)] hover:bg-[color:var(--background)] transition-colors">Discard</button>
+              <button disabled={saving} onClick={async () => {
+                setSaving(true);
+                try {
+                  await api.properties.update(property.id, {
+                    title: form.name,
+                    location: form.address,
+                    type: (form.type === "PG" || form.type === "Flat" || form.type === "House") ? form.type as "PG" | "Flat" | "House" : "PG",
+                    price: Number(form.rent) || property.price,
+                    deposit: Number(form.deposit) || undefined,
+                    amenities: Array.from(amenities),
+                  });
+                  toast.success("Property saved");
+                } catch {
+                  toast.error("Failed to save — changes kept locally");
+                } finally {
+                  setSaving(false);
+                }
+              }} className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-60 text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition-colors">
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
             </div>
           </div>
         )}
@@ -525,35 +724,84 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
         {innerTab === "photos" && (
           <div className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs text-[color:var(--muted)]">{gallery.length} photos · first photo is used as cover</p>
-              <button className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors">
-                <Plus size={12} /> Add Photos
-              </button>
+              <p className="text-xs text-[color:var(--muted)]">{gallery.length} photos · cover photo shown in listings</p>
+              <label className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors cursor-pointer">
+                <Plus size={12} /> Add Photo
+                <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = async () => {
+                    try {
+                      const img = await api.properties.uploadImage(property.id, { data: reader.result as string, contentType: file.type as "image/jpeg" | "image/png" | "image/webp" });
+                      setGallery(prev => [...prev, img]);
+                      toast.success("Photo uploaded");
+                    } catch { toast.error("Upload failed"); }
+                  };
+                  reader.readAsDataURL(file);
+                }} />
+              </label>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {gallery.map((url, i) => (
-                <div key={url} className="relative group rounded-xl overflow-hidden aspect-video bg-[color:var(--background)]">
-                  <img src={url} alt="" className="w-full h-full object-cover" />
-                  {i === coverIdx && (
+              {gallery.map((img) => (
+                <div key={img.id} className="relative group rounded-xl overflow-hidden aspect-video bg-[color:var(--background)]">
+                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  {img.id === coverImageId && (
                     <span className="absolute top-2 left-2 bg-[color:var(--accent-500)] text-white text-[9px] font-bold px-2 py-0.5 rounded-full">Cover</span>
                   )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    {i !== coverIdx && (
-                      <button onClick={() => setCoverIdx(i)} className="text-[10px] font-bold text-white bg-white/20 hover:bg-[color:var(--accent-500)] px-2.5 py-1.5 rounded-lg transition-colors">
-                        Set Cover
+                  {settingCoverId === img.id || deletingImageId === img.id ? (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <RefreshCw size={16} className="text-white animate-spin" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      {img.id !== coverImageId && (
+                        <button onClick={async () => {
+                          setSettingCoverId(img.id);
+                          try {
+                            await api.properties.setCoverImage(property.id, img.id);
+                            setCoverImageId(img.id);
+                            toast.success("Cover updated");
+                          } catch { toast.error("Failed to set cover"); }
+                          finally { setSettingCoverId(null); }
+                        }} className="text-[10px] font-bold text-white bg-white/20 hover:bg-[color:var(--accent-500)] px-2.5 py-1.5 rounded-lg transition-colors">
+                          Set Cover
+                        </button>
+                      )}
+                      <button onClick={async () => {
+                        setDeletingImageId(img.id);
+                        try {
+                          await api.properties.deleteImage(property.id, img.id);
+                          setGallery(prev => prev.filter(x => x.id !== img.id));
+                          if (img.id === coverImageId) setCoverImageId(gallery[0]?.id ?? "");
+                          toast.success("Photo deleted");
+                        } catch { toast.error("Failed to delete photo"); }
+                        finally { setDeletingImageId(null); }
+                      }} className="text-[10px] font-bold text-white bg-white/20 hover:bg-red-500 px-2.5 py-1.5 rounded-lg transition-colors">
+                        Delete
                       </button>
-                    )}
-                    <button onClick={() => setGallery((prev) => prev.filter((_, j) => j !== i))} className="text-[10px] font-bold text-white bg-white/20 hover:bg-red-500 px-2.5 py-1.5 rounded-lg transition-colors">
-                      Delete
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {Array.from({ length: Math.max(0, 6 - gallery.length) }).map((_, i) => (
-                <button key={i} className="aspect-video rounded-xl border-2 border-dashed border-[color:var(--line)] hover:border-[color:var(--accent-400)] text-[color:var(--muted)] hover:text-[color:var(--accent-600)] flex flex-col items-center justify-center gap-1 transition-colors">
+                <label key={i} className="aspect-video rounded-xl border-2 border-dashed border-[color:var(--line)] hover:border-[color:var(--accent-400)] text-[color:var(--muted)] hover:text-[color:var(--accent-600)] flex flex-col items-center justify-center gap-1 transition-colors cursor-pointer">
                   <Camera size={18} strokeWidth={1.5} />
                   <span className="text-[10px] font-medium">Upload</span>
-                </button>
+                  <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = async () => {
+                      try {
+                        const img = await api.properties.uploadImage(property.id, { data: reader.result as string, contentType: file.type as "image/jpeg" | "image/png" | "image/webp" });
+                        setGallery(prev => [...prev, img]);
+                        toast.success("Photo uploaded");
+                      } catch { toast.error("Upload failed"); }
+                    };
+                    reader.readAsDataURL(file);
+                  }} />
+                </label>
               ))}
             </div>
             <p className="text-[10px] text-[color:var(--muted)] mt-4">Supported: JPG, PNG, WebP · Max 10 MB · Up to 20 photos</p>
@@ -567,12 +815,12 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
               <div className="flex-1">
                 <div className="h-2 rounded-full bg-[color:var(--line)] overflow-hidden">
                   <div className="h-full bg-[color:var(--accent-500)] rounded-full transition-all"
-                    style={{ width: `${Math.round((rooms.filter(r=>r.status==="occupied").length / Math.max(rooms.length,1)) * 100)}%` }} />
+                    style={{ width: `${Math.round((rooms.filter(r=>!r.isAvailable).length / Math.max(rooms.length,1)) * 100)}%` }} />
                 </div>
               </div>
               <span className="text-xs text-[color:var(--muted)] whitespace-nowrap shrink-0">
-                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>r.status==="occupied").length}</span> occupied ·{" "}
-                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>r.status==="vacant").length}</span> vacant
+                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>!r.isAvailable).length}</span> occupied ·{" "}
+                <span className="font-bold text-[color:var(--foreground)]">{rooms.filter(r=>r.isAvailable).length}</span> vacant
               </span>
               <button className="flex items-center gap-1.5 text-xs bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-3 py-2 rounded-lg font-semibold transition-colors shrink-0">
                 <Plus size={12} /> Add Room
@@ -580,49 +828,42 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
               {rooms.map((r) => (
-                <div key={r.id} className={`rounded-xl border p-3.5 flex flex-col gap-2 ${r.status==="occupied" ? "border-[color:var(--accent-200)] bg-[color:var(--accent-50)]" : "border-[color:var(--line)] bg-white"}`}>
+                <div key={r.id} className={`rounded-xl border p-3.5 flex flex-col gap-2 ${!r.isAvailable ? "border-[color:var(--accent-200)] bg-[color:var(--accent-50)]" : "border-[color:var(--line)] bg-white"}`}>
                   <div className="flex items-start justify-between">
-                    <p className="text-base font-bold text-[color:var(--foreground)]">#{r.number}</p>
-                    <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${r.status==="occupied" ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" : "bg-[color:var(--background)] text-[color:var(--muted)]"}`}>{r.type}</span>
+                    <p className="text-base font-bold text-[color:var(--foreground)]">#{r.roomNumber}</p>
+                    <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${!r.isAvailable ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" : "bg-[color:var(--background)] text-[color:var(--muted)]"}`}>{r.type}</span>
                   </div>
-                  {r.status === "occupied" && r.tenant ? (
+                  {!r.isAvailable ? (
                     <>
-                      <p className="text-[11px] font-semibold text-[color:var(--foreground)] truncate">{r.tenant}</p>
-                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rent.toLocaleString("en-IN")}/mo</p>
-                      <button onClick={() => setRooms((prev) => prev.map((x) => x.id===r.id ? { ...x, status: "vacant" as const, tenant: null } : x))}
-                        className="mt-auto text-[10px] font-semibold text-red-700 hover:bg-red-50 px-2 py-1.5 rounded-lg border border-red-100 transition-colors">
-                        Unassign
-                      </button>
+                      <p className="text-[10px] text-[color:var(--muted)]">Occupied · {r.occupiedBeds}/{r.capacity} beds</p>
+                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rentAmount.toLocaleString("en-IN")}/mo</p>
                     </>
-                  ) : assigningRoomId === r.id ? (
-                    <div className="flex flex-col gap-1.5">
-                      <select value={assignSelectVal} onChange={(e) => setAssignSelectVal(e.target.value)}
-                        className="text-[10px] border border-[color:var(--line)] rounded-lg px-2 py-1.5 bg-white outline-none w-full">
-                        <option value="">Select tenant…</option>
-                        {TENANTS.filter(t => !assignedTenantNames.has(t.name)).length === 0
-                          ? <option value="" disabled>No unassigned tenants</option>
-                          : TENANTS.filter(t => !assignedTenantNames.has(t.name)).map(t => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))
-                        }
-                      </select>
-                      <div className="flex gap-1">
-                        <button onClick={() => {
-                          if (!assignSelectVal) return;
-                          setRooms((prev) => prev.map((x) => x.id===r.id ? { ...x, status: "occupied" as const, tenant: assignSelectVal } : x));
-                          setAssigningRoomId(null); setAssignSelectVal("");
-                        }} className="flex-1 text-[10px] font-bold bg-[color:var(--accent-500)] text-white py-1.5 rounded-lg">Assign</button>
-                        <button onClick={() => { setAssigningRoomId(null); setAssignSelectVal(""); }} className="text-[10px] font-bold text-[color:var(--muted)] px-2 py-1.5 rounded-lg border border-[color:var(--line)]">✕</button>
-                      </div>
-                    </div>
                   ) : (
                     <>
-                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rent.toLocaleString("en-IN")}/mo</p>
-                      <button onClick={() => setAssigningRoomId(r.id)}
-                        className="mt-auto text-[10px] font-semibold text-[color:var(--accent-600)] hover:bg-[color:var(--accent-50)] px-2 py-1.5 rounded-lg border border-[color:var(--accent-200)] transition-colors">
-                        + Assign Tenant
-                      </button>
+                      <p className="text-[10px] text-[color:var(--muted)]">₹{r.rentAmount.toLocaleString("en-IN")}/mo</p>
+                      <p className="text-[10px] text-[color:var(--accent-600)] font-semibold">Available</p>
                     </>
+                  )}
+                  {r.isAvailable && (
+                    <button
+                      disabled={deletingRoomId === r.id}
+                      onClick={async () => {
+                        if (!confirm(`Delete room #${r.roomNumber}?`)) return;
+                        setDeletingRoomId(r.id);
+                        try {
+                          await api.rooms.delete(r.id);
+                          setRooms(prev => prev.filter(x => x.id !== r.id));
+                          toast.success(`Room #${r.roomNumber} deleted`);
+                        } catch {
+                          toast.error("Failed to delete room");
+                        } finally {
+                          setDeletingRoomId(null);
+                        }
+                      }}
+                      className="mt-auto text-[10px] font-semibold text-red-600 hover:text-red-700 disabled:opacity-60 flex items-center gap-1 transition-colors">
+                      {deletingRoomId === r.id ? <RefreshCw size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                      Delete
+                    </button>
                   )}
                 </div>
               ))}
@@ -651,38 +892,103 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
             {showAddTenant && (
               <div className="mx-5 mt-4 p-5 rounded-xl border border-[color:var(--accent-200)] bg-[color:var(--accent-50)]">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-bold text-[color:var(--foreground)]">Add New Tenant</h4>
+                  <h4 className="text-sm font-bold text-[color:var(--foreground)]">Invite New Tenant</h4>
                   <button onClick={() => setShowAddTenant(false)} className="text-[color:var(--muted)] hover:text-[color:var(--foreground)]"><X size={16} /></button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {[
-                    { label: "Full Name",            placeholder: "e.g. Rahul Sharma",  type: "text" },
-                    { label: "Phone",                placeholder: "+91 98765 XXXXX",    type: "text" },
-                    { label: "Email",                placeholder: "email@gmail.com",    type: "text" },
-                    { label: "Room / Bed No.",       placeholder: "e.g. 101",           type: "text" },
-                    { label: "Move-in Date",         placeholder: "DD/MM/YYYY",         type: "text" },
-                    { label: "Lease End Date",       placeholder: "DD/MM/YYYY",         type: "text" },
-                    { label: "Monthly Rent (₹)",     placeholder: String(property.rent), type: "text" },
-                    { label: "Security Deposit (₹)", placeholder: String(property.rent * 2), type: "text" },
-                    { label: "ID Type",              placeholder: "",                   type: "select" },
-                  ].map((f) => (
-                    <label key={f.label} className="block">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">{f.label}</span>
-                      {f.type === "select" ? (
-                        <select className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]">
-                          <option>Aadhar Card</option><option>PAN Card</option><option>Passport</option><option>Voter ID</option>
-                        </select>
-                      ) : (
-                        <input placeholder={f.placeholder} className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]" />
-                      )}
-                    </label>
-                  ))}
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Room *</span>
+                    <select
+                      value={inviteForm.roomId}
+                      onChange={e => setInviteForm(f => ({ ...f, roomId: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    >
+                      <option value="">Select room</option>
+                      {vacantRooms.map(r => (
+                        <option key={r.id} value={r.id}>Room {r.roomNumber} (vacant)</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Monthly Rent (₹) *</span>
+                    <input
+                      value={inviteForm.rentAmount}
+                      onChange={e => setInviteForm(f => ({ ...f, rentAmount: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Lease Start *</span>
+                    <input
+                      type="date"
+                      value={inviteForm.leaseStart}
+                      onChange={e => setInviteForm(f => ({ ...f, leaseStart: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Lease End *</span>
+                    <input
+                      type="date"
+                      value={inviteForm.leaseEnd}
+                      onChange={e => setInviteForm(f => ({ ...f, leaseEnd: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Tenant Email</span>
+                    <input
+                      type="email"
+                      placeholder="tenant@gmail.com"
+                      value={inviteForm.email}
+                      onChange={e => setInviteForm(f => ({ ...f, email: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Tenant Phone</span>
+                    <input
+                      placeholder="+91 98765 XXXXX"
+                      value={inviteForm.phone}
+                      onChange={e => setInviteForm(f => ({ ...f, phone: e.target.value }))}
+                      className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]"
+                    />
+                  </label>
                 </div>
                 <div className="flex items-center justify-between mt-4 pt-4 border-t border-[color:var(--accent-200)]">
-                  <p className="text-[11px] text-[color:var(--muted)]">Tenant will receive an onboarding SMS after adding.</p>
+                  <p className="text-[11px] text-[color:var(--muted)]">Tenant will receive an invite code to join via the app.</p>
                   <div className="flex gap-2">
                     <button onClick={() => setShowAddTenant(false)} className="text-xs font-semibold text-[color:var(--muted)] px-4 py-2 rounded-xl border border-[color:var(--line)] hover:bg-white transition-colors">Cancel</button>
-                    <button className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-5 py-2 rounded-xl transition-colors">Add Tenant</button>
+                    <button
+                      disabled={inviting}
+                      onClick={async () => {
+                        if (!inviteForm.roomId || !inviteForm.rentAmount || !inviteForm.leaseStart || !inviteForm.leaseEnd) {
+                          toast.error("Please fill in Room, Rent, Lease Start and Lease End.");
+                          return;
+                        }
+                        setInviting(true);
+                        try {
+                          const res = await api.tenants.invite(property.id, {
+                            roomId: inviteForm.roomId,
+                            rentAmount: Number(inviteForm.rentAmount),
+                            leaseStart: inviteForm.leaseStart,
+                            leaseEnd: inviteForm.leaseEnd,
+                            email: inviteForm.email || undefined,
+                            phoneNumber: inviteForm.phone || undefined,
+                          });
+                          toast.success(`Invite sent! Code: ${res.inviteCode}`);
+                          setShowAddTenant(false);
+                          setInviteForm({ roomId: "", rentAmount: String(property.price), leaseStart: "", leaseEnd: "", email: "", phone: "" });
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Failed to send invite.");
+                        } finally {
+                          setInviting(false);
+                        }
+                      }}
+                      className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-50 text-white text-xs font-semibold px-5 py-2 rounded-xl transition-colors"
+                    >
+                      {inviting ? "Sending…" : "Send Invite"}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -697,96 +1003,49 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                 </div>
               )}
               {filteredTenants.map((t) => {
-                const ext = TENANTS_EXT[t.id];
+                const initials = t.name.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
                 const isExp = expandedTenantId === t.id;
                 return (
                   <div key={t.id} className="rounded-xl border border-[color:var(--line)] overflow-hidden">
                     <button onClick={() => setExpandedTenantId(isExp ? null : t.id)}
                       className="w-full flex items-center gap-3 p-4 hover:bg-[color:var(--background)] transition-colors text-left">
-                      <Avatar initials={t.initials} size="md" />
+                      <Avatar initials={initials} size="md" />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold text-[color:var(--foreground)]">{t.name}</p>
-                          {ext?.noticeGiven && <span className="text-[9px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Notice Given</span>}
-                          {ext && !ext.idVerified && <span className="text-[9px] font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full uppercase tracking-wide">ID Pending</span>}
-                          {ext && !ext.agreementSigned && <span className="text-[9px] font-bold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full uppercase tracking-wide">Agreement Pending</span>}
-                        </div>
+                        <p className="text-sm font-bold text-[color:var(--foreground)]">{t.name}</p>
                         <p className="text-[11px] text-[color:var(--muted)] mt-0.5">
-                          Room {t.room} · Move-in {ext?.moveIn ?? "—"} · Lease ends {t.lease}
+                          Room {t.room} · Joined {t.joinDate} · ₹{t.rentAmount.toLocaleString("en-IN")}/mo
                         </p>
                       </div>
                       <div className="hidden sm:flex items-center gap-2 shrink-0">
-                        <StatusChip status={t.paid ? "paid" : "pending"} />
+                        <StatusChip status={t.isPaid ? "paid" : "pending"} />
                         <ChevronDown size={15} className={`text-[color:var(--muted)] transition-transform duration-200 ${isExp ? "rotate-180" : ""}`} />
                       </div>
                     </button>
 
-                    {isExp && ext && (
-                      <div className="bg-[color:var(--background)] border-t border-[color:var(--line)] p-5 space-y-5">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-
-                          {/* Contact */}
-                          <div className="space-y-2.5">
+                    {isExp && (
+                      <div className="bg-[color:var(--background)] border-t border-[color:var(--line)] p-5 space-y-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-2">
                             <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Contact</h5>
-                            <div className="flex items-center gap-2 text-xs"><Phone size={12} className="text-[color:var(--muted)]" />{ext.phone}</div>
-                            <div className="flex items-center gap-2 text-xs"><Mail size={12} className="text-[color:var(--muted)]" />{ext.email}</div>
-                            <div className="pt-1">
-                              <p className="text-[10px] text-[color:var(--muted)] mb-1">Emergency Contact</p>
-                              <p className="text-xs font-semibold text-[color:var(--foreground)]">{ext.emergencyName}</p>
-                              <p className="text-xs text-[color:var(--muted)]">{ext.emergencyPhone}</p>
-                            </div>
+                            <div className="flex items-center gap-2 text-xs"><Phone size={12} className="text-[color:var(--muted)]" />{t.phone || "—"}</div>
+                            <div className="flex items-center gap-2 text-xs"><Mail size={12} className="text-[color:var(--muted)]" />{t.email || "—"}</div>
                           </div>
-
-                          {/* Financials */}
-                          <div className="space-y-2.5">
+                          <div className="space-y-2">
                             <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Financials</h5>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-[color:var(--muted)]">Security Deposit</span>
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-xs font-bold text-[color:var(--foreground)]">₹{ext.deposit.toLocaleString("en-IN")}</span>
-                                <StatusChip status={ext.depositPaid ? "paid" : "pending"} />
-                              </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[color:var(--muted)]">Monthly Rent</span>
+                              <span className="font-bold">₹{t.rentAmount.toLocaleString("en-IN")}</span>
                             </div>
-                            <div>
-                              <p className="text-[10px] text-[color:var(--muted)] mb-2">Rent History</p>
-                              <div className="space-y-1.5">
-                                {ext.rentHistory.map((rh) => (
-                                  <div key={rh.month} className="flex items-center justify-between">
-                                    <span className="text-[11px] text-[color:var(--muted)]">{rh.month}</span>
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] font-semibold text-[color:var(--foreground)]">{rh.amount}</span>
-                                      <StatusChip status={rh.status} />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[color:var(--muted)]">Due Date</span>
+                              <span className="font-semibold">{t.dueDate}</span>
                             </div>
-                          </div>
-
-                          {/* Documents */}
-                          <div className="space-y-2.5">
-                            <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)]">Documents</h5>
-                            {[
-                              { label: `${ext.idType} Card`,    done: ext.idVerified,       icon: ShieldCheck },
-                              { label: "Rental Agreement",      done: ext.agreementSigned,   icon: FileText },
-                              { label: "Police Verification",   done: false,                 icon: FileText },
-                              { label: "Passport Photo",        done: true,                  icon: FileText },
-                            ].map((doc) => (
-                              <div key={doc.label} className="flex items-center justify-between">
-                                <div className="flex items-center gap-1.5 text-xs">
-                                  <doc.icon size={12} className={doc.done ? "text-[color:var(--success-700)]" : "text-[color:var(--muted)]"} />
-                                  {doc.label}
-                                </div>
-                                {doc.done
-                                  ? <span className="text-[9px] font-bold text-[color:var(--success-700)]">✓ Uploaded</span>
-                                  : <button className="text-[9px] font-bold text-[color:var(--accent-600)] hover:underline">Upload</button>
-                                }
-                              </div>
-                            ))}
+                            <div className="flex justify-between text-xs">
+                              <span className="text-[color:var(--muted)]">Status</span>
+                              <StatusChip status={t.status} />
+                            </div>
                           </div>
                         </div>
-
-                        {/* Actions */}
                         <div className="flex flex-wrap gap-2 pt-3 border-t border-[color:var(--line)]">
                           <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--accent-50)] text-[color:var(--accent-600)] hover:bg-[color:var(--accent-100)] px-3 py-2 rounded-lg transition-colors">
                             <CalendarDays size={12} /> Edit Lease
@@ -794,16 +1053,24 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                           <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--success-50)] text-[color:var(--success-700)] hover:bg-green-100 px-3 py-2 rounded-lg transition-colors">
                             <Banknote size={12} /> Record Payment
                           </button>
-                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-3 py-2 rounded-lg border border-[color:var(--line)] transition-colors">
-                            <Phone size={12} /> Send Reminder
-                          </button>
-                          {!ext.noticeGiven && (
-                            <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-orange-50 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-lg transition-colors">
-                              <AlertCircle size={12} /> Initiate Notice
-                            </button>
-                          )}
-                          <button className="flex items-center gap-1.5 text-[11px] font-semibold bg-red-50 text-red-700 hover:bg-red-100 px-3 py-2 rounded-lg transition-colors ml-auto">
-                            <UserX size={12} /> Remove Tenant
+                          <button
+                            disabled={removingTenantId === t.id}
+                            onClick={async () => {
+                              if (!confirm(`Remove ${t.name} from this property?`)) return;
+                              setRemovingTenantId(t.id);
+                              try {
+                                await api.tenants.remove(t.id);
+                                setPropertyTenants(prev => prev.filter(x => x.id !== t.id));
+                                toast.success("Tenant removed");
+                              } catch {
+                                toast.error("Failed to remove tenant");
+                              } finally {
+                                setRemovingTenantId(null);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 text-[11px] font-semibold bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-60 px-3 py-2 rounded-lg transition-colors ml-auto">
+                            {removingTenantId === t.id ? <RefreshCw size={12} className="animate-spin" /> : <UserX size={12} />}
+                            {removingTenantId === t.id ? "Removing…" : "Remove Tenant"}
                           </button>
                         </div>
                       </div>
@@ -820,7 +1087,7 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
           <div>
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-[color:var(--line)]">
               <div className="flex gap-1.5 overflow-x-auto">
-                {(["all", "pending", "in_progress", "resolved"] as const).map((f) => (
+                {(["all", "open", "in_progress", "resolved"] as const).map((f) => (
                   <button key={f} onClick={() => setMFilter(f)}
                     className={`text-[11px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap transition-colors ${mFilter===f ? "bg-[color:var(--accent-500)] text-white" : "bg-[color:var(--background)] text-[color:var(--muted)] hover:text-[color:var(--foreground)]"}`}>
                     {f==="all" ? `All (${allTickets.length})` : f==="in_progress" ? "In Progress" : f.charAt(0).toUpperCase()+f.slice(1)}
@@ -842,8 +1109,10 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
             <div className="p-3 space-y-2 pt-3">
               {filteredTickets.map((m) => {
                 const st = ticketStatuses[m.id] ?? m.status;
-                const ext = MAINTENANCE_EXT[m.id];
                 const isExp = expandedTicketId === m.id;
+                const dateStr = m.createdAt
+                  ? new Date(m.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                  : "";
                 return (
                   <div key={m.id} className="rounded-xl border border-[color:var(--line)] overflow-hidden">
                     <button onClick={() => { setExpandedTicketId(isExp ? null : m.id); setNoteText(""); }}
@@ -851,7 +1120,7 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                       <div className={`w-1.5 h-10 rounded-full shrink-0 ${st==="resolved" ? "bg-[color:var(--success)]" : st==="in_progress" ? "bg-[color:var(--trust)]" : "bg-[color:var(--warning)]"}`} />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-semibold text-[color:var(--foreground)]">{m.title}</p>
-                        <p className="text-[11px] text-[color:var(--muted)] mt-0.5">{m.category} · {m.date}{ext?.assignee ? ` · ${ext.assignee}` : " · Unassigned"}</p>
+                        <p className="text-[11px] text-[color:var(--muted)] mt-0.5">{dateStr} · Unassigned</p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <StatusChip status={m.priority} />
@@ -860,53 +1129,37 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
                       </div>
                     </button>
 
-                    {isExp && ext && (
+                    {isExp && (
                       <div className="bg-[color:var(--background)] border-t border-[color:var(--line)] p-5 space-y-4">
-                        <p className="text-xs text-[color:var(--foreground)] leading-relaxed">{ext.description}</p>
+                        {m.description && <p className="text-xs text-[color:var(--foreground)] leading-relaxed">{m.description}</p>}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
                             <label className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] block mb-1">Assignee</label>
-                            <input defaultValue={ext.assignee ?? ""} placeholder="e.g. Ramu (Electrician)"
+                            <input defaultValue="" placeholder="e.g. Ramu (Electrician)"
                               className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]" />
                           </div>
                           <div>
                             <label className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] block mb-1">Status</label>
-                            <select value={st} onChange={(e) => setTicketStatuses((prev) => ({ ...prev, [m.id]: e.target.value }))}
+                            <select value={st} onChange={async (e) => {
+                              const newStatus = e.target.value as ApiMaintenanceRequest["status"];
+                              setTicketStatuses(prev => ({ ...prev, [m.id]: newStatus }));
+                              await api.maintenance.update(m.id, { status: newStatus }).catch(() => {});
+                            }}
                               className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2 text-sm bg-white outline-none focus:border-[color:var(--accent-400)]">
-                              <option value="pending">Pending</option>
+                              <option value="open">Open</option>
                               <option value="in_progress">In Progress</option>
                               <option value="resolved">Resolved</option>
                             </select>
                           </div>
                         </div>
-
-                        <div>
-                          <h5 className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-3">Activity</h5>
-                          <div className="space-y-3">
-                            {ext.comments.map((c, i) => (
-                              <div key={i} className="flex gap-2.5">
-                                <div className="w-6 h-6 rounded-full bg-[color:var(--accent-100)] text-[color:var(--accent-700)] flex items-center justify-center text-[9px] font-bold shrink-0">
-                                  {c.author.split(" ").map((w) => w[0]).join("")}
-                                </div>
-                                <div className="flex-1 bg-white rounded-xl border border-[color:var(--line)] px-3 py-2">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-[10px] font-bold text-[color:var(--foreground)]">{c.author}</span>
-                                    <span className="text-[10px] text-[color:var(--muted)]">{c.time}</span>
-                                  </div>
-                                  <p className="text-[11px] text-[color:var(--foreground)]">{c.text}</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <input value={noteText} onChange={(e) => setNoteText(e.target.value)}
-                              placeholder="Add a note or update…"
-                              className="flex-1 border border-[color:var(--line)] rounded-xl px-3 py-2 text-xs bg-white outline-none focus:border-[color:var(--accent-400)]" />
-                            <button onClick={() => setNoteText("")}
-                              className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-[11px] font-bold px-3 py-2 rounded-xl transition-colors">
-                              Post
-                            </button>
-                          </div>
+                        <div className="flex gap-2 mt-2">
+                          <input value={noteText} onChange={(e) => setNoteText(e.target.value)}
+                            placeholder="Add a note or update…"
+                            className="flex-1 border border-[color:var(--line)] rounded-xl px-3 py-2 text-xs bg-white outline-none focus:border-[color:var(--accent-400)]" />
+                          <button onClick={() => setNoteText("")}
+                            className="bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-[11px] font-bold px-3 py-2 rounded-xl transition-colors">
+                            Post
+                          </button>
                         </div>
                       </div>
                     )}
@@ -922,21 +1175,37 @@ function ManagePropertyView({ property, onBack }: { property: Property; onBack: 
   );
 }
 
-function PropertiesTab({ initialPropId }: { initialPropId?: string | null }) {
+function PropertiesTab({ initialPropId, properties }: { initialPropId?: string | null; properties: Property[] }) {
   const [managingId, setManagingId] = useState<string | null>(initialPropId ?? null);
-  const managing = PROPERTIES.find((p) => p.id === managingId);
+  const managing = properties.find((p) => p.id === managingId);
 
   if (managing) {
     return <ManagePropertyView property={managing} onBack={() => setManagingId(null)} />;
   }
 
+  if (properties.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-20 text-center bg-white rounded-2xl border border-[color:var(--line)]">
+        <div className="w-14 h-14 rounded-2xl bg-[color:var(--background)] flex items-center justify-center">
+          <Building2 size={24} strokeWidth={1.5} className="text-[color:var(--muted)]" />
+        </div>
+        <div>
+          <p className="font-semibold text-[color:var(--foreground)]">No properties yet</p>
+          <p className="text-sm text-[color:var(--muted)] mt-1 max-w-xs">Add your first property to start managing rooms, tenants, and payments.</p>
+        </div>
+        <button className="mt-1 flex items-center gap-2 rounded-full bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] px-6 py-2.5 text-sm font-semibold text-white transition-colors">
+          <Plus size={15} strokeWidth={2.5} /> Add Property
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-      {PROPERTIES.map((p) => (
+      {properties.map((p) => (
         <div key={p.id} className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
-          {/* Cover image */}
-          {p.image ? (
-            <img src={p.image} alt={p.name} className="w-full h-36 object-cover" />
+          {p.imageUrl ? (
+            <img src={p.imageUrl} alt={p.title} className="w-full h-36 object-cover" />
           ) : (
             <div className="w-full h-36 bg-gradient-to-br from-violet-900 via-violet-800 to-indigo-900 flex items-center justify-center">
               <Building2 size={36} strokeWidth={1.25} className="text-white/40" />
@@ -945,28 +1214,28 @@ function PropertiesTab({ initialPropId }: { initialPropId?: string | null }) {
           <div className="p-5 flex flex-col flex-1">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="text-sm font-bold text-[color:var(--foreground)]">{p.name}</h3>
-                <p className="text-xs text-[color:var(--muted)] mt-0.5">{p.address}</p>
+                <h3 className="text-sm font-bold text-[color:var(--foreground)]">{p.title}</h3>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">{p.location}</p>
               </div>
-              <StatusChip status={p.pending > 0 ? "pending" : "paid"} />
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[color:var(--background)] text-[color:var(--muted)]">{p.type}</span>
             </div>
             <div className="grid grid-cols-3 gap-2 text-center mb-4">
               <div className="bg-[color:var(--background)] rounded-xl py-2">
-                <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds}</p>
+                <p className="text-base font-bold text-[color:var(--foreground)]">{p.totalRooms}</p>
                 <p className="text-[10px] text-[color:var(--muted)]">Total</p>
               </div>
               <div className="bg-[color:var(--accent-50)] rounded-xl py-2">
-                <p className="text-base font-bold text-[color:var(--accent-700)]">{p.occupied}</p>
+                <p className="text-base font-bold text-[color:var(--accent-700)]">{p.occupiedRooms}</p>
                 <p className="text-[10px] text-[color:var(--accent-600)]">Occupied</p>
               </div>
               <div className="bg-[color:var(--background)] rounded-xl py-2">
-                <p className="text-base font-bold text-[color:var(--foreground)]">{p.beds - p.occupied}</p>
+                <p className="text-base font-bold text-[color:var(--foreground)]">{p.totalRooms - p.occupiedRooms}</p>
                 <p className="text-[10px] text-[color:var(--muted)]">Vacant</p>
               </div>
             </div>
             <div className="flex items-center justify-between mt-auto pt-4 border-t border-[color:var(--line)]">
               <p className="text-xs text-[color:var(--muted)]">
-                Rent: <span className="font-semibold text-[color:var(--foreground)]">₹{p.rent.toLocaleString("en-IN")}/bed</span>
+                From: <span className="font-semibold text-[color:var(--foreground)]">₹{p.price.toLocaleString("en-IN")}/mo</span>
               </p>
               <button
                 onClick={() => setManagingId(p.id)}
@@ -987,45 +1256,31 @@ function PropertiesTab({ initialPropId }: { initialPropId?: string | null }) {
   );
 }
 
-function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
-  tenantId: string; onBack: () => void; onViewInOrg?: () => void;
+function TenantProfileView({ tenant, onBack, onViewInOrg }: {
+  tenant: ApiTenant; onBack: () => void; onViewInOrg?: () => void;
 }) {
-  const [activeTab, setActiveTab] = useState<"overview" | "documents" | "payment">("overview");
-  const t   = TENANTS.find(x => x.id === tenantId);
-  const ext = TENANTS_EXT[tenantId];
-  const docs = TENANT_DOCS[tenantId] ?? [];
-  if (!t || !ext) return null;
+  const [activeTab, setActiveTab] = useState<"overview" | "payment">("overview");
+  const [tenantPayments, setTenantPayments] = useState<ApiPayment[] | null>(null);
 
-  // Resolve actual room / floor / property from the structural data
-  let actualRoom: typeof PROPERTY_ROOMS["p1"][0] | undefined;
-  let actualPropId: string | undefined;
-  for (const [pid, rooms] of Object.entries(PROPERTY_ROOMS)) {
-    const found = rooms.find(r => r.tenant === t.name);
-    if (found) { actualRoom = found; actualPropId = pid; break; }
-  }
-  const actualProp  = actualPropId ? PROPERTIES.find(p => p.id === actualPropId) : null;
-  const actualFloor = (actualPropId && actualRoom)
-    ? (PROPERTY_FLOORS[actualPropId] ?? []).find(fl => fl.roomIds.includes(actualRoom!.id))
-    : null;
+  useEffect(() => {
+    api.payments.list({ propertyId: tenant.propertyId, limit: 24 })
+      .then(r => setTenantPayments(r.data.filter(p => p.tenantId === tenant.id || p.tenantName === tenant.name)))
+      .catch(() => {});
+  }, [tenant.id, tenant.propertyId, tenant.name]);
 
-  const total        = ext.rentHistory.length;
-  const paidCount    = ext.rentHistory.filter(r => r.status === "paid").length;
-  const overdueCount = ext.rentHistory.filter(r => r.status === "overdue").length;
-  const onTimeRate   = Math.round((paidCount / total) * 100);
-  const totalPaidAmt = ext.rentHistory
-    .filter(r => r.status === "paid")
-    .reduce((s, r) => s + r.amount, 0);
-  const verifiedDocs = docs.filter(d => d.status === "verified").length;
-  const pendingDocs  = docs.filter(d => d.status === "pending").length;
-  const missingDocs  = docs.filter(d => d.status === "missing").length;
-  const chartData    = [...ext.rentHistory].reverse();
+  const initials = tenant.name.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase();
+  const paidPayments    = (tenantPayments ?? []).filter(p => p.status === "paid");
+  const overduePayments = (tenantPayments ?? []).filter(p => p.status === "overdue");
+  const totalPaidAmt    = paidPayments.reduce((s, p) => s + p.amount, 0);
+  const onTimeRate      = tenantPayments && tenantPayments.length > 0
+    ? Math.round((paidPayments.length / tenantPayments.length) * 100)
+    : 0;
 
   const statsStrip = [
-    { label: "Move-in",      value: ext.moveIn,                                   sub: "Lease until " + t.lease },
-    { label: "Monthly Rent", value: ext.rentHistory[0]?.amount ?? "—",           sub: "Current" },
-    { label: "Total Paid",   value: "₹" + totalPaidAmt.toLocaleString("en-IN"),  sub: paidCount + " months" },
-    { label: "Deposit",      value: ext.depositPaid ? "₹" + ext.deposit.toLocaleString("en-IN") : "Pending",
-                             sub: ext.depositPaid ? "Received" : "Not received" },
+    { label: "Joined",        value: tenant.joinDate,                              sub: "Move-in date" },
+    { label: "Monthly Rent",  value: `₹${tenant.rentAmount.toLocaleString("en-IN")}`, sub: "Current" },
+    { label: "Total Paid",    value: `₹${totalPaidAmt.toLocaleString("en-IN")}`,   sub: `${paidPayments.length} payments` },
+    { label: "Status",        value: tenant.isPaid ? "Paid" : "Pending",           sub: tenant.status },
   ];
 
   return (
@@ -1036,24 +1291,15 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
           <ArrowLeft size={13} /> All Tenants
         </button>
         <span>/</span>
-        <span className="text-[color:var(--foreground)] font-semibold truncate">{t.name}</span>
+        <span className="text-[color:var(--foreground)] font-semibold truncate">{tenant.name}</span>
       </div>
 
       {/* ── Hero card ─────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm">
-        {/* Gradient banner — overflow-hidden here clips gradient to rounded top corners */}
         <div className="h-28 rounded-t-2xl overflow-hidden relative" style={{ background: "linear-gradient(135deg,#7c3aed 0%,#4f46e5 55%,#2563eb 100%)" }}>
-          {ext.noticeGiven && (
+          {!tenant.isPaid && (
             <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow">
-              <AlertCircle size={10} /> Notice Period
-            </div>
-          )}
-          {actualProp && (
-            <div className="absolute bottom-3 left-5 flex items-center gap-1 text-white/70 text-[10px]">
-              <Landmark size={9} />
-              <span className="ml-1">{actualProp.name}</span>
-              {actualFloor && <><ChevronRight size={9} /><span>{actualFloor.label}</span></>}
-              {actualRoom  && <><ChevronRight size={9} /><span>Room {actualRoom.number}</span></>}
+              <AlertCircle size={10} /> Rent Pending
             </div>
           )}
         </div>
@@ -1061,18 +1307,18 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
           <div className="flex items-end justify-between -mt-10 mb-4">
             <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-lg flex items-center justify-center text-white text-xl font-bold shrink-0"
               style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}>
-              {t.initials}
+              {initials}
             </div>
             <div className="flex gap-2 mb-1 flex-wrap justify-end">
-              <a href={`tel:${ext.phone}`}
+              <a href={`tel:${tenant.phone}`}
                 className="flex items-center gap-1.5 text-[11px] font-semibold bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg transition-colors">
                 <Phone size={11} /> Call
               </a>
-              <a href={`mailto:${ext.email}`}
+              <a href={`mailto:${tenant.email}`}
                 className="flex items-center gap-1.5 text-[11px] font-semibold border border-[color:var(--line)] hover:bg-slate-50 text-[color:var(--foreground)] px-3 py-1.5 rounded-lg transition-colors">
                 <Mail size={11} /> Email
               </a>
-              <a href={`https://wa.me/${ext.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
+              <a href={`https://wa.me/${tenant.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer"
                 className="flex items-center gap-1.5 text-[11px] font-semibold bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg transition-colors">
                 <Send size={11} /> WhatsApp
               </a>
@@ -1084,23 +1330,11 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
               )}
             </div>
           </div>
-          <h2 className="text-base font-bold text-[color:var(--foreground)]">{t.name}</h2>
-          <p className="text-xs text-[color:var(--muted)] mb-3">
-            {actualProp?.name ?? t.property} · {actualRoom ? `Room ${actualRoom.number} · ${actualRoom.type}` : `Room ${t.room}`}
-          </p>
+          <h2 className="text-base font-bold text-[color:var(--foreground)]">{tenant.name}</h2>
+          <p className="text-xs text-[color:var(--muted)] mb-3">Room {tenant.room}</p>
           <div className="flex gap-2 flex-wrap">
-            <StatusChip status={t.paid ? "paid" : "pending"} />
-            <StatusChip status={t.risk} />
-            {ext.idVerified && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                <ShieldCheck size={9} /> ID Verified
-              </span>
-            )}
-            {ext.agreementSigned && (
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
-                <FileText size={9} /> Agreement Signed
-              </span>
-            )}
+            <StatusChip status={tenant.isPaid ? "paid" : "pending"} />
+            <StatusChip status={tenant.status} />
           </div>
         </div>
       </div>
@@ -1120,14 +1354,14 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
       <div className="bg-white rounded-2xl border border-[color:var(--line)] overflow-hidden shadow-sm">
         {/* Tab bar */}
         <div className="flex border-b border-[color:var(--line)] px-1 pt-1 gap-0.5 bg-[color:var(--background)]">
-          {(["overview", "documents", "payment"] as const).map(tab => (
+          {(["overview", "payment"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={`px-5 py-2.5 text-[11px] font-semibold rounded-t-lg transition-colors ${
                 activeTab === tab
                   ? "bg-white text-violet-600 border-x border-t border-[color:var(--line)] -mb-px"
                   : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]"
               }`}>
-              {tab === "payment" ? "Payment History" : tab === "overview" ? "Overview" : "Documents"}
+              {tab === "payment" ? "Payment History" : "Overview"}
             </button>
           ))}
         </div>
@@ -1144,11 +1378,10 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
                     <BedDouble size={13} className="text-violet-600" /> Room & Lease
                   </h4>
                   {[
-                    { label: "Property",  value: actualProp?.name ?? t.property },
-                    { label: "Floor",     value: actualFloor?.label ?? "—" },
-                    { label: "Room No.",  value: actualRoom ? `${actualRoom.number} · ${actualRoom.type}` : t.room },
-                    { label: "Move-in",   value: ext.moveIn },
-                    { label: "Lease End", value: t.lease },
+                    { label: "Room No.",  value: tenant.room },
+                    { label: "Move-in",   value: tenant.joinDate },
+                    { label: "Rent Due",  value: tenant.dueDate },
+                    { label: "Rent",      value: `₹${tenant.rentAmount.toLocaleString("en-IN")}/mo` },
                   ].map(row => (
                     <div key={row.label} className="flex items-center justify-between py-2 border-b border-[color:var(--line)] last:border-0">
                       <span className="text-[11px] text-[color:var(--muted)]">{row.label}</span>
@@ -1162,10 +1395,8 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
                     <Phone size={13} className="text-violet-600" /> Contact
                   </h4>
                   {[
-                    { label: "Phone",        value: ext.phone },
-                    { label: "Email",        value: ext.email },
-                    { label: "Emergency",    value: ext.emergencyName },
-                    { label: "Emrg. Phone", value: ext.emergencyPhone },
+                    { label: "Phone", value: tenant.phone },
+                    { label: "Email", value: tenant.email },
                   ].map(row => (
                     <div key={row.label} className="flex items-center justify-between py-2 border-b border-[color:var(--line)] last:border-0">
                       <span className="text-[11px] text-[color:var(--muted)]">{row.label}</span>
@@ -1173,91 +1404,6 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
                     </div>
                   ))}
                 </div>
-              </div>
-              {/* Verification checklist */}
-              <div>
-                <h4 className="text-xs font-bold text-[color:var(--foreground)] mb-3 flex items-center gap-2">
-                  <ShieldCheck size={13} className="text-violet-600" /> Verification Status
-                </h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {[
-                    { label: `${ext.idType} Verified`, ok: ext.idVerified },
-                    { label: "Agreement Signed",        ok: ext.agreementSigned },
-                    { label: "Deposit Paid",            ok: ext.depositPaid },
-                    { label: "Notice Given",            ok: ext.noticeGiven },
-                  ].map(row => (
-                    <div key={row.label} className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-[11px] font-medium ${
-                      row.ok
-                        ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : "bg-[color:var(--background)] border-[color:var(--line)] text-[color:var(--muted)]"
-                    }`}>
-                      {row.ok ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                      {row.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Documents ───────────────────────────────────────────────── */}
-          {activeTab === "documents" && (
-            <div className="space-y-4">
-              <div className="flex gap-3 flex-wrap">
-                <span className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
-                  <CheckCircle2 size={11} /> {verifiedDocs} Verified
-                </span>
-                {pendingDocs > 0 && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-                    <Clock size={11} /> {pendingDocs} Awaiting Review
-                  </span>
-                )}
-                {missingDocs > 0 && (
-                  <span className="flex items-center gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg">
-                    <AlertCircle size={11} /> {missingDocs} Missing
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {docs.map(doc => (
-                  <div key={doc.type} className={`p-4 rounded-xl border flex flex-col gap-2.5 ${
-                    doc.status === "verified" ? "bg-white border-[color:var(--line)]"
-                    : doc.status === "pending" ? "bg-amber-50 border-amber-200"
-                    : "bg-red-50 border-red-200 border-dashed"
-                  }`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                        doc.status === "verified" ? "bg-emerald-100"
-                        : doc.status === "pending" ? "bg-amber-100" : "bg-red-100"
-                      }`}>
-                        <FileText size={14} className={
-                          doc.status === "verified" ? "text-emerald-600"
-                          : doc.status === "pending" ? "text-amber-600" : "text-red-600"
-                        } />
-                      </div>
-                      {doc.status === "verified" && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
-                      {doc.status === "pending"  && <Clock size={14} className="text-amber-500 shrink-0" />}
-                      {doc.status === "missing"  && <AlertCircle size={14} className="text-red-500 shrink-0" />}
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-semibold text-[color:var(--foreground)]">{doc.type}</p>
-                      <p className="text-[10px] text-[color:var(--muted)] mt-0.5">
-                        {doc.status === "verified" ? `Uploaded ${doc.uploadedOn}`
-                          : doc.status === "pending" ? "Awaiting review" : "Not uploaded"}
-                      </p>
-                    </div>
-                    {doc.status === "verified" && (
-                      <button className="self-start flex items-center gap-1 text-[10px] font-semibold text-violet-600 hover:text-violet-700 transition-colors">
-                        <Eye size={10} /> View
-                      </button>
-                    )}
-                    {doc.status === "missing" && (
-                      <button className="self-start flex items-center gap-1 text-[10px] font-semibold text-red-600 hover:text-red-700 transition-colors">
-                        <Send size={10} /> Request
-                      </button>
-                    )}
-                  </div>
-                ))}
               </div>
             </div>
           )}
@@ -1272,7 +1418,7 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
                   <p className="text-[10px] text-[color:var(--muted)] mt-0.5">Total Collected</p>
                 </div>
                 <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3 text-center">
-                  <p className="text-xs font-bold text-red-600">{overdueCount}</p>
+                  <p className="text-xs font-bold text-red-600">{overduePayments.length}</p>
                   <p className="text-[10px] text-[color:var(--muted)] mt-0.5">Overdue Months</p>
                 </div>
                 <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 text-center">
@@ -1281,59 +1427,35 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
                 </div>
               </div>
 
-              {/* Div-based bar chart */}
-              <div className="bg-[color:var(--background)] rounded-xl p-4">
-                <p className="text-[10px] font-bold text-[color:var(--muted)] uppercase tracking-wide mb-3">6-Month Payment Trend</p>
-                <div className="flex items-end gap-2" style={{ height: 72 }}>
-                  {chartData.map(r => {
-                    const bg = r.status === "paid" ? "#7c3aed" : r.status === "overdue" ? "#ef4444" : "#f59e0b";
-                    const h  = r.status === "paid" ? 72 : r.status === "overdue" ? 58 : 36;
-                    return (
-                      <div key={r.month} className="flex-1 rounded-sm transition-all"
-                        style={{ height: h, background: bg, opacity: r.status === "paid" ? 1 : 0.8 }} />
-                    );
-                  })}
-                </div>
-                <div className="flex gap-2 mt-1.5">
-                  {chartData.map(r => (
-                    <div key={r.month} className="flex-1 text-center">
-                      <span className="text-[9px] text-[color:var(--muted)]">{r.month.split(" ")[0].slice(0, 3)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-4 mt-3 flex-wrap">
-                  {[{ color: "#7c3aed", label: "Paid" }, { color: "#f59e0b", label: "Pending" }, { color: "#ef4444", label: "Overdue" }].map(l => (
-                    <span key={l.label} className="flex items-center gap-1.5 text-[10px] text-[color:var(--muted)]">
-                      <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: l.color }} />
-                      {l.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
               {/* Detailed table */}
-              <div className="overflow-x-auto rounded-xl border border-[color:var(--line)]">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-[color:var(--background)]">
-                      {["Month", "Amount", "Paid On", "Status", "Ref #"].map(h => (
-                        <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[color:var(--line)]">
-                    {ext.rentHistory.map(rh => (
-                      <tr key={rh.month} className="hover:bg-[color:var(--background)] transition-colors">
-                        <td className="px-4 py-3 text-[11px] text-[color:var(--foreground)] whitespace-nowrap">{rh.month}</td>
-                        <td className="px-4 py-3 text-[11px] font-semibold text-[color:var(--foreground)]">{rh.amount}</td>
-                        <td className="px-4 py-3 text-[11px] text-[color:var(--muted)] whitespace-nowrap">{rh.paidOn ?? "—"}</td>
-                        <td className="px-4 py-3"><StatusChip status={rh.status} /></td>
-                        <td className="px-4 py-3 text-[11px] text-[color:var(--muted)] font-mono">{rh.ref ?? "—"}</td>
+              {tenantPayments === null ? (
+                <p className="text-xs text-[color:var(--muted)] text-center py-8">Loading…</p>
+              ) : tenantPayments.length === 0 ? (
+                <p className="text-xs text-[color:var(--muted)] text-center py-8">No payment records found.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-[color:var(--line)]">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="bg-[color:var(--background)]">
+                        {["Title", "Amount", "Date", "Status", "Mode"].map(h => (
+                          <th key={h} className="px-4 py-3 text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] whitespace-nowrap">{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-[color:var(--line)]">
+                      {tenantPayments.map(p => (
+                        <tr key={p.id} className="hover:bg-[color:var(--background)] transition-colors">
+                          <td className="px-4 py-3 text-[11px] text-[color:var(--foreground)] whitespace-nowrap">{p.title}</td>
+                          <td className="px-4 py-3 text-[11px] font-semibold text-[color:var(--foreground)]">₹{p.amount.toLocaleString("en-IN")}</td>
+                          <td className="px-4 py-3 text-[11px] text-[color:var(--muted)] whitespace-nowrap">{p.date}</td>
+                          <td className="px-4 py-3"><StatusChip status={p.status} /></td>
+                          <td className="px-4 py-3 text-[11px] text-[color:var(--muted)]">{p.collectionMode}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -1345,11 +1467,41 @@ function TenantProfileView({ tenantId, onBack, onViewInOrg }: {
 
 function TenantsTab({ initialTenantId, onNav }: { initialTenantId?: string | null; onNav?: (tab: string) => void }) {
   const [profileId, setProfileId] = useState<string | null>(initialTenantId ?? null);
+  const [apiTenants, setApiTenants] = useState<ApiTenant[] | null>(null);
+  const [propNameMap, setPropNameMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const propsRes = await api.properties.list();
+        const props = propsRes.data;
+        const map: Record<string, string> = {};
+        props.forEach((p) => { map[p.id] = p.title; });
+        setPropNameMap(map);
+        const perProp = await Promise.all(props.map((p) => api.tenants.list(p.id).then((r) => r.data)));
+        setApiTenants(perProp.flat());
+      } catch { setApiTenants([]); }
+    }
+    load();
+  }, []);
+
+  const displayTenants = (apiTenants ?? []).map((t) => ({
+    id:       t.id,
+    name:     t.name,
+    initials: t.name.split(" ").map((s: string) => s[0]).join("").slice(0, 2).toUpperCase(),
+    property: propNameMap[t.propertyId] ?? t.propertyId,
+    room:     t.room,
+    lease:    t.dueDate,
+    paid:     t.isPaid,
+    risk:     t.status === "overdue" ? "late" : t.status === "pending" ? "expiring" : "none",
+  }));
 
   if (profileId) {
+    const profileTenant = (apiTenants ?? []).find((t) => t.id === profileId);
+    if (!profileTenant) return null;
     return (
       <TenantProfileView
-        tenantId={profileId}
+        tenant={profileTenant}
         onBack={() => setProfileId(null)}
         onViewInOrg={onNav ? () => onNav("organization") : undefined}
       />
@@ -1377,7 +1529,15 @@ function TenantsTab({ initialTenantId, onNav }: { initialTenantId?: string | nul
             </tr>
           </thead>
           <tbody className="divide-y divide-[color:var(--line)]">
-            {TENANTS.map((t) => (
+            {displayTenants.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-6 py-12 text-center">
+                  <p className="text-sm font-medium text-slate-500">No tenants yet</p>
+                  <p className="text-xs text-slate-400 mt-1">Invite a tenant to a room to get started.</p>
+                </td>
+              </tr>
+            )}
+            {displayTenants.map((t) => (
               <tr key={t.id} className="hover:bg-[color:var(--background)] transition-colors">
                 <td className="px-6 py-3.5">
                   <div className="flex items-center gap-2.5">
@@ -1404,12 +1564,12 @@ function TenantsTab({ initialTenantId, onNav }: { initialTenantId?: string | nul
   );
 }
 
-function PaymentsTab({ stats }: { stats: any }) {
+function PaymentsTab({ stats, transactions }: { stats: DashStats; transactions: TxItem[] }) {
   const { financials } = stats;
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {financials.map((s: any) => (
+        {financials.map((s: FinancialItem) => (
           <div key={s.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
             <p className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-2">{s.label}</p>
             <p className={`text-2xl font-bold ${
@@ -1437,7 +1597,7 @@ function PaymentsTab({ stats }: { stats: any }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--line)]">
-              {TRANSACTIONS.map((tx) => (
+              {transactions.map((tx) => (
                 <tr key={tx.id} className="hover:bg-[color:var(--background)] transition-colors">
                   <td className="px-6 py-3.5"><div className="flex items-center gap-2.5"><Avatar initials={tx.initials} size="sm" /><span className="text-xs font-semibold">{tx.name}</span></div></td>
                   <td className="px-6 py-3.5 text-xs text-[color:var(--muted)]">{tx.property}</td>
@@ -1455,29 +1615,56 @@ function PaymentsTab({ stats }: { stats: any }) {
 }
 
 function MaintenanceTab() {
-  const pendingCount = MAINTENANCE.filter(m => m.status === "pending").length;
+  const [tickets, setTickets] = useState<ApiMaintenanceRequest[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const propsRes = await api.properties.list();
+        const results = await Promise.allSettled(
+          propsRes.data.map(p => api.maintenance.list(p.id, { limit: 50 }))
+        );
+        const combined: ApiMaintenanceRequest[] = results.flatMap(r =>
+          r.status === "fulfilled" ? r.value.data : []
+        );
+        setTickets(combined);
+      } finally {
+        setLoadingTickets(false);
+      }
+    }
+    load();
+  }, []);
+
+  const displayTickets = tickets;
+
+  const openCount = displayTickets.filter(m => m.status === "open" || m.status === "in_progress").length;
+
   return (
     <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-[color:var(--line)]">
         <h3 className="text-sm font-bold text-[color:var(--foreground)]">Maintenance Requests</h3>
         <div className="flex items-center gap-2 text-xs text-[color:var(--muted)]">
-          <span className="w-2 h-2 rounded-full bg-[color:var(--error)]" /> {pendingCount} pending
+          <span className="w-2 h-2 rounded-full bg-[color:var(--error)]" /> {loadingTickets ? "…" : openCount} open
         </div>
       </div>
       <div className="divide-y divide-[color:var(--line)]">
-        {MAINTENANCE.map((m) => (
+        {loadingTickets ? (
+          <div className="px-6 py-8 text-center text-xs text-[color:var(--muted)]">Loading…</div>
+        ) : displayTickets.map((m) => (
           <div key={m.id} className="flex items-center gap-4 px-6 py-4 hover:bg-[color:var(--background)] transition-colors">
             <div className={`w-2 h-10 rounded-full shrink-0 ${
-              m.status === "resolved" ? "bg-[color:var(--success)]" :
+              m.status === "resolved" || m.status === "closed" ? "bg-[color:var(--success)]" :
               m.status === "in_progress" ? "bg-[color:var(--trust)]" :
               "bg-[color:var(--warning)]"
             }`} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-[color:var(--foreground)]">{m.title}</p>
-              <p className="text-[11px] text-[color:var(--muted)]">{m.property}</p>
+              <p className="text-[11px] text-[color:var(--muted)]">{m.description || m.propertyId}</p>
             </div>
-            <span className="text-[10px] font-medium text-[color:var(--muted)] bg-[color:var(--background)] px-2 py-0.5 rounded-full hidden sm:block">{m.category}</span>
-            <span className="text-[10px] text-[color:var(--muted)] hidden md:block">{m.date}</span>
+            <span className="text-[10px] text-[color:var(--muted)] hidden md:block">
+              {m.createdAt ? new Date(m.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : ""}
+            </span>
             <StatusChip status={m.status} />
             <StatusChip status={m.priority} />
           </div>
@@ -1488,59 +1675,429 @@ function MaintenanceTab() {
 }
 
 function ReportsTab() {
+  const [report, setReport] = useState<PropertyReport | null>(null);
+  const [loadingReport, setLoadingReport] = useState(true);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [propsLoading, setPropsLoading] = useState(true);
+  const [selectedPropId, setSelectedPropId] = useState("");
+
+  useEffect(() => {
+    api.properties.list()
+      .then(r => {
+        setProperties(r.data);
+        if (r.data.length > 0) setSelectedPropId(r.data[0].id);
+      })
+      .catch(() => {})
+      .finally(() => setPropsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedPropId) return;
+    setLoadingReport(true);
+    api.reports.property(selectedPropId)
+      .then(r => setReport(r))
+      .catch(() => setReport(null))
+      .finally(() => setLoadingReport(false));
+  }, [selectedPropId]);
+
+  const propTitle = properties.find(p => p.id === selectedPropId)?.title ?? selectedPropId;
+
+  if (propsLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] p-10 shadow-sm flex items-center justify-center">
+        <p className="text-xs text-[color:var(--muted)]">Loading…</p>
+      </div>
+    );
+  }
+
+  if (properties.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] p-10 shadow-sm flex flex-col items-center justify-center gap-3">
+        <BarChart3 size={32} className="text-slate-300" />
+        <p className="text-sm font-medium text-slate-500">No properties yet</p>
+        <p className="text-xs text-slate-400">Add a property to start seeing reports and analytics.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-[color:var(--line)] p-8 shadow-sm flex flex-col items-center justify-center gap-4 min-h-[300px] text-center">
-      <div className="w-14 h-14 rounded-2xl bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--accent-600)]">
-        <BarChart3 size={26} strokeWidth={1.5} />
+    <div className="space-y-5">
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-[color:var(--foreground)]">Reports & Analytics — {propTitle}</h3>
+          <select
+            value={selectedPropId}
+            onChange={e => setSelectedPropId(e.target.value)}
+            className="text-xs border border-[color:var(--line)] rounded-lg px-3 py-1.5 text-[color:var(--muted)] bg-[color:var(--background)] outline-none"
+          >
+            {properties.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}
+          </select>
+        </div>
+
+        {loadingReport ? (
+          <div className="py-8 text-center text-xs text-[color:var(--muted)]">Loading…</div>
+        ) : report ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-5">
+            {[
+              { label: "Collected",      value: `₹${report.totalCollected.toLocaleString("en-IN")}`,       color: "text-[color:var(--success-700)]" },
+              { label: "Pending",        value: `₹${report.totalPending.toLocaleString("en-IN")}`,         color: "text-[color:var(--warning-700)]" },
+              { label: "Overdue Pmts",   value: report.overdueCount.toString(),                            color: "text-[color:var(--error-700)]"   },
+              { label: "Occupancy",      value: `${(report.occupancyRate * 100).toFixed(1)}%`,             color: "text-[color:var(--trust-700)]"   },
+              { label: "Active Tenants", value: report.activeTenants.toString(),                           color: "text-[color:var(--foreground)]"  },
+              { label: "MoM Change",     value: report.revenueChangePercent != null ? `${report.revenueChangePercent >= 0 ? "+" : ""}${report.revenueChangePercent.toFixed(1)}%` : "N/A", color: report.revenueChangePercent != null && report.revenueChangePercent >= 0 ? "text-[color:var(--success-700)]" : "text-[color:var(--error-700)]" },
+            ].map(item => (
+              <div key={item.label} className="bg-[color:var(--background)] rounded-xl p-4">
+                <p className="text-[11px] text-[color:var(--muted)] mb-1">{item.label}</p>
+                <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-[color:var(--muted)] py-4">Unable to load report data.</p>
+        )}
+
+        <div className="flex items-center gap-3 pt-3 border-t border-[color:var(--line)]">
+          <button className="flex items-center gap-2 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors">
+            <Download size={13} /> Export CSV
+          </button>
+          <p className="text-[11px] text-[color:var(--muted)]">Income statements, occupancy trends, and tax-ready CSVs.</p>
+        </div>
       </div>
-      <div>
-        <h3 className="text-sm font-bold text-[color:var(--foreground)] mb-1">Reports & Analytics</h3>
-        <p className="text-xs text-[color:var(--muted)]">Export income statements, occupancy trends, and tax-ready CSVs.</p>
-      </div>
-      <button className="mt-2 flex items-center gap-2 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-colors">
-        <Download size={13} /> Generate Monthly Report
-      </button>
+
+      {report && report.payments.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-[color:var(--line)]">
+            <h4 className="text-sm font-bold text-[color:var(--foreground)]">Payments ({report.payments.length})</h4>
+          </div>
+          <div className="divide-y divide-[color:var(--line)]">
+            {report.payments.slice(0, 10).map(p => (
+              <div key={p.id} className="flex items-center gap-4 px-6 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[color:var(--foreground)] truncate">{p.title}</p>
+                  <p className="text-[11px] text-[color:var(--muted)]">{p.tenantName} · {p.date}</p>
+                </div>
+                <span className="text-xs font-bold text-[color:var(--foreground)]">₹{p.amount.toLocaleString("en-IN")}</span>
+                <StatusChip status={p.status} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+function UpgradePlanModal({ currentSub, onClose, onSubscribed }: {
+  currentSub: import("@/lib/api").Subscription | null;
+  onClose: () => void;
+  onSubscribed: (sub: import("@/lib/api").Subscription) => void;
+}) {
+  const toast = useToast();
+  const [plans, setPlans] = React.useState<import("@/lib/api").Plan[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [subscribing, setSubscribing] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    api.plans.list().then(setPlans).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  async function subscribe(planId: string) {
+    setSubscribing(planId);
+    try {
+      let result: import("@/lib/api").Subscription;
+      if (currentSub) {
+        result = await api.plans.updateSub(currentSub.id, planId);
+      } else {
+        result = await api.plans.subscribe(planId);
+      }
+      onSubscribed(result);
+      toast.success("Plan updated successfully");
+      onClose();
+    } catch {
+      toast.error("Failed to update plan. Please try again.");
+    } finally {
+      setSubscribing(null);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-[color:var(--line)]">
+          <div>
+            <h2 className="text-lg font-bold text-[color:var(--foreground)]">Choose a Plan</h2>
+            <p className="text-xs text-[color:var(--muted)] mt-0.5">All plans include the ShiftProof core features</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-[color:var(--background)] text-[color:var(--muted)] transition-colors"><X size={18} /></button>
+        </div>
+        <div className="p-6">
+          {loading ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-[color:var(--muted)]">
+              <RefreshCw size={16} className="animate-spin" /> Loading plans…
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {plans.map(plan => {
+                const isCurrent = currentSub?.planId === plan.id;
+                const isPopular = plan.isPopular;
+                return (
+                  <div key={plan.id} className={`relative rounded-2xl border p-5 flex flex-col gap-4 transition-shadow hover:shadow-md ${
+                    isPopular ? "border-[color:var(--accent-400)] bg-[color:var(--accent-50)]" : "border-[color:var(--line)] bg-white"
+                  }`}>
+                    {isPopular && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-[color:var(--accent-500)] text-white text-[10px] font-bold">
+                        Most Popular
+                      </span>
+                    )}
+                    <div>
+                      <p className="font-bold text-[color:var(--foreground)] text-base">{plan.name}</p>
+                      <p className="text-2xl font-bold text-[color:var(--foreground)] mt-1">
+                        {plan.price === 0 ? "Free" : `₹${plan.price.toLocaleString("en-IN")}`}
+                        {plan.price > 0 && <span className="text-xs font-normal text-[color:var(--muted)]">/mo</span>}
+                      </p>
+                    </div>
+                    <ul className="space-y-1.5 flex-1">
+                      {plan.features.map(f => (
+                        <li key={f} className="flex items-center gap-2 text-xs text-[color:var(--foreground)]">
+                          <CheckCircle2 size={12} className="text-[color:var(--accent-500)] shrink-0" />
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      disabled={isCurrent || subscribing === plan.id}
+                      onClick={() => subscribe(plan.id)}
+                      className={`w-full py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                        isCurrent
+                          ? "bg-[color:var(--background)] text-[color:var(--muted)] cursor-default border border-[color:var(--line)]"
+                          : isPopular
+                            ? "bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white"
+                            : "bg-[color:var(--foreground)] hover:opacity-80 text-white"
+                      } disabled:opacity-60`}
+                    >
+                      {isCurrent ? "Current Plan" : subscribing === plan.id ? "Subscribing…" : "Select Plan"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SubscriptionCard() {
+  const [sub, setSub] = useState<import("@/lib/api").Subscription | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+  const CARD = "bg-white rounded-2xl border border-[color:var(--line)] p-6 shadow-sm";
+  const SEC_TITLE = "text-sm font-bold text-[color:var(--foreground)] mb-4 flex items-center gap-2";
+
+  useEffect(() => {
+    api.plans.currentSub()
+      .then(setSub)
+      .catch(() => setSub(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <>
+      <div className={CARD}>
+        <div className="flex items-start justify-between mb-4">
+          <h2 className={SEC_TITLE}>
+            <CreditCard size={15} className="text-[color:var(--accent-500)]" /> Subscription
+          </h2>
+          <button onClick={() => setShowUpgrade(true)}
+            className="text-xs font-semibold text-[color:var(--accent-600)] hover:underline flex items-center gap-1">
+            <Star size={11} /> {sub ? "Change Plan" : "Subscribe"}
+          </button>
+        </div>
+        {loading ? (
+          <div className="py-4 text-xs text-[color:var(--muted)]">Loading…</div>
+        ) : sub ? (
+          <>
+            <div className="flex items-center justify-between p-4 rounded-xl bg-[color:var(--accent-500)]/8 border border-[color:var(--accent-200)] mb-4">
+              <div>
+                <p className="text-sm font-bold text-[color:var(--foreground)]">{sub.planName}</p>
+                <p className="text-[11px] text-[color:var(--muted)] mt-0.5">₹{sub.price.toLocaleString("en-IN")}/mo</p>
+              </div>
+              <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                sub.status === "active" ? "bg-[color:var(--accent-500)] text-white" : "bg-slate-100 text-slate-500"
+              }`}>{sub.status}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Start date</p>
+                <p className="font-semibold text-[color:var(--foreground)]">{sub.startDate}</p>
+              </div>
+              {sub.endDate && (
+                <div>
+                  <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Renewal date</p>
+                  <p className="font-semibold text-[color:var(--foreground)]">{sub.endDate}</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-4 text-center">
+            <CreditCard size={22} strokeWidth={1.5} className="text-slate-300" />
+            <p className="text-sm text-[color:var(--muted)]">No active subscription</p>
+            <p className="text-xs text-slate-400">Choose a plan to unlock all features.</p>
+            <button onClick={() => setShowUpgrade(true)}
+              className="mt-2 text-xs font-bold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2 rounded-xl transition-colors">
+              View Plans
+            </button>
+          </div>
+        )}
+      </div>
+      {showUpgrade && (
+        <UpgradePlanModal
+          currentSub={sub}
+          onClose={() => setShowUpgrade(false)}
+          onSubscribed={(newSub) => setSub(newSub)}
+        />
+      )}
+    </>
   );
 }
 
 function AccountTab({ user }: { user: AppUser | null }) {
   const toast = useToast();
   const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || "Ravi Kumar", email: user?.email || "ravi.kumar@gmail.com",
-    phone: user?.phoneNumber || "9876543210", gst: "29AABCU9603R1ZX", pan: "AABCU9603R",
+    name: user?.name ?? "", email: user?.email ?? "",
+    phone: user?.phoneNumber ?? "",
+    city: user?.city ?? "", area: user?.area ?? "",
+    gender: user?.gender ?? "",
   });
 
   const [showOldPwd, setShowOldPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
   const [pwdError, setPwdError] = useState<string | null>(null);
+  const [savingPwd, setSavingPwd] = useState(false);
 
-  const [notifs, setNotifs] = useState({
-    rentReminders: true, maintenanceAlerts: true,
-    leaseExpiry: true, paymentReceipts: true,
-    whatsapp: true, email: true, sms: false,
-  });
-
-  const [bankForm, setBankForm] = useState({
-    accountName: user?.name || "Ravi Kumar", accountNumber: "••••••••4821",
-    ifsc: "HDFC0001234", bank: "HDFC Bank",
-  });
-  const [editingBank, setEditingBank] = useState(false);
-
-  function saveProfile() {
-    setEditingProfile(false);
-    toast.success("Profile updated");
+  // Provider linking — two-step: preflight → Firebase → complete
+  const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
+  async function handleLinkProvider(provider: string) {
+    if (!auth?.currentUser) { toast.error("Not signed in"); return; }
+    setLinkingProvider(provider);
+    try {
+      const preflight = await api.auth.linkingStart(provider);
+      if (!preflight.allowed) {
+        toast.error(preflight.recommendedNextStep === "sign_in_existing"
+          ? "That account already exists — sign in with it instead"
+          : "Cannot link this provider right now");
+        return;
+      }
+      if (provider === "google") {
+        const cred = await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+        const idToken = await cred.user.getIdToken(true);
+        await api.auth.linkingComplete(idToken);
+        toast.success("Google linked to your account");
+      } else {
+        // Phone linking requires OTP flow — guide user
+        toast.success("To link phone: sign out and sign in with your phone number, then link accounts");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("popup-closed")) {
+        toast.error("Popup closed — try again");
+      } else if (msg.includes("already-in-use")) {
+        toast.error("This account is already linked to another user");
+      } else {
+        toast.error("Linking failed — try again");
+      }
+    } finally {
+      setLinkingProvider(null);
+    }
   }
 
-  function savePwd() {
+  // Bank account
+  const [bankAccount, setBankAccount] = useState<import("@/lib/api").BankAccount | null>(null);
+  const [editingBank, setEditingBank] = useState(false);
+  const [savingBank, setSavingBank] = useState(false);
+  const [bankForm, setBankForm] = useState({ accountHolderName: "", accountNumber: "", bankName: "", ifscCode: "" });
+
+  // Notification preferences
+  const [notifPrefs, setNotifPrefs] = useState<import("@/lib/api").NotificationPreferences>({ email: true, push: true, sms: false });
+
+  const initials = (user?.name ?? "")
+    .split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "—";
+
+  React.useEffect(() => {
+    api.auth.getBankAccount().then(acct => {
+      if (acct) { setBankAccount(acct); setBankForm(acct); }
+    }).catch(() => {});
+    api.auth.getNotifPrefs().then(setNotifPrefs).catch(() => {});
+  }, []);
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      await api.auth.updateProfile({
+        name: profileForm.name || undefined,
+        phoneNumber: profileForm.phone || undefined,
+        city: profileForm.city || undefined,
+        area: profileForm.area || undefined,
+        gender: profileForm.gender || undefined,
+      });
+      setEditingProfile(false);
+      toast.success("Profile updated");
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function savePwd() {
     if (!pwdForm.old) { setPwdError("Enter your current password."); return; }
     if (pwdForm.next.length < 6) { setPwdError("New password must be at least 6 characters."); return; }
     if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
     setPwdError(null);
-    setPwdForm({ old: "", next: "", confirm: "" });
-    toast.success("Password changed successfully");
+    setSavingPwd(true);
+    try {
+      await api.auth.changePassword(pwdForm.next);
+      setPwdForm({ old: "", next: "", confirm: "" });
+      toast.success("Password updated");
+    } catch {
+      setPwdError("Failed to update password. Please try again.");
+    } finally {
+      setSavingPwd(false);
+    }
+  }
+
+  async function saveBank() {
+    if (!bankForm.accountHolderName || !bankForm.accountNumber || !bankForm.ifscCode) {
+      toast.error("Account holder name, account number, and IFSC are required");
+      return;
+    }
+    setSavingBank(true);
+    try {
+      const saved = await api.auth.saveBankAccount(bankForm);
+      setBankAccount(saved);
+      setEditingBank(false);
+      toast.success("Bank account saved");
+    } catch {
+      toast.error("Failed to save bank account");
+    } finally {
+      setSavingBank(false);
+    }
+  }
+
+  async function toggleNotifChannel(ch: keyof import("@/lib/api").NotificationPreferences) {
+    const updated = { ...notifPrefs, [ch]: !notifPrefs[ch] };
+    setNotifPrefs(updated);
+    try {
+      await api.auth.updateNotifPrefs(updated);
+    } catch {
+      setNotifPrefs(notifPrefs); // revert on failure
+    }
   }
 
   const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -1563,17 +2120,21 @@ function AccountTab({ user }: { user: AppUser | null }) {
             </button>
           ) : (
             <div className="flex gap-2">
-              <button onClick={() => setEditingProfile(false)}
-                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]">Cancel</button>
+              <button onClick={() => { setEditingProfile(false); setProfileForm({ name: user?.name ?? "", email: user?.email ?? "", phone: user?.phoneNumber ?? "", city: user?.city ?? "", area: user?.area ?? "", gender: user?.gender ?? "" }); }}
+                disabled={savingProfile}
+                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] disabled:opacity-50">Cancel</button>
               <button onClick={saveProfile}
-                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-3 py-1 rounded-lg hover:bg-[color:var(--accent-600)] transition-colors">Save</button>
+                disabled={savingProfile}
+                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-3 py-1 rounded-lg hover:bg-[color:var(--accent-600)] transition-colors disabled:opacity-60">
+                {savingProfile ? "Saving…" : "Save"}
+              </button>
             </div>
           )}
         </div>
 
         <div className="flex items-center gap-4 mb-6">
           <div className="w-16 h-16 rounded-2xl bg-[color:var(--accent-500)]/15 flex items-center justify-center text-xl font-bold text-[color:var(--accent-600)] shrink-0">
-            RK
+            {initials}
           </div>
           <div>
             <p className="text-base font-bold text-[color:var(--foreground)]">{profileForm.name}</p>
@@ -1584,116 +2145,106 @@ function AccountTab({ user }: { user: AppUser | null }) {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { label: "Full Name",    key: "name",  type: "text" },
-            { label: "Email",        key: "email", type: "email" },
-            { label: "Mobile",       key: "phone", type: "tel" },
-            { label: "GST Number",   key: "gst",   type: "text" },
-            { label: "PAN Number",   key: "pan",   type: "text" },
-          ].map(({ label, key, type }) => (
-            <div key={key} className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
-              {type === "tel" ? (
-                <PhoneInput
-                  disabled={!editingProfile}
-                  value={profileForm[key as keyof typeof profileForm]}
-                  onChange={val => setProfileForm(f => ({ ...f, [key]: val }))}
-                  className="bg-[color:var(--background)]"
-                />
-              ) : (
-                <input
-                  type={type}
-                  disabled={!editingProfile}
-                  value={profileForm[key as keyof typeof profileForm]}
-                  onChange={e => setProfileForm(f => ({ ...f, [key]: e.target.value }))}
-                  className={INPUT}
-                />
-              )}
-            </div>
-          ))}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">Full Name</label>
+            <input type="text" disabled={!editingProfile} value={profileForm.name}
+              onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} className={INPUT} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">Email</label>
+            <input type="email" disabled value={profileForm.email} className={INPUT}
+              title="Email cannot be changed here" />
+          </div>
+          <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">Mobile</label>
+            <PhoneInput disabled={!editingProfile} value={profileForm.phone}
+              onChange={val => setProfileForm(f => ({ ...f, phone: val }))}
+              className="bg-[color:var(--background)]" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">City</label>
+            <input type="text" disabled={!editingProfile} value={profileForm.city}
+              onChange={e => setProfileForm(f => ({ ...f, city: e.target.value }))} className={INPUT} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">Area</label>
+            <input type="text" disabled={!editingProfile} value={profileForm.area}
+              onChange={e => setProfileForm(f => ({ ...f, area: e.target.value }))} className={INPUT} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">Gender</label>
+            <select disabled={!editingProfile} value={profileForm.gender}
+              onChange={e => setProfileForm(f => ({ ...f, gender: e.target.value }))} className={INPUT}>
+              <option value="">Select gender</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="CO_LIVING">Co-living / Any</option>
+            </select>
+          </div>
         </div>
 
       </div>
 
       {/* Subscription card */}
-      <div className={CARD}>
-        <h2 className={SEC_TITLE}>
-          <CreditCard size={15} className="text-[color:var(--accent-500)]" /> Subscription
-        </h2>
-        <div className="flex items-center justify-between p-4 rounded-xl bg-[color:var(--accent-500)]/8 border border-[color:var(--accent-200)] mb-4">
-          <div>
-            <p className="text-sm font-bold text-[color:var(--foreground)]">Growth Plan</p>
-            <p className="text-[11px] text-[color:var(--muted)] mt-0.5">Up to 5 properties · 50 tenants</p>
-          </div>
-          <span className="px-3 py-1 rounded-full text-[10px] font-bold bg-[color:var(--accent-500)] text-white uppercase tracking-wide">Active</span>
-        </div>
-        <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-          <div>
-            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Billing cycle</p>
-            <p className="font-semibold text-[color:var(--foreground)]">Monthly · ₹999/mo</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Next renewal</p>
-            <p className="font-semibold text-[color:var(--foreground)]">May 15, 2025</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Trial ends</p>
-            <p className="font-semibold text-[color:var(--foreground)]">Converted · Apr 1, 2025</p>
-          </div>
-          <div>
-            <p className="text-[11px] text-[color:var(--muted)] mb-0.5">Properties used</p>
-            <p className="font-semibold text-[color:var(--foreground)]">3 of 5</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button className="flex-1 text-xs font-semibold bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white px-4 py-2.5 rounded-xl transition-colors">
-            Upgrade to Enterprise
-          </button>
-          <button className="text-xs font-semibold border border-[color:var(--line)] text-[color:var(--muted)] hover:text-[color:var(--foreground)] px-4 py-2.5 rounded-xl transition-colors">
-            View Invoices
-          </button>
-        </div>
-      </div>
+      <SubscriptionCard />
 
       {/* Bank / payout */}
       <div className={CARD}>
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-5">
           <h2 className={SEC_TITLE}>
             <Landmark size={15} className="text-[color:var(--accent-500)]" /> Payout Bank Account
           </h2>
-          {!editingBank ? (
-            <button onClick={() => setEditingBank(true)}
+          {!editingBank && (
+            <button onClick={() => { setEditingBank(true); if (bankAccount) setBankForm(bankAccount); }}
               className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-600)] hover:underline">
-              <Edit3 size={12} /> Edit
+              <Edit3 size={12} /> {bankAccount ? "Edit" : "Add"}
             </button>
-          ) : (
-            <div className="flex gap-2">
-              <button onClick={() => setEditingBank(false)}
-                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)]">Cancel</button>
-              <button onClick={() => setEditingBank(false)}
-                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-3 py-1 rounded-lg hover:bg-[color:var(--accent-600)] transition-colors">Save</button>
-            </div>
           )}
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {[
-            { label: "Account Holder", key: "accountName" },
-            { label: "Bank",           key: "bank" },
-            { label: "Account Number", key: "accountNumber" },
-            { label: "IFSC Code",      key: "ifsc" },
-          ].map(({ label, key }) => (
-            <div key={key} className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
-              <input
-                type="text"
-                disabled={!editingBank}
-                value={bankForm[key as keyof typeof bankForm]}
-                onChange={e => setBankForm(f => ({ ...f, [key]: e.target.value }))}
-                className={INPUT}
-              />
+        {!editingBank ? (
+          bankAccount ? (
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-[color:var(--muted)]">Bank</span><span className="font-medium">{bankAccount.bankName || "—"}</span></div>
+              <div className="flex justify-between"><span className="text-[color:var(--muted)]">Account holder</span><span className="font-medium">{bankAccount.accountHolderName}</span></div>
+              <div className="flex justify-between"><span className="text-[color:var(--muted)]">Account number</span><span className="font-medium">••••{bankAccount.accountNumber.slice(-4)}</span></div>
+              <div className="flex justify-between"><span className="text-[color:var(--muted)]">IFSC</span><span className="font-medium">{bankAccount.ifscCode}</span></div>
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+              <Landmark size={22} strokeWidth={1.5} className="text-slate-300" />
+              <p className="text-sm text-[color:var(--muted)]">Bank account not configured</p>
+              <p className="text-xs text-slate-400 max-w-xs">Add your bank account to receive rent payouts directly.</p>
+            </div>
+          )
+        ) : (
+          <div className="space-y-3">
+            {[
+              { label: "Account holder name", key: "accountHolderName", placeholder: "Ravi Kumar" },
+              { label: "Bank name", key: "bankName", placeholder: "HDFC Bank" },
+              { label: "Account number", key: "accountNumber", placeholder: "1234567890" },
+              { label: "IFSC code", key: "ifscCode", placeholder: "HDFC0001234" },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide">{label}</label>
+                <input
+                  type="text"
+                  placeholder={placeholder}
+                  value={bankForm[key as keyof typeof bankForm]}
+                  onChange={e => setBankForm(f => ({ ...f, [key]: e.target.value }))}
+                  className={INPUT}
+                />
+              </div>
+            ))}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setEditingBank(false)} disabled={savingBank}
+                className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] disabled:opacity-50">Cancel</button>
+              <button onClick={saveBank} disabled={savingBank}
+                className="text-xs font-semibold bg-[color:var(--accent-500)] text-white px-4 py-2 rounded-xl hover:bg-[color:var(--accent-600)] transition-colors disabled:opacity-60">
+                {savingBank ? "Saving…" : "Save bank account"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Notifications */}
@@ -1701,34 +2252,14 @@ function AccountTab({ user }: { user: AppUser | null }) {
         <h2 className={SEC_TITLE}>
           <Bell size={15} className="text-[color:var(--accent-500)]" /> Notification Preferences
         </h2>
-        <div className="space-y-1">
-          {([
-            { key: "rentReminders",    label: "Rent due reminders",       sub: "5 days and 1 day before due date" },
-            { key: "maintenanceAlerts",label: "Maintenance alerts",        sub: "New ticket raised by tenant" },
-            { key: "leaseExpiry",      label: "Lease expiry warnings",     sub: "30 days before lease end" },
-            { key: "paymentReceipts",  label: "Payment receipts",          sub: "When a tenant pays rent" },
-          ] as const).map(({ key, label, sub }) => (
-            <div key={key} className="flex items-center justify-between py-3 border-b border-[color:var(--line)] last:border-0">
-              <div>
-                <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
-                <p className="text-[11px] text-[color:var(--muted)]">{sub}</p>
-              </div>
-              <button onClick={() => setNotifs(n => ({ ...n, [key]: !n[key] }))} className="shrink-0 ml-4">
-                {notifs[key]
-                  ? <ToggleRight size={26} className="text-[color:var(--accent-500)]" />
-                  : <ToggleLeft  size={26} className="text-[color:var(--muted)]" />}
-              </button>
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide mt-4 mb-2">Channels</p>
-        <div className="flex flex-wrap gap-2">
-          {(["whatsapp", "email", "sms"] as const).map(ch => (
+        <p className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide mb-2">Channels</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {(["email", "push", "sms"] as const).map(ch => (
             <button
               key={ch}
-              onClick={() => setNotifs(n => ({ ...n, [ch]: !n[ch] }))}
+              onClick={() => toggleNotifChannel(ch)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                notifs[ch]
+                notifPrefs[ch]
                   ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
                   : "border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--accent-300)]"
               }`}
@@ -1738,6 +2269,7 @@ function AccountTab({ user }: { user: AppUser | null }) {
             </button>
           ))}
         </div>
+        <p className="text-xs text-slate-400">Changes are saved automatically.</p>
       </div>
 
       {/* Security */}
@@ -1774,10 +2306,55 @@ function AccountTab({ user }: { user: AppUser | null }) {
         {pwdError && (
           <p className="mt-3 text-xs text-[color:var(--error-700)] bg-[color:var(--error-50)] rounded-lg px-3 py-2">{pwdError}</p>
         )}
-        <button onClick={savePwd}
-          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">
-          Update Password
+        <button onClick={savePwd} disabled={savingPwd}
+          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl transition-opacity">
+          {savingPwd ? "Updating…" : "Update Password"}
         </button>
+      </div>
+
+      {/* Linked accounts */}
+      <div className={CARD}>
+        <h2 className={SEC_TITLE}>
+          <Link2 size={15} className="text-[color:var(--accent-500)]" /> Linked Accounts
+        </h2>
+        <p className="text-xs text-[color:var(--muted)] mb-4">Link sign-in methods so you can log in with any of them.</p>
+        <div className="space-y-3">
+          {[
+            { provider: "google", label: "Google", icon: (
+              <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+            )},
+            { provider: "phone", label: "Phone (OTP)", icon: <Smartphone size={16} className="text-[color:var(--accent-500)] shrink-0" /> },
+          ].map(({ provider, label, icon }) => {
+            const linked = user?.providers?.includes(provider) ?? false;
+            return (
+              <div key={provider} className="flex items-center justify-between p-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)]">
+                <div className="flex items-center gap-3">
+                  {icon}
+                  <div>
+                    <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
+                    <p className="text-xs text-[color:var(--muted)]">{linked ? "Connected" : "Not linked"}</p>
+                  </div>
+                </div>
+                {linked ? (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-[color:var(--success-700)] bg-[color:var(--success-50)] px-3 py-1.5 rounded-full">
+                    <CheckCircle2 size={12} /> Linked
+                  </span>
+                ) : (
+                  <button onClick={() => handleLinkProvider(provider)} disabled={linkingProvider === provider}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-600)] border border-[color:var(--accent-200)] hover:bg-[color:var(--accent-50)] px-3 py-1.5 rounded-full transition-colors disabled:opacity-60">
+                    {linkingProvider === provider ? <RefreshCw size={11} className="animate-spin" /> : <Link2 size={11} />}
+                    Link
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Danger zone */}
@@ -1796,9 +2373,126 @@ function AccountTab({ user }: { user: AppUser | null }) {
   );
 }
 
+// ─── PayoutsTab ───────────────────────────────────────────────────────────────
+
+function PayoutsTab() {
+  const [payouts, setPayouts] = React.useState<import("@/lib/api").Payout[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [page, setPage] = React.useState(1);
+  const [totalPages, setTotalPages] = React.useState(1);
+
+  React.useEffect(() => {
+    setLoading(true);
+    api.payments.payouts(page, 20)
+      .then(r => { setPayouts(r.data); setTotalPages(r.meta.totalPages); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [page]);
+
+  const statusColor = (s: string) =>
+    s === "completed" ? "bg-[color:var(--success-50)] text-[color:var(--success-700)]"
+    : s === "processing" ? "bg-[color:var(--warning-50)] text-[color:var(--warning-700)]"
+    : "bg-[color:var(--error-50)] text-[color:var(--error-700)]";
+
+  return (
+    <div className="space-y-5">
+      {/* Summary strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {[
+          { label: "Total Settled", value: `₹${payouts.filter(p => p.status === "completed").reduce((s, p) => s + p.amount, 0).toLocaleString("en-IN")}`, icon: IndianRupee, color: "accent" },
+          { label: "Processing", value: String(payouts.filter(p => p.status === "processing").length), icon: RefreshCw, color: "warning" },
+          { label: "Settled", value: String(payouts.filter(p => p.status === "completed").length), icon: CheckCircle2, color: "success" },
+        ].map(k => (
+          <div key={k.label} className="bg-white rounded-2xl border border-[color:var(--line)] p-4 shadow-sm">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${
+              k.color === "accent" ? "bg-[color:var(--accent-100)] text-[color:var(--accent-600)]"
+              : k.color === "warning" ? "bg-[color:var(--warning-50)] text-[color:var(--warning-700)]"
+              : "bg-[color:var(--success-50)] text-[color:var(--success-700)]"
+            }`}><k.icon size={15} strokeWidth={1.75} /></div>
+            <p className="text-lg font-bold text-[color:var(--foreground)]">{k.value}</p>
+            <p className="text-[10px] text-[color:var(--muted)] mt-0.5">{k.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[color:var(--line)]">
+          <div>
+            <h3 className="font-semibold text-[color:var(--foreground)]">Payout History</h3>
+            <p className="text-xs text-[color:var(--muted)] mt-0.5">Bank settlements from rent collections</p>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <RefreshCw size={18} className="text-[color:var(--muted)] animate-spin" />
+          </div>
+        ) : payouts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-4">
+            <div className="w-12 h-12 rounded-2xl bg-[color:var(--background)] flex items-center justify-center">
+              <Wallet size={22} strokeWidth={1.5} className="text-[color:var(--muted)]" />
+            </div>
+            <p className="font-semibold text-[color:var(--foreground)]">No payouts yet</p>
+            <p className="text-sm text-[color:var(--muted)] max-w-xs">Payouts are settled after tenants pay rent online. They appear here once processed.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-xs text-[color:var(--muted)] border-b border-[color:var(--line)]">
+                  <th className="text-left px-5 py-3 font-medium">Property</th>
+                  <th className="text-left px-5 py-3 font-medium">Description</th>
+                  <th className="text-left px-5 py-3 font-medium hidden sm:table-cell">Bank</th>
+                  <th className="text-left px-5 py-3 font-medium">Date</th>
+                  <th className="text-left px-5 py-3 font-medium">Amount</th>
+                  <th className="text-left px-5 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--line)]">
+                {payouts.map(p => (
+                  <tr key={p.id} className="hover:bg-[color:var(--background)]/60 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <p className="font-medium text-[color:var(--foreground)] truncate max-w-[140px]">{p.propertyTitle}</p>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-[color:var(--muted)] max-w-[180px] truncate">{p.description}</td>
+                    <td className="px-5 py-3.5 hidden sm:table-cell text-xs text-[color:var(--muted)]">
+                      {p.bankLast4 ? `••••${p.bankLast4}` : "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-[color:var(--muted)] whitespace-nowrap">{p.date}</td>
+                    <td className="px-5 py-3.5 font-semibold text-[color:var(--foreground)] whitespace-nowrap">
+                      ₹{p.amount.toLocaleString("en-IN")}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${statusColor(p.status)}`}>
+                        {p.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-5 py-3 border-t border-[color:var(--line)]">
+            <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+              className="text-xs font-semibold text-[color:var(--accent-600)] hover:underline disabled:opacity-30 disabled:no-underline">← Previous</button>
+            <span className="text-xs text-[color:var(--muted)]">Page {page} of {totalPages}</span>
+            <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+              className="text-xs font-semibold text-[color:var(--accent-600)] hover:underline disabled:opacity-30 disabled:no-underline">Next →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const SECTION_TITLES: Record<string, string> = {
   overview: "Good morning, Ravi", properties: "Properties",
-  tenants: "Tenants", payments: "Payments",
+  tenants: "Tenants", payments: "Payments", payouts: "Payouts",
   maintenance: "Maintenance", reports: "Reports",
   organization: "Organization", account: "Account",
 };
@@ -1858,6 +2552,7 @@ function OrgDetail({
   org: Organization;
   onDelete: (id: string) => void;
 }) {
+  const toast = useToast();
   const limits = PLAN_LIMITS[org.plan];
   const isSolo = org.plan === "solo";
 
@@ -1868,6 +2563,67 @@ function OrgDetail({
   const [inviteRole, setInviteRole]   = React.useState<OrgRole>("manager");
   const [inviteError, setInviteError] = React.useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = React.useState(false);
+
+  // Transfer ownership
+  const [showTransfer, setShowTransfer] = React.useState(false);
+  const [transferToId, setTransferToId] = React.useState("");
+  const [transferring, setTransferring] = React.useState(false);
+
+  async function doTransfer() {
+    if (!transferToId) return;
+    setTransferring(true);
+    try {
+      await api.orgs.transferOwnership(org.id, transferToId);
+      const target = members.find(m => m.id === transferToId);
+      setMembers(prev => prev.map(m =>
+        m.id === transferToId ? { ...m, role: "owner" } :
+        m.role === "owner"    ? { ...m, role: "admin" }  : m,
+      ));
+      toast.success(`Ownership transferred to ${target?.name ?? "new owner"}`);
+      setShowTransfer(false);
+      setTransferToId("");
+    } catch {
+      toast.error("Transfer failed — try again");
+    } finally {
+      setTransferring(false);
+    }
+  }
+
+  // Bulk assign member properties
+  const [bulkAssignMemberId, setBulkAssignMemberId] = React.useState<string | null>(null);
+  const [orgProperties, setOrgProperties] = React.useState<{ id: string; name: string }[]>([]);
+  const [selectedPropIds, setSelectedPropIds] = React.useState<Set<string>>(new Set());
+  const [bulkSaving, setBulkSaving] = React.useState(false);
+
+  async function openBulkAssign(member: OrgMember) {
+    setBulkAssignMemberId(member.id);
+    setSelectedPropIds(new Set(member.assignedProperties));
+    if (orgProperties.length === 0) {
+      try {
+        const props = await api.orgs.listProperties(org.id);
+        setOrgProperties(props.map(p => ({ id: p.id, name: p.title })));
+      } catch { toast.error("Failed to load properties"); }
+    }
+  }
+
+  async function saveBulkAssign() {
+    if (!bulkAssignMemberId) return;
+    setBulkSaving(true);
+    try {
+      const member = members.find(m => m.id === bulkAssignMemberId);
+      const role = (member?.role === "manager" || member?.role === "caretaker") ? "manager" : "viewer" as const;
+      await api.orgs.bulkAssignMemberProperties(org.id, bulkAssignMemberId, { propertyIds: Array.from(selectedPropIds), role });
+      setMembers(prev => prev.map(m =>
+        m.id === bulkAssignMemberId ? { ...m, assignedProperties: Array.from(selectedPropIds) } : m,
+      ));
+      toast.success("Property assignment updated");
+      setBulkAssignMemberId(null);
+    } catch {
+      toast.error("Failed to save assignment");
+    } finally {
+      setBulkSaving(false);
+    }
+  }
 
   const ownerCount     = members.filter(m => m.role === "owner").length;
   const activeCount    = members.filter(m => m.status === "active").length;
@@ -1895,10 +2651,21 @@ function OrgDetail({
     setShowInvite(false); setInviteError(null);
   }
 
-  function removeMember(id: string) {
+  const [removingMemberId, setRemovingMemberId] = React.useState<string | null>(null);
+
+  async function removeMember(id: string) {
     const m = members.find(x => x.id === id);
     if (!m || (m.role === "owner" && ownerCount <= 1)) return;
-    setMembers(prev => prev.filter(x => x.id !== id));
+    setRemovingMemberId(id);
+    try {
+      await api.orgs.removeMember(org.id, id);
+      setMembers(prev => prev.filter(x => x.id !== id));
+      toast.success(`${m.name} removed from organization`);
+    } catch {
+      toast.error("Failed to remove member");
+    } finally {
+      setRemovingMemberId(null);
+    }
   }
 
   const INP = "px-3 py-2.5 rounded-xl border border-[color:var(--line)] text-sm bg-white outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] text-[color:var(--foreground)]";
@@ -1938,14 +2705,47 @@ function OrgDetail({
               {org.cin   && <span className="flex items-center gap-2"><Landmark size={13} className="shrink-0" />CIN: <span className="font-mono text-xs text-[color:var(--foreground)]">{org.cin}</span></span>}
             </div>
           </div>
-          <button
-            onClick={() => setDeleteConfirm(v => !v)}
-            title="Delete organization"
-            className="shrink-0 p-2 rounded-xl text-[color:var(--muted)] hover:text-[color:var(--error)] hover:bg-[color:var(--error-50)] transition-colors"
-          >
-            <Trash2 size={16} strokeWidth={1.75} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => setShowTransfer(v => !v)}
+              title="Transfer ownership"
+              className="p-2 rounded-xl text-[color:var(--muted)] hover:text-[color:var(--accent-600)] hover:bg-[color:var(--accent-50)] transition-colors"
+            >
+              <ArrowRightLeft size={15} strokeWidth={1.75} />
+            </button>
+            <button
+              onClick={() => setDeleteConfirm(v => !v)}
+              title="Delete organization"
+              className="p-2 rounded-xl text-[color:var(--muted)] hover:text-[color:var(--error)] hover:bg-[color:var(--error-50)] transition-colors"
+            >
+              <Trash2 size={16} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
+
+        {/* Transfer ownership */}
+        {showTransfer && (
+          <div className="mt-5 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] p-4 space-y-3">
+            <p className="text-sm font-semibold text-[color:var(--foreground)]">Transfer Ownership</p>
+            <p className="text-xs text-[color:var(--muted)]">The new owner will take over billing and full administrative control. You will become an Admin.</p>
+            <select value={transferToId} onChange={e => setTransferToId(e.target.value)}
+              className="w-full border border-[color:var(--line)] rounded-xl px-3 py-2.5 text-sm bg-white outline-none focus:border-[color:var(--accent-500)]">
+              <option value="">— Select new owner —</option>
+              {members.filter(m => m.role !== "owner" && m.status === "active").map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={doTransfer} disabled={!transferToId || transferring}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-60 text-white text-xs font-semibold transition-colors">
+                {transferring ? <RefreshCw size={12} className="animate-spin" /> : <ArrowRightLeft size={12} />}
+                {transferring ? "Transferring…" : "Confirm Transfer"}
+              </button>
+              <button onClick={() => { setShowTransfer(false); setTransferToId(""); }}
+                className="px-4 py-2 rounded-xl text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
 
         {/* Delete confirmation */}
         {deleteConfirm && (
@@ -2076,8 +2876,11 @@ function OrgDetail({
                           </div>
                         </td>
                         <td className="px-5 py-3.5"><RoleChip role={m.role} /></td>
-                        <td className="px-5 py-3.5 hidden sm:table-cell text-xs text-[color:var(--muted)]">
-                          {m.assignedProperties.length === 0 ? "All properties" : `${m.assignedProperties.length} assigned`}
+                        <td className="px-5 py-3.5 hidden sm:table-cell">
+                          <button onClick={() => openBulkAssign(m)}
+                            className="text-xs text-[color:var(--accent-500)] hover:underline underline-offset-2">
+                            {m.assignedProperties.length === 0 ? "All properties" : `${m.assignedProperties.length} assigned`}
+                          </button>
                         </td>
                         <td className="px-5 py-3.5 hidden md:table-cell text-xs text-[color:var(--muted)]">{m.joinedAt || "—"}</td>
                         <td className="px-5 py-3.5"><MemberStatusChip status={m.status} expired={expired} /></td>
@@ -2086,12 +2889,13 @@ function OrgDetail({
                             <button className="text-xs text-[color:var(--accent-500)] hover:underline mr-3">Resend</button>
                           )}
                           <button
-                            disabled={isLastOwner}
+                            disabled={isLastOwner || removingMemberId === m.id}
                             onClick={() => removeMember(m.id)}
                             title={isLastOwner ? "Cannot remove the only owner" : "Remove from organization"}
-                            className="text-xs text-[color:var(--error)] hover:underline disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="text-xs text-[color:var(--error)] hover:underline disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
                           >
-                            Remove
+                            {removingMemberId === m.id ? <RefreshCw size={11} className="animate-spin" /> : null}
+                            {removingMemberId === m.id ? "Removing…" : "Remove"}
                           </button>
                         </td>
                       </tr>
@@ -2101,6 +2905,56 @@ function OrgDetail({
               </table>
             </div>
           </div>
+
+          {/* Bulk assign properties modal */}
+          {bulkAssignMemberId && (() => {
+            const m = members.find(x => x.id === bulkAssignMemberId);
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-[color:var(--foreground)]">Assign Properties</h3>
+                    <p className="text-xs text-[color:var(--muted)] mt-0.5">
+                      {m?.name} · {selectedPropIds.size === 0 ? "All properties (default)" : `${selectedPropIds.size} selected`}
+                    </p>
+                  </div>
+                  {orgProperties.length === 0 ? (
+                    <p className="text-xs text-[color:var(--muted)] text-center py-4">Loading properties…</p>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {orgProperties.map(p => {
+                        const checked = selectedPropIds.has(p.id);
+                        return (
+                          <label key={p.id} className="flex items-center gap-3 p-3 rounded-xl border border-[color:var(--line)] cursor-pointer hover:bg-[color:var(--background)] transition-colors">
+                            <input type="checkbox" checked={checked} onChange={() => {
+                              setSelectedPropIds(prev => {
+                                const s = new Set(prev);
+                                s.has(p.id) ? s.delete(p.id) : s.add(p.id);
+                                return s;
+                              });
+                            }} className="accent-[color:var(--accent-500)] w-4 h-4" />
+                            <span className="text-sm text-[color:var(--foreground)]">{p.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-[color:var(--muted)]">Leave all unchecked to grant access to all properties.</p>
+                  <div className="flex gap-2 pt-1">
+                    <button onClick={saveBulkAssign} disabled={bulkSaving}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-60 text-white text-sm font-semibold transition-colors">
+                      {bulkSaving ? <RefreshCw size={13} className="animate-spin" /> : null}
+                      {bulkSaving ? "Saving…" : "Save Assignment"}
+                    </button>
+                    <button onClick={() => setBulkAssignMemberId(null)}
+                      className="px-4 py-2.5 rounded-xl border border-[color:var(--line)] text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Permission matrix */}
           <div className="bg-white rounded-2xl border border-[color:var(--line)] overflow-hidden">
@@ -2305,94 +3159,31 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
 type NavTarget = { tab: string; propId?: string; tenantId?: string };
 
 function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTarget) => void }) {
-  const [xProps,   setXProps]   = React.useState<Set<string>>(() => new Set(org.propertyIds));
-  const [xFloors,  setXFloors]  = React.useState<Set<string>>(() => new Set());
-
-  type SelNode = { id: string; label: string; sub?: string; badge?: string; type: string; occupied?: boolean };
+  type SelNode = { id: string; label: string; sub?: string; badge?: string; type: string };
   const [selected, setSelected] = React.useState<SelNode | null>(null);
+  const [properties, setProperties] = React.useState<Property[]>([]);
 
-  const propIds    = org.propertyIds.join(",");
-  const properties = PROPERTIES.filter(p => org.propertyIds.includes(p.id));
+  React.useEffect(() => {
+    api.properties.list().then(r => {
+      setProperties(r.data.filter(p => org.propertyIds.includes(p.id)));
+    }).catch(() => {});
+  }, [org.propertyIds.join(",")]);
 
-  // Stable lookups keyed on org.propertyIds so they refresh if properties are added/removed
-  const propById  = React.useMemo(() => new Map(properties.map(p => [p.id, p])), [propIds]);
-  const floorById = React.useMemo(() => {
-    const m = new Map<string, { fl: { id: string; label: string; roomIds: string[] }; fi: number; propId: string }>();
-    for (const [pid, floors] of Object.entries(PROPERTY_FLOORS))
-      floors.forEach((fl, fi) => m.set(fl.id, { fl, fi, propId: pid }));
-    return m;
-  }, []);
+  const propById = React.useMemo(() => new Map(properties.map(p => [p.id, p])), [properties]);
 
-  // Helpers — ids of all floors/rooms under a property (used to clear stale selection)
-  function childIdsOfProp(pid: string): Set<string> {
-    const ids = new Set<string>();
-    for (const fl of PROPERTY_FLOORS[pid] ?? []) {
-      ids.add(fl.id);
-      fl.roomIds.forEach(r => ids.add(r));
-    }
-    return ids;
-  }
-  function childIdsOfFloor(flId: string): Set<string> {
-    const entry = floorById.get(flId);
-    const ids = new Set<string>();
-    if (entry) entry.fl.roomIds.forEach(r => ids.add(r));
-    return ids;
-  }
-
-  // All click logic lives here — React Flow calls this reliably regardless of elementsSelectable
   function handleNodeClick(_: React.MouseEvent, node: Node) {
     const id = node.id;
-
-    // Org node — select only
     if (id === org.id) {
       setSelected(p => p?.id === id ? null : { id, label: org.name, sub: `${org.type} · ${org.plan} plan`, type: "org" });
       return;
     }
-
-    // Property node — toggle expand; if collapsing clear any selected floor/room beneath it
     const prop = propById.get(id);
     if (prop) {
-      const expanding = !xProps.has(id);
-      setXProps(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-      if (!expanding) {
-        // Collapsing: clear selected if it was a floor or room under this property
-        const childIds = childIdsOfProp(id);
-        setSelected(p => (p && childIds.has(p.id)) ? null : p);
-        // Also clear the xFloors entries for floors under this prop to avoid ghost expansion next open
-        setXFloors(s => {
-          const n = new Set(s);
-          for (const fl of PROPERTY_FLOORS[id] ?? []) n.delete(fl.id);
-          return n;
-        });
-      }
-      setSelected(p => p?.id === id ? null : { id, label: prop.name, sub: prop.address.split(",")[0], badge: `${prop.occupied}/${prop.beds} beds`, type: "property" });
-      return;
-    }
-
-    // Floor node — toggle expand; if collapsing clear selected rooms beneath it
-    const flEntry = floorById.get(id);
-    if (flEntry) {
-      const { fl } = flEntry;
-      const rooms   = fl.roomIds.map(rid => ROOM_BY_ID[rid]).filter(Boolean);
-      const occ     = rooms.filter(r => r.status === "occupied").length;
-      const expanding = !xFloors.has(id);
-      setXFloors(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
-      if (!expanding) {
-        const childIds = childIdsOfFloor(id);
-        setSelected(p => (p && childIds.has(p.id)) ? null : p);
-      }
-      setSelected(p => p?.id === id ? null : { id, label: fl.label, badge: `${occ}/${rooms.length} occupied`, type: "floor" });
-      return;
-    }
-
-    // Room node — select only
-    const rm = ROOM_BY_ID[id];
-    if (rm) {
-      setSelected(p => p?.id === id ? null : { id, label: rm.tenant ?? "Vacant", sub: `Rm ${rm.number} · ${rm.type}`, type: "room", occupied: rm.status === "occupied" });
+      setSelected(p => p?.id === id ? null : { id, label: prop.title, sub: prop.location.split(",")[0], badge: `${prop.occupiedRooms}/${prop.totalRooms} rooms`, type: "property" });
     }
   }
 
-  // Build nodes + edges — all interaction via onNodeClick; View buttons use onView
+  // Build nodes + edges — org → property only
   const rawNodes: Node[] = [];
   const rawEdges: Edge[] = [];
 
@@ -2406,56 +3197,20 @@ function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTa
   });
 
   for (const prop of properties) {
-    const propExp = xProps.has(prop.id);
     rawNodes.push({
       id: prop.id, type: "prop-n", position: { x: 0, y: 0 },
       data: {
-        label: prop.name, sub: prop.address.split(",")[0],
-        badge: `${prop.occupied}/${prop.beds} beds`, isExp: propExp,
+        label: prop.title, sub: prop.location.split(",")[0],
+        badge: `${prop.occupiedRooms}/${prop.totalRooms} rooms`, isExp: false,
         onView: () => onNavigate({ tab: "properties", propId: prop.id }),
       } as NData,
     });
     rawEdges.push({ id: `e-${org.id}-${prop.id}`, source: org.id, target: prop.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
-
-    if (propExp) {
-      (PROPERTY_FLOORS[prop.id] ?? []).forEach((fl, fi) => {
-        const rooms = fl.roomIds.map(rid => ROOM_BY_ID[rid]).filter(Boolean);
-        const occ   = rooms.filter(r => r.status === "occupied").length;
-        const flExp = xFloors.has(fl.id);
-        rawNodes.push({
-          id: fl.id, type: "flr-n", position: { x: 0, y: 0 },
-          data: {
-            label: fl.label, badge: `${occ}/${rooms.length} occ`, floorNum: fi + 1, isExp: flExp,
-            onView: () => onNavigate({ tab: "properties", propId: prop.id }),
-          } as NData,
-        });
-        rawEdges.push({ id: `e-${prop.id}-${fl.id}`, source: prop.id, target: fl.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
-
-        if (flExp) {
-          rooms.forEach(rm => {
-            const tenantId = rm.tenant ? TENANT_BY_NAME[rm.tenant] : undefined;
-            rawNodes.push({
-              id: rm.id, type: "room-n", position: { x: 0, y: 0 },
-              data: {
-                label: rm.tenant ?? "Vacant", sub: `Rm ${rm.number} · ${rm.type}`,
-                occupied: rm.status === "occupied",
-                hasProfile: !!tenantId,
-                onView: tenantId
-                  ? () => onNavigate({ tab: "tenants", tenantId })
-                  : () => onNavigate({ tab: "properties", propId: prop.id }),
-              } as NData,
-            });
-            rawEdges.push({ id: `e-${fl.id}-${rm.id}`, source: fl.id, target: rm.id, style: _EDGE_STYLE, markerEnd: _ARROW_END });
-          });
-        }
-      });
-    }
   }
 
   const layoutedNodes = applyDagreLayout(rawNodes, rawEdges);
 
-  // key forces ReactFlow to remount (re-runs fitView) whenever the tree shape changes
-  const rfKey = [...xProps].sort().join(",") + "|" + [...xFloors].sort().join(",");
+  const rfKey = properties.map(p => p.id).join(",");
 
   return (
     <div className="bg-white rounded-2xl border border-[color:var(--line)] p-6">
@@ -2491,17 +3246,13 @@ function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTa
           <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
             selected.type === "org"        ? "bg-violet-500"
             : selected.type === "property" ? "bg-teal-500"
-            : selected.type === "floor"    ? "bg-indigo-500"
-            : selected.occupied            ? "bg-emerald-500"
             :                               "bg-slate-300"
           }`} />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-[color:var(--foreground)] truncate">{selected.label}</p>
             {selected.badge && <p className="text-[11px] text-[color:var(--muted)] mt-0.5">{selected.badge}</p>}
             {selected.sub   && <p className="text-[11px] text-[color:var(--muted)]">{selected.sub}</p>}
-            <p className="text-[10px] text-slate-400 mt-1 capitalize">
-              {selected.type}{selected.type === "room" && !selected.occupied ? " · Vacant" : ""}
-            </p>
+            <p className="text-[10px] text-slate-400 mt-1 capitalize">{selected.type}</p>
           </div>
         </div>
       )}
@@ -2511,13 +3262,59 @@ function OrgTree({ org, onNavigate }: { org: Organization; onNavigate: (t: NavTa
 
 // ─── OrganizationTab — multi-org management ───────────────────────────────────
 
-function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate: (t: NavTarget) => void }) {
-  const [orgs, setOrgs]           = React.useState<Organization[]>(MOCK_ORGS);
-  const [activeOrgId, setActiveOrgId] = React.useState<string | null>(
-    MOCK_ORGS.length > 0 ? MOCK_ORGS[0].id : null
-  );
-  const [showCreate, setShowCreate] = React.useState(false);
-  const [view, setView]            = React.useState<"details" | "tree">("details");
+function buildLocalOrg(
+  apiOrg: ApiOrganization,
+  apiMembers: ApiOrgMember[],
+  extra: { type?: Organization["type"]; address?: string; city?: string; phone?: string; email?: string; gstin?: string; website?: string } = {},
+): Organization {
+  const initials = apiOrg.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  return {
+    id: apiOrg.id,
+    name: apiOrg.name,
+    type: extra.type ?? "individual",
+    address: extra.address ?? "",
+    city: extra.city ?? "",
+    phone: extra.phone ?? "",
+    email: extra.email ?? "",
+    ...(extra.gstin   ? { gstin: extra.gstin }     : {}),
+    ...(extra.website ? { website: extra.website } : {}),
+    logoInitials: initials,
+    plan: "growth",
+    propertyIds: [],
+    ownerId: apiOrg.billingOwnerId,
+    createdAt: apiOrg.createdAt,
+    members: apiMembers.map(m => ({
+      id: m.userId,
+      name: m.name,
+      email: m.email,
+      role: m.role as OrgRole,
+      assignedProperties: [],
+      status: "active" as const,
+      joinedAt: m.joinedAt,
+    })),
+  };
+}
+
+function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: OwnerInfo; onNavigate: (t: NavTarget) => void }) {
+  const [orgs, setOrgs]               = React.useState<Organization[]>([]);
+  const [activeOrgId, setActiveOrgId] = React.useState<string | null>(null);
+  const [showCreate, setShowCreate]   = React.useState(false);
+  const [view, setView]               = React.useState<"details" | "tree">("details");
+  const [loading, setLoading]         = React.useState(true);
+  const [creating, setCreating]       = React.useState(false);
+
+  // Load org from API on mount
+  React.useEffect(() => {
+    api.orgs.me()
+      .then(async (apiOrg) => {
+        const apiMembers = await api.orgs.listMembers(apiOrg.id).catch(() => [] as ApiOrgMember[]);
+        const org = buildLocalOrg(apiOrg, apiMembers);
+        setOrgs([org]);
+        setActiveOrgId(org.id);
+      })
+      .catch(() => {}) // 404 = no org yet — show empty state
+      .finally(() => setLoading(false));
+  }, []);
 
   // Create-form state
   const [cName,    setCName]    = React.useState("");
@@ -2550,7 +3347,7 @@ function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate
     if (orgs.length > 0) setActiveOrgId(orgs[0].id);
   }
 
-  function submitCreate() {
+  async function submitCreate() {
     if (!cName.trim())    { setCError("Organization name is required."); return; }
     if (!cAddress.trim()) { setCError("Address is required."); return; }
     if (!cCity.trim())    { setCError("City is required."); return; }
@@ -2563,42 +3360,48 @@ function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate
       setCError("An organization with this name already exists."); return;
     }
 
-    const initials = cName.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
-    const today    = new Date().toISOString().slice(0, 10);
-    const newOrg: Organization = {
-      id: `org${Date.now()}`,
-      name: cName.trim(),
-      type: cType,
-      address: cAddress.trim(),
-      city: cCity.trim(),
-      phone: cPhone.trim(),
-      email: cEmail.trim().toLowerCase(),
-      ...(cGstin.trim()   ? { gstin: cGstin.trim().toUpperCase() }   : {}),
-      ...(cWebsite.trim() ? { website: cWebsite.trim() }             : {}),
-      logoInitials: initials,
-      plan: "growth",
-      propertyIds: [],
-      ownerId: "o1",
-      createdAt: today,
-      members: [{
-        id: `m${Date.now()}`,
+    setCreating(true);
+    setCError(null);
+    try {
+      const apiOrg = await api.orgs.create(cName.trim());
+      const seedMember: ApiOrgMember = {
+        userId: ownerInfo.id,
         name: ownerInfo.name,
-        email: "ravi@shiftproof.in",
+        email: ownerInfo.email,
+        avatarUrl: ownerInfo.avatarUrl,
         role: "owner",
-        assignedProperties: [],
-        status: "active",
-        joinedAt: today,
-      }],
-    };
-
-    setOrgs(prev => [...prev, newOrg]);
-    setActiveOrgId(newOrg.id);
-    setShowCreate(false);
-    setCName(""); setCType("individual"); setCAddress(""); setCCity("");
-    setCPhone(""); setCEmail(""); setCGstin(""); setCWebsite(""); setCError(null);
+        joinedAt: new Date().toISOString().slice(0, 10),
+      };
+      const newOrg = buildLocalOrg(apiOrg, [seedMember], {
+        type: cType,
+        address: cAddress.trim(),
+        city: cCity.trim(),
+        phone: cPhone.trim(),
+        email: cEmail.trim().toLowerCase(),
+        ...(cGstin.trim()   ? { gstin: cGstin.trim().toUpperCase() }   : {}),
+        ...(cWebsite.trim() ? { website: cWebsite.trim() }             : {}),
+      });
+      setOrgs(prev => [...prev, newOrg]);
+      setActiveOrgId(newOrg.id);
+      setShowCreate(false);
+      setCName(""); setCType("individual"); setCAddress(""); setCCity("");
+      setCPhone(""); setCEmail(""); setCGstin(""); setCWebsite(""); setCError(null);
+    } catch {
+      setCError("Failed to create organization. Please try again.");
+    } finally {
+      setCreating(false);
+    }
   }
 
   const INP = "w-full px-3 py-2.5 rounded-xl border border-[color:var(--line)] text-sm bg-white outline-none focus:border-[color:var(--accent-500)] focus:ring-2 focus:ring-[color:var(--accent-50)] text-[color:var(--foreground)] placeholder:text-[color:var(--muted)]";
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-[color:var(--line)] p-10 flex items-center justify-center">
+        <p className="text-xs text-[color:var(--muted)]">Loading…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -2696,13 +3499,15 @@ function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate
           <div className="flex gap-2 mt-5">
             <button
               onClick={submitCreate}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-sm font-semibold transition-colors"
+              disabled={creating}
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-60 text-white text-sm font-semibold transition-colors"
             >
-              <Landmark size={14} strokeWidth={2} /> Create organization
+              <Landmark size={14} strokeWidth={2} /> {creating ? "Creating…" : "Create organization"}
             </button>
             <button
               onClick={cancelCreate}
-              className="px-5 py-2.5 rounded-xl text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+              disabled={creating}
+              className="px-5 py-2.5 rounded-xl text-sm text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors disabled:opacity-60"
             >
               Cancel
             </button>
@@ -2766,13 +3571,7 @@ function OrganizationTab({ ownerInfo, onNavigate }: { ownerInfo: any; onNavigate
 
 // ─── Search overlay ──────────────────────────────────────────────────────────
 
-const SEARCH_INDEX = [
-  ...PROPERTIES.map(p => ({ type: "Property", label: p.name, sub: p.address, nav: "properties" })),
-  ...TENANTS.map(t  => ({ type: "Tenant",   label: t.name,  sub: `${t.property} · Room ${t.room}`, nav: "tenants" })),
-  ...MAINTENANCE.map(m => ({ type: "Ticket", label: m.title, sub: `${m.property} · ${m.status}`, nav: "maintenance" })),
-  { type: "Organization", label: CURRENT_ORG.name, sub: `${CURRENT_ORG.members.length} members · ${CURRENT_ORG.plan} plan`, nav: "organization" },
-  ...CURRENT_ORG.members.map(m => ({ type: "Member", label: m.name, sub: `${m.role} · ${m.email}`, nav: "organization" })),
-];
+const SEARCH_INDEX: { type: string; label: string; sub: string; nav: string }[] = [];
 
 function SearchOverlay({ onClose, onNav }: { onClose: () => void; onNav: (id: string) => void }) {
   const [q, setQ] = useState("");
@@ -2841,16 +3640,9 @@ function SearchOverlay({ onClose, onNav }: { onClose: () => void; onNav: (id: st
 
 // ─── Notifications dropdown ───────────────────────────────────────────────────
 
-const NOTIF_DATA = [
-  { id: "n1", type: "error",   title: "3 overdue rent payments",      body: "Neha, Kiran & Sonia are overdue.",          time: "2h ago",  read: false, nav: "payments" },
-  { id: "n2", type: "warning", title: "Lease expiring — Amit Patel",  body: "Lease ends Apr 30. Renew or vacate?",       time: "1d ago",  read: false, nav: "tenants" },
-  { id: "n3", type: "warning", title: "Lease expiring — Kiran Rao",   body: "Lease ends Oct 25. Action needed.",         time: "1d ago",  read: true,  nav: "tenants" },
-  { id: "n4", type: "info",    title: "5 active maintenance requests", body: "2 high priority, 3 pending assignment.",    time: "3h ago",  read: false, nav: "maintenance" },
-  { id: "n5", type: "success", title: "Rent received — Rahul Sharma", body: "₹8,500 received for April 2025.",           time: "Apr 2",   read: true,  nav: "payments" },
-];
 
-function NotifDropdown({ onClose, onNav }: { onClose: () => void; onNav: (id: string) => void }) {
-  const [items, setItems] = useState(NOTIF_DATA);
+function NotifDropdown({ onClose, onNav, initialItems }: { onClose: () => void; onNav: (id: string) => void; initialItems: NotifItem[] }) {
+  const [items, setItems] = useState(initialItems);
 
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === "Escape") onClose(); }
@@ -2869,8 +3661,10 @@ function NotifDropdown({ onClose, onNav }: { onClose: () => void; onNav: (id: st
       <div className="absolute right-0 top-full mt-2 z-50 w-80 bg-[color:var(--surface-card)] rounded-2xl shadow-xl border border-[color:var(--line)] overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-[color:var(--line)]">
           <p className="text-sm font-bold text-[color:var(--foreground)]">Notifications</p>
-          <button onClick={() => setItems(i => i.map(n => ({ ...n, read: true })))}
-            className="text-[11px] font-semibold text-[color:var(--accent-600)] hover:underline">
+          <button onClick={() => {
+            setItems(i => i.map(n => ({ ...n, read: true })));
+            api.notifications.markAllRead().catch(() => {});
+          }} className="text-[11px] font-semibold text-[color:var(--accent-600)] hover:underline">
             Mark all read
           </button>
         </div>
@@ -2878,7 +3672,11 @@ function NotifDropdown({ onClose, onNav }: { onClose: () => void; onNav: (id: st
           {items.map(n => (
             <li key={n.id}>
               <button
-                onClick={() => { setItems(i => i.map(x => x.id === n.id ? { ...x, read: true } : x)); onNav(n.nav); onClose(); }}
+                onClick={() => {
+                  setItems(i => i.map(x => x.id === n.id ? { ...x, read: true } : x));
+                  if (!n.read) api.notifications.markRead(n.id).catch(() => {});
+                  onNav(n.nav); onClose();
+                }}
                 className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[color:var(--background)] ${!n.read ? "bg-[color:var(--accent-50)]" : ""}`}
               >
                 <AlertCircle size={14} className={`${iconColor[n.type]} shrink-0 mt-0.5`} />
@@ -3082,7 +3880,7 @@ function SettingsDropdown({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function OwnerDashboardClient() {
+function OwnerDashboardClient() {
   const router = useRouter();
 
   const [activeNav, setActiveNav] = useState("overview");
@@ -3095,45 +3893,83 @@ export default function OwnerDashboardClient() {
 
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
+  const [contexts, setContexts] = useState<import("@/lib/api").RoleContext[]>([]);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [apiPayments, setApiPayments] = useState<ApiPayment[] | null>(null);
+  const [apiSummary, setApiSummary] = useState<PaymentSummary | null>(null);
+  const [apiNotifications, setApiNotifications] = useState<ApiNotification[] | null>(null);
+  const [apiChartPoints, setApiChartPoints] = useState<RevenueChartPoint[] | null>(null);
+  const [apiReport, setApiReport] = useState<PropertyReport | null>(null);
+  const [apiProperties, setApiProperties] = useState<Property[]>([]);
 
   useEffect(() => {
     async function loadData() {
       try {
         const me = await api.auth.me();
         setUser(me);
+        api.auth.contexts().then(setContexts).catch(() => {});
+
+        // Non-critical: properties + payments + notifications + chart + report; partial failures are OK
+        const propsRes = await api.properties.list().catch(() => ({ data: [] as Property[] }));
+        setApiProperties(propsRes.data);
+        const defaultPropId = propsRes.data[0]?.id ?? "p1";
+        const [paymentsRes, summaryRes, notifRes, chartRes, reportRes] = await Promise.allSettled([
+          api.payments.list({ limit: 50 }),
+          api.payments.summary(),
+          api.notifications.list(1, 20),
+          api.reports.revenueChart(defaultPropId, 6),
+          api.reports.property(defaultPropId),
+        ]);
+        if (paymentsRes.status === "fulfilled") setApiPayments(paymentsRes.value.data);
+        if (summaryRes.status  === "fulfilled") setApiSummary(summaryRes.value);
+        if (notifRes.status    === "fulfilled") setApiNotifications(notifRes.value.data);
+        if (chartRes.status    === "fulfilled") setApiChartPoints(chartRes.value.points);
+        if (reportRes.status   === "fulfilled") setApiReport(reportRes.value);
       } catch (err) {
-        const status = (err as { status?: number }).status;
+        const status = err instanceof ApiError ? err.status : (err as { status?: number }).status;
+        const message = err instanceof Error ? err.message : "Unable to load your dashboard.";
         if (typeof status === "number") {
           if (status === 409 || (err as Error).message?.toLowerCase().includes("conflict")) {
-            await signOut(auth);
+            if (auth) await signOut(auth);
             await fetch("/api/auth/logout", { method: "POST" });
             router.replace("/login?error=identity_conflict");
             return;
           }
-          // Any other API error — backend doesn't have this user yet, use mock data.
+
+          if (status === 401 || status === 403) {
+            if (auth) await signOut(auth);
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.replace("/login?next=/owner-dashboard");
+            return;
+          }
+
+          setAuthError(message);
           return;
         }
-        console.error("Failed to load owner data:", err);
+        setAuthError(message);
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [router]);
 
   useEffect(() => { setAvatarError(false); }, [user?.avatarUrl]);
 
   const ownerDefaults = {
-    name: user?.name || "Ravi Kumar",
-    initials: (user?.name || "Ravi Kumar").split(" ").map(n => n[0]).join("").slice(0, 2),
-    properties: PROPERTIES.length,
-    beds: PROPERTIES.reduce((sum, p) => sum + (p as any).beds, 0),
+    name: user?.name || "Owner",
+    initials: (user?.name || "Owner").split(" ").map(n => n[0]).join("").slice(0, 2),
+    properties: apiProperties.length,
+    beds: apiProperties.reduce((sum, p) => sum + p.totalRooms, 0),
   };
 
   const ownerInfo = {
     ...ownerDefaults,
-    name: user?.name || ownerDefaults.name,
+    id:       user?.id || "",
+    name:     user?.name || ownerDefaults.name,
+    email:    user?.email || "",
     initials: (user?.name || ownerDefaults.name).split(" ").map(n => n[0]).join("").slice(0, 2),
     avatarUrl: user?.avatarUrl || "",
   };
@@ -3173,41 +4009,34 @@ export default function OwnerDashboardClient() {
   const [notifOpen,  setNotifOpen]    = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const unreadCount = NOTIF_DATA.filter(n => !n.read).length;
+  const apiNotifItems: NotifItem[] = apiNotifications?.map(mapApiNotif) ?? [];
+  const unreadCount = apiNotifItems.filter(n => !n.read).length;
 
   const stats = React.useMemo(() => {
-    const totalBeds = PROPERTIES.reduce((sum, p) => sum + (p as any).beds, 0);
-    const occupiedBeds = PROPERTIES.reduce((sum, p) => sum + (p as any).occupied, 0);
-    const totalRentDue = TENANTS.reduce((sum, t) => sum + (t as any).rent, 0);
-    const overdueTenants = TENANTS.filter(t => (t as any).risk === "late").length;
-    
-    const pendingAmount = TENANTS.reduce((sum, t) => {
-      const history = TENANTS_EXT[t.id]?.rentHistory || [];
-      const currentMonthPending = history.some(h => h.status === "pending") ? (t as any).rent : 0;
-      return sum + currentMonthPending;
-    }, 0);
+    const totalBeds    = apiProperties.reduce((sum, p) => sum + p.totalRooms, 0);
+    const occupiedBeds = apiProperties.reduce((sum, p) => sum + p.occupiedRooms, 0);
+    const overdueTenants = apiSummary?.overdueTenants ?? 0;
+    const pendingAmount  = apiSummary?.pendingAmount  ?? 0;
+    const totalCollected = apiSummary?.totalCollectedThisMonth ?? 0;
+    const overdueAmount  = Math.max(0, pendingAmount - (apiSummary?.pendingAmount ?? 0));
 
-    const overdueAmount = TENANTS.reduce((sum, t) => {
-      const history = TENANTS_EXT[t.id]?.rentHistory || [];
-      const currentOverdue = history.some(h => h.status === "overdue") ? (t as any).rent : 0;
-      return sum + currentOverdue;
-    }, 0);
+    const revPct = apiReport?.revenueChangePercent;
+    const revSub = revPct != null
+      ? `${revPct >= 0 ? "↑" : "↓"} ${Math.abs(revPct).toFixed(1)}% vs last month`
+      : "vs last month";
+    const revUp = revPct == null || revPct >= 0;
 
-    const totalCollected = totalRentDue - pendingAmount - overdueAmount;
-
+    const totalRooms = Math.max(totalBeds, 1);
     const kpi = [
-      { label: "Monthly Revenue", value: `₹${totalRentDue.toLocaleString("en-IN")}`, sub: "↑ 8.2% vs last month", up: true, icon: IndianRupee, color: "accent" },
-      { label: "Occupancy Rate",  value: `${((occupiedBeds / totalBeds) * 100).toFixed(1)}%`, sub: `${occupiedBeds} of ${totalBeds} beds filled`, up: true, icon: BedDouble, color: "trust" },
-      { label: "Rent Collected",  value: `₹${totalCollected.toLocaleString("en-IN")}`, sub: `${((totalCollected / totalRentDue) * 100).toFixed(0)}% of total due`, up: true, icon: CheckCircle2, color: "success" },
-      { label: "Pending Amount",  value: `₹${(pendingAmount + overdueAmount).toLocaleString("en-IN")}`, sub: `From ${TENANTS.filter(t => {
-        const history = TENANTS_EXT[t.id]?.rentHistory || [];
-        return history.some(h => h.status === "pending" || h.status === "overdue");
-      }).length} tenants`, up: false, icon: Clock, color: "warning" },
+      { label: "Monthly Revenue", value: `₹${totalCollected.toLocaleString("en-IN")}`, sub: revSub, up: revUp, icon: IndianRupee, color: "accent" },
+      { label: "Occupancy Rate",  value: `${((occupiedBeds / totalRooms) * 100).toFixed(1)}%`, sub: `${occupiedBeds} of ${totalBeds} rooms filled`, up: true, icon: BedDouble, color: "trust" },
+      { label: "Rent Collected",  value: `₹${totalCollected.toLocaleString("en-IN")}`, sub: "This month", up: true, icon: CheckCircle2, color: "success" },
+      { label: "Pending Amount",  value: `₹${pendingAmount.toLocaleString("en-IN")}`, sub: `From ${apiSummary?.totalTenants ?? 0} tenants`, up: false, icon: Clock, color: "warning" },
     ];
 
     const atAGlance = [
-      { label: "Occupied Beds",    value: occupiedBeds.toString(), sub: `Across ${PROPERTIES.length} properties`, icon: BedDouble, color: "text-[color:var(--accent-400)]" },
-      { label: "Vacant Beds",      value: (totalBeds - occupiedBeds).toString(), sub: "Ready for move-in", icon: Home, color: "text-slate-400" },
+      { label: "Occupied Rooms",   value: occupiedBeds.toString(), sub: `Across ${apiProperties.length} properties`, icon: BedDouble, color: "text-[color:var(--accent-400)]" },
+      { label: "Vacant Rooms",     value: (totalBeds - occupiedBeds).toString(), sub: "Ready for move-in", icon: Home, color: "text-slate-400" },
       { label: "Overdue Accounts", value: overdueTenants.toString(), sub: "Requires attention", icon: AlertCircle, color: "text-[color:var(--error)]" },
     ];
 
@@ -3217,8 +4046,13 @@ export default function OwnerDashboardClient() {
       { label: "Overdue",         value: `₹${overdueAmount.toLocaleString("en-IN")}`,   color: "error" },
     ];
 
-    return { kpi, atAGlance, financials };
-  }, []);
+    const alerts: AlertItem[] = [
+      ...(overdueTenants > 0 ? [{ type: "error" as const, icon: AlertCircle, title: `${overdueTenants} overdue rent payment${overdueTenants !== 1 ? "s" : ""}`, action: "Review" }] : []),
+      ...(pendingAmount   > 0 ? [{ type: "warning" as const, icon: Clock, title: `₹${pendingAmount.toLocaleString("en-IN")} pending rent`, action: "View" }] : []),
+    ];
+
+    return { kpi, atAGlance, financials, alerts };
+  }, [apiSummary, apiReport, apiProperties]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -3240,6 +4074,36 @@ export default function OwnerDashboardClient() {
     );
   }
 
+  if (authError || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[color:var(--background)] px-4">
+        <div className="max-w-md rounded-2xl border border-[color:var(--line)] bg-white p-6 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--error-50)] text-[color:var(--error-700)]">
+            <AlertCircle size={20} />
+          </div>
+          <h1 className="text-base font-bold text-[color:var(--foreground)]">Dashboard unavailable</h1>
+          <p className="mt-2 text-sm text-[color:var(--muted)]">
+            {authError ?? "We could not verify your owner session."}
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-xl bg-[color:var(--accent-500)] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[color:var(--accent-600)]"
+            >
+              Retry
+            </button>
+            <button
+              onClick={handleLogout}
+              className="rounded-xl border border-[color:var(--line)] px-4 py-2 text-xs font-semibold text-[color:var(--muted)] transition-colors hover:text-[color:var(--foreground)]"
+            >
+              Sign in again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex h-screen overflow-hidden bg-[color:var(--background)]"
@@ -3251,18 +4115,14 @@ export default function OwnerDashboardClient() {
       <aside className={`fixed inset-y-0 left-0 z-40 ${sidebarW} bg-[#1A1A18] flex flex-col py-6 transition-all duration-300
         ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
 
-        {/* Org logo */}
+        {/* Brand logo */}
         <div className={`mb-8 flex items-center gap-3 ${settings.sidebarCollapsed ? "justify-center px-0" : "px-5"}`}>
-          {CURRENT_ORG.image ? (
-            <img src={CURRENT_ORG.image} alt={CURRENT_ORG.name} className="w-9 h-9 rounded-xl object-cover shrink-0" />
-          ) : (
-            <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)] flex items-center justify-center text-xs font-bold text-white shrink-0 select-none tracking-wide">
-              {CURRENT_ORG.logoInitials}
-            </div>
-          )}
+          <div className="w-9 h-9 rounded-xl bg-[color:var(--accent-500)] flex items-center justify-center shrink-0 select-none">
+            <Home size={16} strokeWidth={2} color="white" />
+          </div>
           {!settings.sidebarCollapsed && (
             <div className="min-w-0">
-              <p className="font-bold text-sm text-white tracking-tight truncate leading-snug">{CURRENT_ORG.name}</p>
+              <p className="font-bold text-sm text-white tracking-tight truncate leading-snug">{ownerInfo.name}</p>
               <p className="text-[10px] text-white/30 leading-snug">via ShiftProof</p>
             </div>
           )}
@@ -3335,6 +4195,43 @@ export default function OwnerDashboardClient() {
             <p className="text-[11px] text-[color:var(--muted)] hidden sm:block">{formatTopbarDate(settings.dateFormat)}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {/* Role context switcher */}
+            {contexts.length > 1 && (
+              <div className="relative">
+                <button
+                  onClick={() => setContextOpen(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl border border-[color:var(--line)] hover:bg-[color:var(--background)] text-[color:var(--foreground)] transition-colors"
+                >
+                  <Users size={13} />
+                  <span className="hidden sm:inline">Switch Role</span>
+                  <ChevronDown size={12} />
+                </button>
+                {contextOpen && (
+                  <div className="absolute right-0 top-10 z-50 w-60 bg-white rounded-2xl border border-[color:var(--line)] shadow-xl overflow-hidden">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] px-4 pt-3 pb-2">Your Roles</p>
+                    {contexts.map(ctx => (
+                      <button
+                        key={`${ctx.propertyId}-${ctx.role}`}
+                        onClick={async () => {
+                          await api.auth.setPreferredContext(ctx.propertyId).catch(() => {});
+                          setContextOpen(false);
+                          if (ctx.role === "tenant") router.push("/tenant-dashboard");
+                        }}
+                        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-[color:var(--background)] text-left transition-colors"
+                      >
+                        <div className={`mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0 text-[10px] font-bold ${ctx.role === "tenant" ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" : "bg-slate-100 text-slate-600"}`}>
+                          {ctx.role === "tenant" ? "T" : "O"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[color:var(--foreground)] truncate">{ctx.propertyName}</p>
+                          <p className="text-xs text-[color:var(--muted)] capitalize">{ctx.role}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             {/* Search */}
             <button
               onClick={() => setSearchOpen(true)}
@@ -3355,7 +4252,7 @@ export default function OwnerDashboardClient() {
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[color:var(--error)]" />
                 )}
               </button>
-              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} onNav={(id) => { navTo(id); setNotifOpen(false); }} />}
+              {notifOpen && <NotifDropdown onClose={() => setNotifOpen(false)} onNav={(id) => { navTo(id); setNotifOpen(false); }} initialItems={apiNotifItems} />}
             </div>
             {/* Settings — UI preferences */}
             <div className="relative">
@@ -3383,12 +4280,20 @@ export default function OwnerDashboardClient() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {activeNav === "overview"      && <OverviewTab stats={stats} />}
-          {activeNav === "properties"    && <PropertiesTab key={deepPropVer}   initialPropId={deepPropId} />}
+          {(() => {
+            const effectiveTransactions: TxItem[] = apiPayments?.map(mapApiPaymentToTx) ?? [];
+            return (
+              <>
+                {activeNav === "overview"     && <OverviewTab stats={stats} transactions={effectiveTransactions} chartPoints={apiChartPoints} />}
+                {activeNav === "payments"     && <PaymentsTab stats={stats} transactions={effectiveTransactions} />}
+              </>
+            );
+          })()}
+          {activeNav === "properties"    && <PropertiesTab key={deepPropVer}   initialPropId={deepPropId} properties={apiProperties} />}
           {activeNav === "tenants"       && <TenantsTab   key={deepTenantVer} initialTenantId={deepTenantId} onNav={navTo} />}
-          {activeNav === "payments"      && <PaymentsTab stats={stats} />}
           {activeNav === "maintenance"   && <MaintenanceTab />}
           {activeNav === "reports"       && <ReportsTab />}
+          {activeNav === "payouts"       && <PayoutsTab />}
           {activeNav === "organization"  && <OrganizationTab ownerInfo={ownerInfo} onNavigate={handleDeepNav} />}
           {activeNav === "account"       && <AccountTab user={user} />}
         </main>
@@ -3403,5 +4308,13 @@ export default function OwnerDashboardClient() {
         <Plus size={22} strokeWidth={2} />
       </button>
     </div>
+  );
+}
+
+export default function OwnerDashboardClientWithBoundary() {
+  return (
+    <DashboardErrorBoundary>
+      <OwnerDashboardClient />
+    </DashboardErrorBoundary>
   );
 }

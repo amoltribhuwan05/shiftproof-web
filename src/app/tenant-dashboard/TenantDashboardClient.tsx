@@ -6,36 +6,160 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import PhoneInput from "@/components/PhoneInput";
 import {
-  Home, CreditCard, Wrench, Bell, ChevronLeft, Menu,
+  Home, CreditCard, Wrench, Bell, ChevronLeft, Menu, AlertCircle,
   CheckCircle2, Clock, IndianRupee, Calendar,
-  Plus, Download, Send, FileText, Users, MapPin, Phone,
+  Plus, Download, Send, FileText, Users, MapPin, Phone, ChevronDown,
   Shield, User, Lock, Smartphone, ToggleLeft, ToggleRight,
-  Edit3, Eye, EyeOff, Trash2, Settings, LogOut,
+  Edit3, Eye, EyeOff, Trash2, Settings, LogOut, RefreshCw, ArrowRight, Link2,
 } from "lucide-react";
-import {
-  CURRENT_TENANT, TENANTS_EXT, MAINTENANCE, MAINTENANCE_EXT,
-  NOTICES, PROPERTY_AMENITIES, PROPERTY_HOUSE_RULES, CURRENT_TENANT_ROOMMATES, TENANT_DOCS,
-} from "@/lib/mockData";
-import { api, ApiError, type AppUser, type CurrentStay } from "@/lib/api";
-import { signOut } from "firebase/auth";
+import { api, ApiError, type AppUser, type CurrentStay, type Property as ApiProperty, type Payment as ApiPayment, type Notification as ApiNotification, type MaintenanceRequest as ApiMaintenanceRequest } from "@/lib/api";
+import { signOut, GoogleAuthProvider, linkWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+
+// ─── Error boundary ───────────────────────────────────────────────────────────
+
+class DashboardErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[color:var(--background)] flex items-center justify-center p-6">
+          <div className="text-center max-w-sm">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+              <AlertCircle size={22} className="text-red-500" />
+            </div>
+            <h2 className="text-slate-900 font-semibold text-lg mb-2">Something went wrong</h2>
+            <p className="text-slate-500 text-sm mb-6">An unexpected error occurred. Try refreshing the page.</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-5 py-2.5 bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              Refresh page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─── Razorpay ─────────────────────────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    Razorpay?: new (opts: RzpOpts) => { open(): void };
+  }
+}
+type RzpOpts = {
+  key: string; amount: number; currency: string;
+  name: string; description: string; order_id: string; receipt: string;
+  prefill?: { name?: string; email?: string };
+  theme?: { color?: string };
+  modal?: { ondismiss?: () => void };
+  handler: (r: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => void;
+};
+
+async function loadRazorpayScript(): Promise<void> {
+  if (window.Razorpay) return;
+  return new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load payment SDK"));
+    document.head.appendChild(s);
+  });
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type NavId = "overview" | "myroom" | "payments" | "maintenance" | "notices" | "account";
 
-// ─── Constants (fallbacks) ──────────────────────────────────────────────────
-const FALLBACK_TENANT_ID = "u1";
+type PaymentDisplay = {
+  id?: string;
+  month: string;
+  year: number;
+  amount: number;
+  status: "paid" | "due" | "overdue";
+  date: string;
+  receipt: string | null;
+};
 
-// ─── Display data (derived from shared mock data) ──────────────────────────────
+type TicketDisplay = {
+  id: string;
+  title: string;
+  category: string;
+  date: string;
+  status: string;
+  priority: string;
+  response?: string;
+};
 
-const TENANT = CURRENT_TENANT;
+// ─── Display type ─────────────────────────────────────────────────────────────
 
-const NOTICES_DATA = NOTICES;
+type TenantDisplay = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  initials: string;
+  avatarUrl: string;
+  city: string;
+  area: string;
+  gender: string;
+  pg: string;
+  room: string;
+  type: string;
+  floor: string;
+  rent: number;
+  deposit: number;
+  checkIn: string;
+  leaseStart: string;
+  leaseEnd: string;
+  leaseDaysLeft: number;
+  address: string;
+  pgContact: string;
+  pgManager: string;
+};
 
-const AMENITIES   = PROPERTY_AMENITIES["p1"];
-const HOUSE_RULES = PROPERTY_HOUSE_RULES["p1"];
-const ROOMMATES   = CURRENT_TENANT_ROOMMATES;
+function buildTenantDisplay(user: AppUser | null, stay: CurrentStay | null): TenantDisplay {
+  const name = user?.name ?? "—";
+  const leaseEnd = stay?.leaseEnd ?? "";
+  const leaseDaysLeft = leaseEnd
+    ? Math.max(0, Math.round((new Date(leaseEnd).getTime() - Date.now()) / 86_400_000))
+    : 0;
+  return {
+    id: user?.id ?? "",
+    name,
+    email: user?.email ?? "",
+    phone: user?.phoneNumber ?? "",
+    initials: name.split(" ").filter(Boolean).map(n => n[0]).join("").slice(0, 2).toUpperCase(),
+    avatarUrl: user?.avatarUrl ?? "",
+    city: user?.city ?? "",
+    area: user?.area ?? "",
+    gender: user?.gender ?? "",
+    pg: stay?.propertyName ?? "—",
+    room: stay?.roomNumber ?? "—",
+    type: "Single",
+    floor: "1",
+    rent: stay?.rentAmount ?? 0,
+    deposit: 0,
+    checkIn: stay?.leaseStart ?? "—",
+    leaseStart: stay?.leaseStart ?? "—",
+    leaseEnd,
+    leaseDaysLeft,
+    address: stay?.address ?? "—",
+    pgContact: stay?.ownerPhone ?? "—",
+    pgManager: stay?.ownerName ?? "—",
+  };
+}
 
 // ─── Nav config ────────────────────────────────────────────────────────────────
 
@@ -130,38 +254,157 @@ function KpiCard({ label, value, sub, icon, accent }: {
 
 // ─── Section: Overview ─────────────────────────────────────────────────────────
 
-function OverviewSection({ onNav, tenant, payments, tickets }: {
+function OverviewSection({ onNav, tenant, payments, tickets, notices, onPayNow, hasStay }: {
   onNav: (id: NavId) => void;
-  tenant: any;
-  payments: any[];
-  tickets: any[];
+  tenant: TenantDisplay;
+  payments: PaymentDisplay[];
+  tickets: TicketDisplay[];
+  notices: ApiNotification[];
+  onPayNow?: (id: string) => void;
+  hasStay: boolean;
 }) {
-  const unread         = NOTICES_DATA.filter(n => !n.isRead).length;
+  const unread         = notices.filter(n => !n.isRead).length;
   const openTickets    = tickets.filter(m => m.status !== "resolved").length;
   const currentPayment = payments.at(-1)!;
+  const rentLabel      = currentPayment ? `${currentPayment.month} ${currentPayment.year} Rent` : "Rent";
+  const dueDateSub     = currentPayment ? `Due by ${currentPayment.month} 5, ${currentPayment.year}` : "Due soon";
+
+  const activityItems = (() => {
+    const items: { emoji: string; bg: string; text: string; time: string; ts: number }[] = [];
+    const lastPaid = [...payments].reverse().find(p => p.status === "paid");
+    if (lastPaid) {
+      const d = new Date(lastPaid.date);
+      items.push({
+        emoji: "✓", bg: "bg-success-50",
+        text: `${lastPaid.month} ${lastPaid.year} rent paid — ₹${lastPaid.amount.toLocaleString("en-IN")}`,
+        time: !isNaN(d.getTime()) ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : lastPaid.date,
+        ts: d.getTime() || 0,
+      });
+    }
+    const sortedTickets = [...tickets].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    for (const t of sortedTickets.slice(0, 2)) {
+      const d = new Date(t.date);
+      const resolved = t.status === "resolved";
+      items.push({
+        emoji: resolved ? "✓" : "🔧",
+        bg: resolved ? "bg-success-50" : "bg-blue-50",
+        text: resolved ? `${t.title} resolved` : `${t.title} — request created`,
+        time: !isNaN(d.getTime()) ? d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : t.date,
+        ts: d.getTime() || 0,
+      });
+    }
+    const latestNotice = [...notices].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
+    if (latestNotice) {
+      const d = new Date(latestNotice.timestamp);
+      items.push({
+        emoji: "📢", bg: "bg-warning-50",
+        text: `Notice: ${latestNotice.title}`,
+        time: d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+        ts: d.getTime() || 0,
+      });
+    }
+    return items.sort((a, b) => b.ts - a.ts).slice(0, 4);
+  })();
+
+  const toast = useToast();
+  const [joinCode, setJoinCode] = React.useState("");
+  const [joining, setJoining] = React.useState(false);
+  const [joined, setJoined] = React.useState(false);
+
+  async function handleJoin() {
+    if (!joinCode.trim()) return;
+    setJoining(true);
+    try {
+      await api.tenants.join(joinCode.trim());
+      setJoined(true);
+      toast.success("Joined successfully! Refresh to see your stay details.");
+    } catch {
+      toast.error("Invalid or expired invite code. Ask your owner to resend.");
+    } finally {
+      setJoining(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
+      {/* No-stay: join card */}
+      {!hasStay && !joined && (
+        <div className="rounded-2xl border border-[color:var(--accent-200)] bg-white shadow-sm overflow-hidden">
+          <div className="bg-gradient-to-r from-[color:var(--accent-500)] to-[color:var(--accent-700)] px-6 pt-6 pb-10">
+            <p className="text-white font-bold text-base mb-1">Join your PG</p>
+            <p className="text-white/75 text-xs">Enter the invite code shared by your property owner to link your stay.</p>
+          </div>
+          <div className="px-6 -mt-5">
+            <div className="bg-white rounded-2xl border border-[color:var(--line)] shadow-md p-5">
+              {joined ? (
+                <div className="flex flex-col items-center gap-2 py-4 text-center">
+                  <div className="w-10 h-10 rounded-full bg-success-50 flex items-center justify-center">
+                    <CheckCircle2 size={20} className="text-success-600" />
+                  </div>
+                  <p className="font-semibold text-[color:var(--foreground)]">You&apos;re in!</p>
+                  <p className="text-xs text-[color:var(--muted)]">Refresh the page to see your stay details.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wide text-[color:var(--muted)] mb-1 block">Invite Code</label>
+                    <input
+                      value={joinCode}
+                      onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                      onKeyDown={e => e.key === "Enter" && handleJoin()}
+                      placeholder="e.g. SP-A3F9X2"
+                      maxLength={20}
+                      className="w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm font-mono text-[color:var(--foreground)] outline-none focus:border-success-600 focus:ring-2 focus:ring-success-50 placeholder:text-[color:var(--muted)] tracking-wider transition-colors"
+                    />
+                  </div>
+                  <button
+                    onClick={handleJoin}
+                    disabled={joining || !joinCode.trim()}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[color:var(--accent-500)] hover:bg-[color:var(--accent-600)] disabled:opacity-60 text-white text-sm font-bold py-2.5 transition-colors"
+                  >
+                    {joining ? <RefreshCw size={14} className="animate-spin" /> : <ArrowRight size={14} />}
+                    {joining ? "Joining…" : "Join Property"}
+                  </button>
+                  <p className="text-[10px] text-center text-[color:var(--muted)]">
+                    Don&apos;t have a code? Ask your property owner to send an invite.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="px-6 py-4" />
+        </div>
+      )}
+      {!hasStay && joined && (
+        <div className="rounded-2xl border border-success-200 bg-success-50 p-5 flex items-center gap-3">
+          <CheckCircle2 size={18} className="text-success-700 shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-success-900">Joined successfully!</p>
+            <p className="text-xs text-success-700 mt-0.5">Refresh the page to see your room and lease details.</p>
+          </div>
+        </div>
+      )}
+
       {/* Greeting banner */}
       <div className="bg-accent-500 rounded-2xl p-5 text-white">
         <p className="text-xs font-semibold opacity-75 mb-1">Good morning</p>
         <p className="text-lg font-semibold">{tenant.name}</p>
-        <p className="text-xs opacity-75 mt-0.5">{tenant.pg} · Room {tenant.room} · {tenant.type}</p>
+        {tenant.pg && <p className="text-xs opacity-75 mt-0.5">{tenant.pg} · Room {tenant.room} · {tenant.type}</p>}
       </div>
 
       {/* KPI grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          label="April Rent"
-          value={currentPayment.status === "paid" ? "Paid" : "₹8,500"}
-          sub={currentPayment.status === "paid" ? `Paid on ${currentPayment.date}` : "Due by Apr 5, 2025"}
-          icon={<IndianRupee size={14} strokeWidth={2} className={currentPayment.status === "paid" ? "text-success-700" : "text-warning-700"} />}
-          accent={currentPayment.status === "paid" ? "bg-success-50" : "bg-warning-50"}
+          label={rentLabel}
+          value={currentPayment?.status === "paid" ? "Paid" : currentPayment ? `₹${currentPayment.amount.toLocaleString("en-IN")}` : "—"}
+          sub={currentPayment?.status === "paid" ? `Paid on ${currentPayment.date}` : dueDateSub}
+          icon={<IndianRupee size={14} strokeWidth={2} className={currentPayment?.status === "paid" ? "text-success-700" : "text-warning-700"} />}
+          accent={currentPayment?.status === "paid" ? "bg-success-50" : "bg-warning-50"}
         />
         <KpiCard
           label="Lease Expires"
-          value={`${TENANT.leaseDaysLeft}d`}
-          sub={`Ends ${TENANT.leaseEnd}`}
+          value={`${tenant.leaseDaysLeft}d`}
+          sub={`Ends ${tenant.leaseEnd}`}
           icon={<Calendar size={14} strokeWidth={2} className="text-accent-500" />}
           accent="bg-accent-50"
         />
@@ -205,9 +448,12 @@ function OverviewSection({ onNav, tenant, payments, tickets }: {
               </div>
             ))}
           </div>
-          {currentPayment.status === "due" && (
-            <button className="mt-4 w-full py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold transition-colors">
-              Pay ₹8,500 Now
+          {currentPayment?.status === "due" && (
+            <button
+              onClick={() => currentPayment.id && onPayNow?.(currentPayment.id)}
+              className="mt-4 w-full py-2.5 rounded-xl bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold transition-colors"
+            >
+              Pay ₹{currentPayment.amount.toLocaleString("en-IN")} Now
             </button>
           )}
         </div>
@@ -216,12 +462,7 @@ function OverviewSection({ onNav, tenant, payments, tickets }: {
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-xs font-bold text-slate-700 mb-4">Recent Activity</p>
           <div className="space-y-3">
-            {[
-              { emoji: "✓",  bg: "bg-success-50", text: "March rent paid — ₹8,500",          time: "Mar 5, 2025"  },
-              { emoji: "🔧", bg: "bg-blue-50",     text: "AC maintenance request created",    time: "Apr 3, 2025"  },
-              { emoji: "📢", bg: "bg-warning-50",    text: "New notice: WiFi upgrade scheduled", time: "Apr 3, 2025"  },
-              { emoji: "✓",  bg: "bg-success-50", text: "Plumbing issue resolved",            time: "Mar 30, 2025" },
-            ].map((item, i) => (
+            {activityItems.map((item, i) => (
               <div key={i} className="flex gap-3 text-xs">
                 <span className={`w-7 h-7 ${item.bg} rounded-full flex items-center justify-center shrink-0 text-sm`}>{item.emoji}</span>
                 <div>
@@ -256,17 +497,27 @@ function OverviewSection({ onNav, tenant, payments, tickets }: {
 
 // ─── Section: My Room ──────────────────────────────────────────────────────────
 
-function MyRoomSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
+function MyRoomSection({ tenant, amenities, roomImageUrl }: { tenant: TenantDisplay; amenities: string[]; roomImageUrl?: string }) {
+  const leaseTotal = React.useMemo(() => {
+    if (tenant.leaseStart && tenant.leaseEnd) {
+      const ms = new Date(tenant.leaseEnd).getTime() - new Date(tenant.leaseStart).getTime();
+      return Math.max(1, Math.round(ms / 86_400_000));
+    }
+    return 365;
+  }, [tenant.leaseStart, tenant.leaseEnd]);
+
   return (
     <div className="space-y-5">
       {/* Room hero */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-        <div className="h-36 relative">
-          <img
-            src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800&q=80"
-            alt="Room"
-            className="w-full h-full object-cover"
-          />
+        <div className={`h-36 relative ${roomImageUrl ? "" : "bg-gradient-to-br from-[color:var(--accent-700)] to-[color:var(--accent-500)]"}`}>
+          {roomImageUrl && (
+            <img
+              src={roomImageUrl}
+              alt="Room"
+              className="w-full h-full object-cover"
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-[color:var(--foreground)]/70 to-transparent flex items-end p-4">
             <div>
               <p className="text-white text-lg font-semibold">Room {tenant.room}</p>
@@ -311,10 +562,10 @@ function MyRoomSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
             <div className="h-1.5 bg-[color:var(--background)] rounded-full overflow-hidden mt-1">
               <div
                 className="h-full bg-accent-500 rounded-full"
-                style={{ width: `${Math.min(100, Math.round((tenant.leaseDaysLeft / 215) * 100))}%` }}
+                style={{ width: `${Math.min(100, Math.round((tenant.leaseDaysLeft / leaseTotal) * 100))}%` }}
               />
             </div>
-            <p className="text-[11px] text-slate-400 text-right">{tenant.leaseDaysLeft} / 215 days left</p>
+            <p className="text-[11px] text-slate-400 text-right">{tenant.leaseDaysLeft} / {leaseTotal} days left</p>
           </div>
           <button className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-[color:var(--background)] transition-colors">
             <Download size={12} /> Download Lease PDF
@@ -341,80 +592,70 @@ function MyRoomSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-[color:var(--background)]">
-            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">
-              Floor {TENANT.floor} Neighbors
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              Floor {tenant.floor} Neighbors
             </p>
-            <div className="space-y-2">
-              {ROOMMATES.map(r => (
-                <div key={r.name} className="flex items-center gap-2.5">
-                  <Avatar initials={r.initials} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-800 truncate">{r.name}</p>
-                    <p className="text-[11px] text-slate-400">Room {r.room} · Since {r.since}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-[11px] text-slate-400">Neighbor info not available.</p>
           </div>
         </div>
       </div>
 
-      {/* Amenities + rules */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* Amenities */}
+      {amenities.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <p className="text-xs font-bold text-slate-700 mb-3">Amenities Included</p>
           <div className="flex flex-wrap gap-2">
-            {AMENITIES.map(a => (
+            {amenities.map(a => (
               <span key={a} className="text-[11px] font-medium bg-accent-50 text-accent-600 border border-accent-100 px-2.5 py-1 rounded-lg">
                 {a}
               </span>
             ))}
           </div>
         </div>
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
-          <p className="text-xs font-bold text-slate-700 mb-3">House Rules</p>
-          <ul className="space-y-2">
-            {HOUSE_RULES.map(r => (
-              <li key={r} className="flex items-start gap-2 text-xs text-slate-600">
-                <span className="text-accent-500 mt-0.5 shrink-0">•</span>
-                {r}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
 // ─── Section: Payments ─────────────────────────────────────────────────────────
 
-function PaymentsSection({ payments }: { payments: any[] }) {
-  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
-
-  const stats = [
-    { label: "Pending", value: payments.filter(p => p.status !== "paid").length, icon: Clock, color: "text-warning-600" },
-    { label: "Total Paid", value: `₹${payments.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0).toLocaleString()}`, icon: CheckCircle2, color: "text-success-600" },
-  ];
-
+function PaymentsSection({ payments, onPayNow }: { payments: PaymentDisplay[]; onPayNow?: (id: string) => void; }) {
+  const toast = useToast();
+  async function downloadReceipt(paymentId: string) {
+    try {
+      const blob = await api.payments.receipt(paymentId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `receipt-${paymentId}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Could not download receipt — please try again.");
+    }
+  }
   const currentMonth = payments.at(-1)!;
+  const monthLabel = currentMonth ? `${currentMonth.month} ${currentMonth.year}` : "";
 
   return (
     <div className="space-y-5">
       {/* Current month banner */}
-      <div className={`rounded-2xl p-5 border ${currentMonth.status === "paid" ? "bg-success-50 border-[color:var(--success)]/30" : "bg-warning-50 border-[color:var(--warning)]/30"}`}>
+      <div className={`rounded-2xl p-5 border ${currentMonth?.status === "paid" ? "bg-success-50 border-[color:var(--success)]/30" : "bg-warning-50 border-[color:var(--warning)]/30"}`}>
         <div className="flex items-center justify-between">
           <div>
-            <p className={`text-xs font-semibold mb-1 ${currentMonth.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
-              {currentMonth.status === "paid" ? "April rent paid" : "April rent due"}
+            <p className={`text-xs font-semibold mb-1 ${currentMonth?.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
+              {currentMonth?.status === "paid" ? `${monthLabel} rent paid` : `${monthLabel} rent due`}
             </p>
-            <p className="text-2xl font-semibold text-[color:var(--foreground)]">₹{currentMonth.amount.toLocaleString("en-IN")}</p>
-            <p className={`text-[11px] mt-0.5 ${currentMonth.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
-              {currentMonth.status === "paid" ? `Paid on ${currentMonth.date}` : "Due by Apr 5, 2025"}
+            <p className="text-2xl font-semibold text-[color:var(--foreground)]">₹{currentMonth?.amount.toLocaleString("en-IN")}</p>
+            <p className={`text-[11px] mt-0.5 ${currentMonth?.status === "paid" ? "text-success-700" : "text-warning-700"}`}>
+              {currentMonth?.status === "paid" ? `Paid on ${currentMonth.date}` : `Due by ${currentMonth?.month} 5, ${currentMonth?.year}`}
             </p>
           </div>
-          {currentMonth.status !== "paid" ? (
-            <button className="px-5 py-2.5 bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold rounded-xl transition-colors">
+          {currentMonth?.status !== "paid" ? (
+            <button
+              onClick={() => currentMonth?.id && onPayNow?.(currentMonth.id)}
+              className="px-5 py-2.5 bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold rounded-xl transition-colors"
+            >
               Pay Now
             </button>
           ) : (
@@ -463,8 +704,11 @@ function PaymentsSection({ payments }: { payments: any[] }) {
                 ₹{p.amount.toLocaleString("en-IN")}
               </span>
               <StatusPill status={p.status} />
-              {p.receipt && (
-                <button className="text-[11px] text-accent-500 hover:underline shrink-0 flex items-center gap-1">
+              {(p.status === "paid" && p.id) && (
+                <button
+                  onClick={() => downloadReceipt(p.id!)}
+                  className="text-[11px] text-accent-500 hover:underline shrink-0 flex items-center gap-1"
+                >
                   <Download size={10} /> PDF
                 </button>
               )}
@@ -478,9 +722,10 @@ function PaymentsSection({ payments }: { payments: any[] }) {
 
 // ─── Section: Maintenance ──────────────────────────────────────────────────────
 
-function MaintenanceSection({ tickets }: { tickets: any[] }) {
+function MaintenanceSection({ tickets, onSubmit }: { tickets: TicketDisplay[]; onSubmit?: (title: string, priority: string, desc: string) => Promise<void> }) {
   const toast = useToast();
   const [showForm, setShowForm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [title,    setTitle]    = useState("");
   const [category, setCategory] = useState("Electrical");
   const [priority, setPriority] = useState("medium");
@@ -562,10 +807,25 @@ function MaintenanceSection({ tickets }: { tickets: any[] }) {
               Cancel
             </button>
             <button
-              onClick={() => { setShowForm(false); setTitle(""); setDesc(""); toast.success("Request submitted", "We'll notify your owner shortly"); }}
-              className="flex items-center gap-1.5 px-5 py-2 bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold rounded-xl transition-colors"
+              disabled={submitting || !title.trim()}
+              onClick={async () => {
+                if (!title.trim()) return;
+                setSubmitting(true);
+                try {
+                  if (onSubmit) await onSubmit(title.trim(), priority, desc.trim());
+                  else toast.success("Request submitted", "We'll notify your owner shortly");
+                  setShowForm(false);
+                  setTitle("");
+                  setDesc("");
+                } catch {
+                  toast.error("Failed to submit — please try again.");
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+              className="flex items-center gap-1.5 px-5 py-2 bg-accent-500 hover:bg-accent-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
             >
-              <Send size={11} /> Submit Request
+              <Send size={11} /> {submitting ? "Submitting…" : "Submit Request"}
             </button>
           </div>
         </div>
@@ -623,11 +883,13 @@ function MaintenanceSection({ tickets }: { tickets: any[] }) {
 
 // ─── Section: Notices ──────────────────────────────────────────────────────────
 
-function NoticesSection() {
-  const [notices, setNotices] = useState(NOTICES_DATA);
+function NoticesSection({ initialNotices }: { initialNotices: ApiNotification[] }) {
+  const [notices, setNotices] = useState(initialNotices);
 
-  const markRead = (id: string) =>
-    setNotices(ns => ns.map(n => n.id === id ? { ...n, read: true } : n));
+  const markRead = (id: string) => {
+    setNotices((ns: ApiNotification[]) => ns.map(n => n.id === id ? { ...n, isRead: true } : n));
+    api.notifications.markRead(id).catch(() => {});
+  };
 
   const typeStyle: Record<string, string> = {
     info:     "bg-blue-50 text-blue-700 border-blue-200",
@@ -673,46 +935,103 @@ function NoticesSection() {
   );
 }
 
-function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
+function AccountSection({ tenant, providers = [], roleLabel = "Tenant" }: { tenant: TenantDisplay; providers?: string[]; roleLabel?: string }) {
   const toast = useToast();
   const [avatarImgError, setAvatarImgError] = useState(false);
+  const [linkingProvider, setLinkingProvider] = useState<string | null>(null);
+  async function handleLinkProvider(provider: string) {
+    if (!auth?.currentUser) { toast.error("Not signed in"); return; }
+    setLinkingProvider(provider);
+    try {
+      const preflight = await api.auth.linkingStart(provider);
+      if (!preflight.allowed) {
+        toast.error(preflight.recommendedNextStep === "sign_in_existing"
+          ? "That account already exists — sign in with it instead"
+          : "Cannot link this provider right now");
+        return;
+      }
+      if (provider === "google") {
+        const cred = await linkWithPopup(auth.currentUser, new GoogleAuthProvider());
+        const idToken = await cred.user.getIdToken(true);
+        await api.auth.linkingComplete(idToken);
+        toast.success("Google linked to your account");
+      } else {
+        toast.success("To link phone: sign out and sign in with your phone number, then link accounts");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("popup-closed")) toast.error("Popup closed — try again");
+      else if (msg.includes("already-in-use")) toast.error("This account is already linked to another user");
+      else toast.error("Linking failed — try again");
+    } finally {
+      setLinkingProvider(null);
+    }
+  }
   const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: tenant.name, email: tenant.email, phone: tenant.phone,
+    city: tenant.city, area: tenant.area, gender: tenant.gender,
   });
 
   const [showOldPwd, setShowOldPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
   const [pwdForm, setPwdForm] = useState({ old: "", next: "", confirm: "" });
   const [pwdError, setPwdError] = useState<string | null>(null);
+  const [savingPwd, setSavingPwd] = useState(false);
 
-  const [notifs, setNotifs] = useState({
-    rentReminders: true, maintenanceUpdates: true, notices: true,
-    whatsapp: true, sms: false,
-  });
+  const [notifPrefs, setNotifPrefs] = useState<import("@/lib/api").NotificationPreferences>({ email: true, push: true, sms: false });
 
-  const [idDocs, setIdDocs] = useState(
-    TENANT_DOCS["u1"]
-      .filter(d => ["Aadhar Card", "PAN Card", "Passport"].includes(d.type))
-      .map(d => ({
-        label:  d.type,
-        status: d.status as "verified" | "pending" | "missing",
-        number: d.type === "Aadhar Card" ? "XXXX-XXXX-4821" : "—",
-      }))
-  );
+  const idDocs: { label: string; status: "verified" | "pending" | "missing"; number: string }[] = [];
 
-  function saveProfile() {
-    setEditingProfile(false);
-    toast.success("Profile updated");
+  React.useEffect(() => {
+    api.auth.getNotifPrefs().then(setNotifPrefs).catch(() => {});
+  }, []);
+
+  async function saveProfile() {
+    setSavingProfile(true);
+    try {
+      await api.auth.updateProfile({
+        name: profileForm.name || undefined,
+        phoneNumber: profileForm.phone || undefined,
+        city: profileForm.city || undefined,
+        area: profileForm.area || undefined,
+        gender: profileForm.gender || undefined,
+      });
+      setEditingProfile(false);
+      toast.success("Profile updated");
+    } catch {
+      toast.error("Failed to save profile");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
-  function savePwd() {
+  async function savePwd() {
     if (!pwdForm.old) { setPwdError("Enter your current password."); return; }
     if (pwdForm.next.length < 6) { setPwdError("Min. 6 characters required."); return; }
     if (pwdForm.next !== pwdForm.confirm) { setPwdError("Passwords don't match."); return; }
     setPwdError(null);
-    setPwdForm({ old: "", next: "", confirm: "" });
-    toast.success("Password updated");
+    setSavingPwd(true);
+    try {
+      await api.auth.changePassword(pwdForm.next);
+      setPwdForm({ old: "", next: "", confirm: "" });
+      toast.success("Password updated");
+    } catch {
+      setPwdError("Failed to update password. Please try again.");
+    } finally {
+      setSavingPwd(false);
+    }
+  }
+
+  async function toggleNotifChannel(ch: keyof import("@/lib/api").NotificationPreferences) {
+    const updated = { ...notifPrefs, [ch]: !notifPrefs[ch] };
+    setNotifPrefs(updated);
+    try {
+      await api.auth.updateNotifPrefs(updated);
+    } catch {
+      setNotifPrefs(notifPrefs);
+    }
   }
 
   const INPUT = "w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-2.5 text-sm text-[color:var(--foreground)] outline-none focus:border-success-600 focus:ring-2 focus:ring-success-50 placeholder:text-[color:var(--muted)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
@@ -733,9 +1052,12 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
             </button>
           ) : (
             <div className="flex gap-2">
-              <button onClick={() => setEditingProfile(false)} className="text-xs text-slate-400 hover:text-slate-700">Cancel</button>
-              <button onClick={saveProfile}
-                className="text-xs font-semibold bg-success-700 text-white px-3 py-1 rounded-lg hover:bg-success-800 transition-colors">Save</button>
+              <button onClick={() => { setEditingProfile(false); setProfileForm({ name: tenant.name, email: tenant.email, phone: tenant.phone, city: tenant.city, area: tenant.area, gender: tenant.gender }); }}
+                disabled={savingProfile} className="text-xs text-slate-400 hover:text-slate-700 disabled:opacity-50">Cancel</button>
+              <button onClick={saveProfile} disabled={savingProfile}
+                className="text-xs font-semibold bg-success-700 text-white px-3 py-1 rounded-lg hover:bg-success-800 transition-colors disabled:opacity-60">
+                {savingProfile ? "Saving…" : "Save"}
+              </button>
             </div>
           )}
         </div>
@@ -749,7 +1071,7 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
           <div>
             <p className="text-sm font-bold text-[color:var(--foreground)]">{profileForm.name}</p>
             <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-50 text-success-700 uppercase tracking-wide">
-              Tenant
+              {roleLabel}
             </span>
           </div>
         </div>
@@ -759,6 +1081,8 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
             { label: "Full Name", key: "name",  type: "text" },
             { label: "Email",     key: "email", type: "email" },
             { label: "Mobile",    key: "phone", type: "tel" },
+            { label: "City",      key: "city",  type: "text" },
+            { label: "Area",      key: "area",  type: "text" },
           ].map(({ label, key, type }) => (
             <div key={key} className="flex flex-col gap-1">
               <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</label>
@@ -780,6 +1104,20 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
               )}
             </div>
           ))}
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Gender</label>
+            <select
+              disabled={!editingProfile}
+              value={profileForm.gender}
+              onChange={e => setProfileForm(f => ({ ...f, gender: e.target.value }))}
+              className={INPUT}
+            >
+              <option value="">Select gender</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="CO_LIVING">Co-living / Any</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -831,41 +1169,23 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
       {/* Notifications */}
       <div className={CARD}>
         <h2 className={SEC}><Bell size={14} className="text-success-600" /> Notifications</h2>
-        <div className="space-y-0.5">
-          {([
-            { key: "rentReminders",    label: "Rent due reminders",   sub: "Reminded 5 days before due date" },
-            { key: "maintenanceUpdates",label: "Maintenance updates", sub: "When your ticket status changes" },
-            { key: "notices",          label: "Owner notices",        sub: "Announcements from your PG" },
-          ] as const).map(({ key, label, sub }) => (
-            <div key={key} className="flex items-center justify-between py-3 border-b border-[color:var(--background)] last:border-0">
-              <div>
-                <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
-                <p className="text-[11px] text-slate-400">{sub}</p>
-              </div>
-              <button onClick={() => setNotifs(n => ({ ...n, [key]: !n[key] }))} className="shrink-0 ml-4">
-                {notifs[key]
-                  ? <ToggleRight size={24} className="text-success-600" />
-                  : <ToggleLeft  size={24} className="text-slate-300" />}
-              </button>
-            </div>
-          ))}
-        </div>
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mt-3 mb-2">Via</p>
-        <div className="flex gap-2">
-          {(["whatsapp", "sms"] as const).map(ch => (
+        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Channels</p>
+        <div className="flex gap-2 mb-3">
+          {(["email", "push", "sms"] as const).map(ch => (
             <button key={ch}
-              onClick={() => setNotifs(n => ({ ...n, [ch]: !n[ch] }))}
+              onClick={() => toggleNotifChannel(ch)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                notifs[ch]
+                notifPrefs[ch]
                   ? "bg-success-700 text-white border-success-700"
                   : "border-slate-200 text-slate-400 hover:border-success-400"
               }`}
             >
               <Smartphone size={11} />
-              {ch === "whatsapp" ? "WhatsApp" : "SMS"}
+              {ch.charAt(0).toUpperCase() + ch.slice(1)}
             </button>
           ))}
         </div>
+        <p className="text-xs text-slate-400">Changes are saved automatically.</p>
       </div>
 
       {/* Security */}
@@ -900,10 +1220,53 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
         {pwdError && (
           <p className="mt-2 text-xs text-error-700 bg-error-50 rounded-lg px-3 py-2">{pwdError}</p>
         )}
-        <button onClick={savePwd}
-          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 text-white px-5 py-2.5 rounded-xl transition-opacity">
-          Update Password
+        <button onClick={savePwd} disabled={savingPwd}
+          className="mt-4 text-xs font-semibold bg-[color:var(--foreground)] hover:opacity-80 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl transition-opacity">
+          {savingPwd ? "Updating…" : "Update Password"}
         </button>
+      </div>
+
+      {/* Linked accounts */}
+      <div className={CARD}>
+        <h2 className={SEC}><Link2 size={14} className="text-[color:var(--accent-500)]" /> Linked Accounts</h2>
+        <p className="text-xs text-slate-500 mb-4">Link sign-in methods so you can log in with any of them.</p>
+        <div className="space-y-3">
+          {([
+            { provider: "google", label: "Google", icon: (
+              <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" fill="none">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+              </svg>
+            )},
+            { provider: "phone", label: "Phone (OTP)", icon: <Smartphone size={15} className="text-[color:var(--accent-500)] shrink-0" /> },
+          ] as { provider: string; label: string; icon: React.ReactNode }[]).map(({ provider, label, icon }) => {
+            const linked = providers.includes(provider);
+            return (
+              <div key={provider} className="flex items-center justify-between p-3 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)]">
+                <div className="flex items-center gap-3">
+                  {icon}
+                  <div>
+                    <p className="text-sm font-medium text-[color:var(--foreground)]">{label}</p>
+                    <p className="text-xs text-slate-500">{linked ? "Connected" : "Not linked"}</p>
+                  </div>
+                </div>
+                {linked ? (
+                  <span className="flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-3 py-1.5 rounded-full">
+                    <CheckCircle2 size={12} /> Linked
+                  </span>
+                ) : (
+                  <button onClick={() => handleLinkProvider(provider)} disabled={linkingProvider === provider}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-[color:var(--accent-600)] border border-[color:var(--accent-200)] hover:bg-[color:var(--accent-50)] px-3 py-1.5 rounded-full transition-colors disabled:opacity-60">
+                    {linkingProvider === provider ? <RefreshCw size={11} className="animate-spin" /> : <Link2 size={11} />}
+                    Link
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Danger */}
@@ -922,14 +1285,23 @@ function AccountSection({ tenant }: { tenant: typeof CURRENT_TENANT }) {
 
 // ─── Main export ───────────────────────────────────────────────────────────────
 
-export default function TenantDashboardClient() {
+function TenantDashboardClient() {
   const router = useRouter();
+  const toast = useToast();
   const [activeNav,   setActiveNav]   = useState<NavId>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
   const [stay, setStay] = useState<CurrentStay | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [avatarError, setAvatarError] = useState(false);
+  const [contexts, setContexts] = useState<import("@/lib/api").RoleContext[]>([]);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [apiPayments, setApiPayments] = useState<ApiPayment[] | null>(null);
+  const [apiNotifications, setApiNotifications] = useState<ApiNotification[] | null>(null);
+  const [apiMaintenance, setApiMaintenance] = useState<ApiMaintenanceRequest[] | null>(null);
+  const [apiProperty, setApiProperty] = useState<ApiProperty | null>(null);
+  const [paying, setPaying] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -940,66 +1312,132 @@ export default function TenantDashboardClient() {
         ]);
         setUser(me);
         setStay(currentStay);
+        api.auth.contexts().then(setContexts).catch(() => {});
+
+        const propertyId = currentStay?.propertyId ?? null;
+        const parallelCalls: Promise<unknown>[] = [
+          api.payments.list({ limit: 24 }),
+          api.notifications.list(1, 20),
+          ...(propertyId ? [
+            api.maintenance.list(propertyId, { limit: 50 }),
+            api.properties.get(propertyId),
+          ] : []),
+        ];
+        const [paymentsRes, notifRes, maintenanceRes, propertyRes] = await Promise.allSettled(parallelCalls) as [
+          PromiseSettledResult<{ data: ApiPayment[] }>,
+          PromiseSettledResult<{ data: ApiNotification[] }>,
+          PromiseSettledResult<{ data: ApiMaintenanceRequest[] }> | undefined,
+          PromiseSettledResult<ApiProperty> | undefined,
+        ];
+        if (paymentsRes.status    === "fulfilled") setApiPayments(paymentsRes.value.data);
+        if (notifRes.status       === "fulfilled") setApiNotifications(notifRes.value.data);
+        if (maintenanceRes?.status === "fulfilled") setApiMaintenance((maintenanceRes.value as { data: ApiMaintenanceRequest[] }).data);
+        if (propertyRes?.status    === "fulfilled") setApiProperty(propertyRes.value as ApiProperty);
       } catch (err) {
-        const status = (err as { status?: number }).status;
+        const status = err instanceof ApiError ? err.status : (err as { status?: number }).status;
+        const message = err instanceof Error ? err.message : "Unable to load your dashboard.";
         if (typeof status === "number") {
           if (status === 409 || (err as Error).message?.toLowerCase().includes("conflict")) {
-            await signOut(auth);
+            if (auth) await signOut(auth);
             await fetch("/api/auth/logout", { method: "POST" });
             router.replace("/login?error=identity_conflict");
             return;
           }
-          // Any other API error — backend doesn't have this user yet, use mock data.
+
+          if (status === 401 || status === 403) {
+            if (auth) await signOut(auth);
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.replace("/login?next=/tenant-dashboard");
+            return;
+          }
+
+          setAuthError(message);
           return;
         }
-        console.error("Failed to load dashboard data:", err);
+        setAuthError(message);
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, []);
+  }, [router]);
 
   // Reset avatar error whenever the URL changes (e.g. user updates their profile picture)
   useEffect(() => { setAvatarError(false); }, [user?.avatarUrl]);
 
-  // Derived tenant info (merges mock data with real user if available)
-  const TENANT = {
-    ...CURRENT_TENANT,
-    name: user?.name || CURRENT_TENANT.name,
-    email: user?.email || CURRENT_TENANT.email,
-    initials: (user?.name || CURRENT_TENANT.name).split(" ").map(n => n[0]).join("").slice(0, 2),
-    avatarUrl: user?.avatarUrl || "",
-    pg: stay?.propertyName || CURRENT_TENANT.pg,
-    room: stay?.roomNumber || CURRENT_TENANT.room,
-    rent: stay?.rentAmount || CURRENT_TENANT.rent,
-  };
+  async function payNow(paymentId: string) {
+    if (paying) return;
+    setPaying(true);
+    try {
+      const checkout = await api.payments.checkout(paymentId);
+      await loadRazorpayScript();
+      if (!window.Razorpay) throw new Error("Payment SDK unavailable");
+      new window.Razorpay({
+        key:         checkout.keyId,
+        amount:      checkout.amountSubunits,
+        currency:    checkout.currency,
+        name:        "ShiftProof",
+        description: checkout.description,
+        order_id:    checkout.orderId,
+        receipt:     checkout.receipt,
+        prefill:     { name: user?.name, email: user?.email },
+        theme:       { color: "#2D6A4F" },
+        modal:       { ondismiss: () => setPaying(false) },
+        handler: async (r) => {
+          try {
+            await api.payments.pay(paymentId, {
+              provider:           "razorpay",
+              gatewayOrderId:     r.razorpay_order_id,
+              gatewayPaymentId:   r.razorpay_payment_id,
+              gatewaySignature:   r.razorpay_signature,
+            });
+            toast.success("Payment successful!");
+            // Refresh payment list
+            const fresh = await api.payments.list({ limit: 24 });
+            setApiPayments(fresh.data);
+          } catch {
+            toast.error("Payment recorded but verification failed — contact support.");
+          } finally {
+            setPaying(false);
+          }
+        },
+      }).open();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Payment failed — please try again.");
+      setPaying(false);
+    }
+  }
 
-  const targetUserId = user?.id || FALLBACK_TENANT_ID;
-  const tenantExt = TENANTS_EXT[targetUserId] || TENANTS_EXT[FALLBACK_TENANT_ID];
+  const TENANT = buildTenantDisplay(user, stay);
 
-  const PAYMENT_HISTORY = [...tenantExt.rentHistory].reverse().map(r => ({
-    month:   r.month.split(" ")[0],
-    year:    parseInt(r.month.split(" ")[1]),
-    amount:  r.amount,
-    status:  (r.status === "pending" ? "due" : r.status) as "paid" | "due" | "overdue",
-    date:    r.paidOn ?? `Due ${r.month.split(" ")[0]} 5`,
-    receipt: r.ref ?? null,
+  const PAYMENT_HISTORY: PaymentDisplay[] = (apiPayments ?? []).map(p => {
+    const d = new Date(p.date);
+    return {
+      id:     p.id,
+      month:  d.toLocaleString("en-IN", { month: "short" }),
+      year:   d.getFullYear(),
+      amount: p.amount,
+      status: (p.status === "paid" ? "paid" : p.status === "overdue" ? "overdue" : "due") as "paid" | "due" | "overdue",
+      date:   p.date,
+      receipt: null,
+    };
+  });
+
+  const MAINTENANCE_REQUESTS: TicketDisplay[] = (apiMaintenance ?? []).map(m => ({
+    id:       m.id,
+    title:    m.title,
+    category: "",
+    date:     m.createdAt
+      ? new Date(m.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      : "",
+    status:   m.status === "open" ? "pending" : m.status,
+    priority: m.priority,
+    response: "",
   }));
 
-  const MAINTENANCE_REQUESTS = MAINTENANCE
-    .filter(m => m.tenantId === targetUserId)
-    .map(m => ({
-      id:       m.id,
-      title:    m.title,
-      category: m.category,
-      date:     m.date,
-      status:   m.status,
-      priority: m.priority || "medium",
-    }));
-
-  const openTickets   = MAINTENANCE_REQUESTS.filter(m => m.status !== "resolved").length;
-  const unreadNotices = NOTICES_DATA.filter(n => !n.isRead).length;
+  const effectiveNotices  = apiNotifications ?? [];
+  const openTickets       = MAINTENANCE_REQUESTS.filter(m => m.status !== "resolved").length;
+  const unreadNotices     = effectiveNotices.filter(n => !n.isRead).length;
 
   if (loading) {
     return (
@@ -1007,6 +1445,36 @@ export default function TenantDashboardClient() {
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-accent-500 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs font-medium text-slate-500">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError || !user) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[color:var(--background)] px-4">
+        <div className="max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-error-50 text-error-700">
+            <AlertCircle size={20} />
+          </div>
+          <h1 className="text-base font-bold text-[color:var(--foreground)]">Dashboard unavailable</h1>
+          <p className="mt-2 text-sm text-[color:var(--muted)]">
+            {authError ?? "We could not verify your tenant session."}
+          </p>
+          <div className="mt-5 flex justify-center gap-2">
+            <button
+              onClick={() => window.location.reload()}
+              className="rounded-xl bg-success-700 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-success-800"
+            >
+              Retry
+            </button>
+            <button
+              onClick={async () => { await fetch("/api/auth/logout", { method: "POST" }); if (auth) await signOut(auth); router.push("/login"); }}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-500 transition-colors hover:text-slate-800"
+            >
+              Sign in again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1038,7 +1506,7 @@ export default function TenantDashboardClient() {
           </div>
           <span className="font-semibold text-sm text-[color:var(--foreground)] tracking-tight">ShiftProof</span>
           <span className="ml-auto text-[10px] bg-success-50 text-success-700 border border-[color:var(--success)]/30 px-1.5 py-0.5 rounded-md font-bold shrink-0">
-            Tenant
+            {user?.roles?.includes("OWNER") ? "Owner" : "Tenant"}
           </span>
         </div>
 
@@ -1130,9 +1598,45 @@ export default function TenantDashboardClient() {
           </button>
           <div className="min-w-0">
             <p className="text-sm font-bold text-[color:var(--foreground)] truncate">{sectionTitles[activeNav]}</p>
-            <p className="text-[11px] text-slate-400 hidden sm:block">Tue, 15 Apr 2025</p>
+            <p className="text-[11px] text-slate-400 hidden sm:block">{new Date().toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</p>
           </div>
           <div className="ml-auto flex items-center gap-2 shrink-0">
+            {/* Role context switcher */}
+            {contexts.length > 1 && (
+              <div className="relative">
+                <button
+                  onClick={() => setContextOpen(v => !v)}
+                  className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-xl border border-[color:var(--line)] hover:bg-[color:var(--background)] text-[color:var(--foreground)] transition-colors"
+                >
+                  <Users size={12} />
+                  <ChevronDown size={11} />
+                </button>
+                {contextOpen && (
+                  <div className="absolute right-0 top-10 z-50 w-56 bg-white rounded-2xl border border-[color:var(--line)] shadow-xl overflow-hidden">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[color:var(--muted)] px-4 pt-3 pb-2">Switch Role</p>
+                    {contexts.map(ctx => (
+                      <button
+                        key={`${ctx.propertyId}-${ctx.role}`}
+                        onClick={async () => {
+                          await api.auth.setPreferredContext(ctx.propertyId).catch(() => {});
+                          setContextOpen(false);
+                          if (ctx.role !== "tenant") router.push("/owner-dashboard");
+                        }}
+                        className="w-full flex items-start gap-3 px-4 py-3 hover:bg-[color:var(--background)] text-left transition-colors"
+                      >
+                        <div className={`mt-0.5 w-5 h-5 rounded-lg flex items-center justify-center shrink-0 text-[9px] font-bold ${ctx.role === "tenant" ? "bg-[color:var(--accent-100)] text-[color:var(--accent-700)]" : "bg-slate-100 text-slate-600"}`}>
+                          {ctx.role === "tenant" ? "T" : "O"}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-[color:var(--foreground)] truncate">{ctx.propertyName}</p>
+                          <p className="text-xs text-[color:var(--muted)] capitalize">{ctx.role}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <button
               className="relative w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-slate-400 transition-colors border border-[color:var(--background)]"
               onClick={() => setActiveNav("notices")}
@@ -1142,24 +1646,37 @@ export default function TenantDashboardClient() {
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error" />
               )}
             </button>
-            <div className="w-8 h-8 rounded-xl bg-accent-100 flex items-center justify-center text-xs font-bold text-success-700 border border-[color:var(--success)]/30 overflow-hidden">
-              {TENANT.avatarUrl && !avatarError
-                ? <img src={TENANT.avatarUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={() => setAvatarError(true)} />
-                : TENANT.initials}
-            </div>
           </div>
         </header>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {activeNav === "overview"    && <OverviewSection onNav={setActiveNav} tenant={TENANT} payments={PAYMENT_HISTORY} tickets={MAINTENANCE_REQUESTS} />}
-          {activeNav === "myroom"      && <MyRoomSection tenant={TENANT} />}
-          {activeNav === "payments"    && <PaymentsSection payments={PAYMENT_HISTORY} />}
-          {activeNav === "maintenance" && <MaintenanceSection tickets={MAINTENANCE_REQUESTS} />}
-          {activeNav === "notices"     && <NoticesSection />}
-          {activeNav === "account"     && <AccountSection tenant={TENANT} />}
+          {activeNav === "overview"    && <OverviewSection onNav={setActiveNav} tenant={TENANT} payments={PAYMENT_HISTORY} tickets={MAINTENANCE_REQUESTS} notices={effectiveNotices} onPayNow={payNow} hasStay={!!stay} />}
+          {activeNav === "myroom"      && <MyRoomSection tenant={TENANT} amenities={apiProperty?.amenities ?? []} roomImageUrl={apiProperty?.imageUrl} />}
+          {activeNav === "payments"    && <PaymentsSection payments={PAYMENT_HISTORY} onPayNow={payNow} />}
+          {activeNav === "maintenance" && <MaintenanceSection tickets={MAINTENANCE_REQUESTS} onSubmit={async (title, priority, desc) => {
+            const pid = stay?.propertyId ?? "p1";
+            const ticket = await api.maintenance.create(pid, {
+              propertyId: pid,
+              title,
+              description: desc || undefined,
+              priority: priority as ApiMaintenanceRequest["priority"],
+            });
+            setApiMaintenance(prev => prev ? [ticket, ...prev] : [ticket]);
+            toast.success("Request submitted", "We'll notify your owner shortly");
+          }} />}
+          {activeNav === "notices"     && <NoticesSection initialNotices={effectiveNotices} />}
+          {activeNav === "account"     && <AccountSection tenant={TENANT} providers={user?.providers ?? []} roleLabel={user?.roles?.includes("OWNER") ? "Owner" : "Tenant"} />}
         </main>
       </div>
     </div>
+  );
+}
+
+export default function TenantDashboardClientWithBoundary() {
+  return (
+    <DashboardErrorBoundary>
+      <TenantDashboardClient />
+    </DashboardErrorBoundary>
   );
 }

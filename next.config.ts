@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "") : "";
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL ?? process.env.API_ORIGIN ?? "";
+const apiUrl = configuredApiUrl ? configuredApiUrl.replace(/\/$/, "") : "";
 
 const securityHeaders = [
   { key: "X-DNS-Prefetch-Control",    value: "on" },
@@ -30,6 +31,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_API_URL: apiUrl,
+  },
+  productionBrowserSourceMaps: false,
   output: "standalone",
   outputFileTracingExcludes: {
     "*": [

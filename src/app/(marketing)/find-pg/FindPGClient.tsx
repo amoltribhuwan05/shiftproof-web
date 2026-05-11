@@ -12,15 +12,12 @@ import {
   allCities,
   allAmenities,
   localitiesForCity,
-  getPriceBounds,
-  type PGListing,
   type Amenity,
   type Gender,
   type RoomType,
 } from "@/lib/pgData";
 import { apiFetch } from "@/lib/api/client";
 import type { Property, Paginated } from "@/lib/api/types";
-import { buildBST } from "@/lib/bst";
 import { haversineKm, fmtDistance } from "@/lib/geo";
 import {
   PRICE_MIN,
@@ -584,9 +581,7 @@ function LocalitySlider({ city, locality, setLocality }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-const getCityBounds = (c: string): [number, number] => {
-  return getPriceBounds(c);
-};
+const getCityBounds = (_c: string): [number, number] => [PRICE_MIN, PRICE_MAX];
 
 export default function FindPGClient() {
   const [properties, setProperties] = useState<Property[]>([]);
@@ -615,7 +610,15 @@ export default function FindPGClient() {
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [outsideIndia, setOutsideIndia] = useState(false);
   const [gpsState, setGpsState] = useState<"idle" | "requesting" | "granted" | "denied">("idle");
+  const [availableCities, setAvailableCities] = useState<string[]>(allCities);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Fetch dynamic city list from backend; fall back to static pgData list
+  useEffect(() => {
+    apiFetch<string[]>("/api/v1/public/cities")
+      .then(cities => { if (cities.length > 0) setAvailableCities(cities); })
+      .catch(() => {});
+  }, []);
 
   // ─── Fetch results from API ──────────────────────────────────────────────────
 
@@ -687,9 +690,9 @@ export default function FindPGClient() {
 
   // Resolve a city name + region to a canonical supported city
   const resolveCity = (raw: string, region: string) =>
-    allCities.find((c) => c.toLowerCase() === raw.toLowerCase()) ??
-    allCities.find((c) => c.toLowerCase() === (CITY_ALIASES[raw] ?? "").toLowerCase()) ??
-    allCities.find((c) => c.toLowerCase() === (REGION_ALIASES[region] ?? "").toLowerCase());
+    availableCities.find((c) => c.toLowerCase() === raw.toLowerCase()) ??
+    availableCities.find((c) => c.toLowerCase() === (CITY_ALIASES[raw] ?? "").toLowerCase()) ??
+    availableCities.find((c) => c.toLowerCase() === (REGION_ALIASES[region] ?? "").toLowerCase());
 
   // Find the nearest supported city to a GPS coordinate
   const nearestCity = (lat: number, lng: number): string | undefined =>
@@ -791,7 +794,7 @@ export default function FindPGClient() {
       <div className="px-5 divide-y divide-[color:var(--background)]">
         <Section title="City">
           <div className="space-y-2.5">
-            {(["All", ...allCities]).map((c) => (
+            {(["All", ...availableCities]).map((c) => (
               <label key={c} onClick={() => changeCity(c)} className="flex items-center gap-2.5 cursor-pointer group">
                 <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${city === c ? "border-accent-500 bg-accent-500" : "border-slate-300 group-hover:border-accent-500"
                   }`}>
@@ -913,7 +916,7 @@ export default function FindPGClient() {
 
           {/* City quick-filter pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-5">
-            {(["All", ...allCities]).map((c) => (
+            {(["All", ...availableCities]).map((c) => (
               <button
                 key={c}
                 onClick={() => changeCity(c)}

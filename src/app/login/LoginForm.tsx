@@ -17,6 +17,8 @@ import { auth } from "@/lib/firebase";
 import { DEMO_EMAILS } from "@/lib/users";
 import PhoneInput from "@/components/PhoneInput";
 
+const DEMO_AUTH_ENABLED = !process.env.NEXT_PUBLIC_API_URL;
+
 declare global {
   interface Window {
     recaptchaVerifier?: RecaptchaVerifier;
@@ -60,6 +62,8 @@ export default function LoginForm() {
   const [otp, setOtp] = useState("");
   const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
   
+  const [showPassword, setShowPassword] = useState(false);
+  const [rolePicker, setRolePicker] = useState<{ roles: string[]; next: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [linkHint, setLinkHint] = useState<LinkHint | null>(null);
@@ -91,13 +95,20 @@ export default function LoginForm() {
       }
       throw { status: res.status, message: data.error ?? "Authentication failed" } satisfies SessionError;
     }
-    
+
     if (data.profileCompleted === false) {
       router.push("/auth/onboarding");
       return;
     }
 
     const next = params.get("next");
+    const roles: string[] = data.roles ?? [data.role];
+
+    if (roles.length > 1 && !next) {
+      setRolePicker({ roles, next });
+      return;
+    }
+
     router.push(next ?? (data.role === "owner" ? "/owner-dashboard" : "/tenant-dashboard"));
   }
 
@@ -114,7 +125,12 @@ export default function LoginForm() {
 
     try {
       setLoading(true);
-      if (!DEMO_EMAILS.has(email.toLowerCase()) && auth) {
+      const shouldUseDemoPassword = DEMO_AUTH_ENABLED && DEMO_EMAILS.has(email.toLowerCase());
+      if (!shouldUseDemoPassword) {
+        if (!auth) {
+          setError("Firebase is not configured");
+          return;
+        }
         const userCred = await signInWithEmailAndPassword(auth, email, password);
         if (!userCred.user.emailVerified) {
           await sendEmailVerification(userCred.user);
@@ -168,7 +184,6 @@ export default function LoginForm() {
       const idToken = await userCred.user.getIdToken();
       await handleSession(idToken);
     } catch (err: any) {
-      console.error("Google Sign-In Error:", err);
       if (isSessionError(err)) {
         setError(err.message);
         setLinkHint({
@@ -274,6 +289,81 @@ export default function LoginForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (rolePicker) {
+    const hasOwner  = rolePicker.roles.includes("owner");
+    const hasTenant = rolePicker.roles.includes("tenant");
+    return (
+      <div className="flex flex-col gap-5">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-[color:var(--accent-50)] mb-3">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-500)" strokeWidth="2" strokeLinecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h2 className="text-base font-bold text-[color:var(--foreground)]">Where would you like to go?</h2>
+          <p className="text-xs text-[color:var(--muted)] mt-1">Your account has multiple roles. Pick a dashboard to continue.</p>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {hasOwner && (
+            <button
+              type="button"
+              onClick={() => router.push("/owner-dashboard")}
+              className="group flex items-center gap-4 rounded-2xl border-2 border-[color:var(--line)] bg-white hover:border-[color:var(--accent-500)] hover:bg-[color:var(--accent-50)] px-5 py-4 text-left transition-all"
+            >
+              <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[color:var(--accent-500)] flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[color:var(--foreground)] group-hover:text-[color:var(--accent-600)]">Owner Dashboard</p>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">Manage properties, tenants, and payments</p>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[color:var(--muted)] group-hover:text-[color:var(--accent-500)] flex-shrink-0 transition-colors">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          )}
+
+          {hasTenant && (
+            <button
+              type="button"
+              onClick={() => router.push("/tenant-dashboard")}
+              className="group flex items-center gap-4 rounded-2xl border-2 border-[color:var(--line)] bg-white hover:border-[color:var(--accent-500)] hover:bg-[color:var(--accent-50)] px-5 py-4 text-left transition-all"
+            >
+              <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-slate-700 flex items-center justify-center">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-[color:var(--foreground)] group-hover:text-[color:var(--accent-600)]">Tenant Dashboard</p>
+                <p className="text-xs text-[color:var(--muted)] mt-0.5">View your room, rent, and maintenance</p>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-[color:var(--muted)] group-hover:text-[color:var(--accent-500)] flex-shrink-0 transition-colors">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setRolePicker(null)}
+          className="text-xs text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors text-center"
+        >
+          ← Back to sign in
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -386,16 +476,37 @@ export default function LoginForm() {
                 Forgot password?
               </Link>
             </div>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-3 text-sm text-[color:var(--foreground)] outline-none transition-colors focus:border-[color:var(--trust-700)] focus:ring-4 focus:ring-[color:var(--trust-50)] placeholder:text-[color:var(--muted)]"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] px-4 py-3 pr-11 text-sm text-[color:var(--foreground)] outline-none transition-colors focus:border-[color:var(--trust-700)] focus:ring-4 focus:ring-[color:var(--trust-50)] placeholder:text-[color:var(--muted)]"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--muted)] hover:text-[color:var(--foreground)] transition-colors"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           <button
@@ -488,8 +599,8 @@ export default function LoginForm() {
 
       <div id="recaptcha-container"></div>
 
-      {/* Quick-fill demo credentials (only show in email mode) */}
-      {authMode === "email" && (
+      {/* Quick-fill demo credentials — only in mock/dev mode */}
+      {DEMO_AUTH_ENABLED && authMode === "email" && (
         <div className="mt-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--background)] p-4">
           <p className="text-[10px] font-semibold uppercase tracking-wide text-[color:var(--muted)] mb-3">
             Demo accounts

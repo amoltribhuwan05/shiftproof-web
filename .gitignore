@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.shiftproof/
 
 # debug
 npm-debug.log*

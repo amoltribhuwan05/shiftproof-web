@@ -29,7 +29,9 @@ export default async function PGDetailPage(
     if (!pg) notFound();
 
     // Fetch similar properties in same city
-    const res = await apiFetch<Paginated<Property>>(`/api/v1/public/properties?city=${pg.city}&limit=5`);
+    const res = await apiFetch<Paginated<Property>>(
+      `/api/v1/public/properties?location=${encodeURIComponent(pg.city)}&limit=5`,
+    );
     const similar = (res.data || []).filter((p) => p.id !== pg.id).slice(0, 4);
 
     return <PGDetailClient pg={pg} similar={similar} />;

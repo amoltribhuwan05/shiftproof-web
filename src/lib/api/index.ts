@@ -1,16 +1,21 @@
-import { apiFetch } from "./client";
+import { apiFetch, apiFetchBlob } from "./client";
 import type {
-  AppUser, OnboardingRequest, UpdateProfileRequest, ImageUploadRequest,
-  CurrentStay,
-  Property, CreatePropertyRequest, PropertyImage, PropertyMember,
+  AppUser, OnboardingRequest, OnboardingCompleteResponse, UpdateProfileRequest, ImageUploadRequest,
+  CurrentStay, RoleContext,
+  AuthLinkingStartRequest, AuthLinkingStartResponse,
+  AuthLinkingCompleteRequest, AuthLinkingCompleteResponse,
+  AuthSessionEvaluateRequest, AuthSessionEvaluateResponse,
+  BankAccount, NotificationPreferences, ChangePasswordRequest,
+  Property, CreatePropertyRequest, PropertyImage, PropertyMember, PropertyAccessSettings,
   Room, CreateRoomRequest, UpdateRoomRequest,
   Tenant, InviteTenantRequest, TenantInviteResponse, UpdateTenantRequest,
   Payment, PaymentSummary, PaymentCheckout, CreatePaymentRequest, PayPaymentRequest,
   Payout,
   Notification,
   Plan, Subscription,
-  Organization, OrgMember, AddOrgMemberRequest,
-  PropertyReport,
+  Organization, OrgMember, OrgProperty, AddOrgMemberRequest, BulkAssignOrgMemberPropertiesRequest,
+  PropertyReport, RevenueChartResponse,
+  MaintenanceRequest, CreateMaintenanceRequest, UpdateMaintenanceRequest,
   Paginated,
 } from "./types";
 
@@ -36,8 +41,43 @@ export const api = {
     me: () =>
       apiFetch<AppUser>("/api/v1/auth/me"),
 
+    // Backend returns 200 + JSON null (not 204) when no active lease.
+    // apiFetch handles both: res.json() on a null body resolves to null correctly.
     currentStay: () =>
       apiFetch<CurrentStay | null>("/api/v1/auth/me/current-stay"),
+
+    contexts: () =>
+      apiFetch<RoleContext[]>("/api/v1/auth/me/contexts"),
+
+    setPreferredContext: (propertyId: string) =>
+      apiFetch<void>("/api/v1/auth/me/contexts/preferred", {
+        method: "PATCH",
+        body: JSON.stringify({ propertyId }),
+      }),
+
+    evaluateSession: (idToken: string) =>
+      apiFetch<AuthSessionEvaluateResponse>("/api/v1/auth/session/evaluate", {
+        method: "POST",
+        body: JSON.stringify({ idToken } satisfies AuthSessionEvaluateRequest),
+      }),
+
+    linkingStart: (targetProvider: string) =>
+      apiFetch<AuthLinkingStartResponse>("/api/v1/auth/linking/start", {
+        method: "POST",
+        body: JSON.stringify({ targetProvider } satisfies AuthLinkingStartRequest),
+      }),
+
+    linkingComplete: (idToken: string) =>
+      apiFetch<AuthLinkingCompleteResponse>("/api/v1/auth/linking/complete", {
+        method: "POST",
+        body: JSON.stringify({ idToken } satisfies AuthLinkingCompleteRequest),
+      }),
+
+    completeOnboarding: (body: OnboardingRequest) =>
+      apiFetch<OnboardingCompleteResponse>("/api/v1/auth/onboarding/complete", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
 
     logout: () =>
       apiFetch<void>("/api/v1/auth/logout", { method: "POST" }),
@@ -64,6 +104,30 @@ export const api = {
       apiFetch<AppUser>("/api/v1/users/link-provider", {
         method: "POST",
         body: JSON.stringify({ provider }),
+      }),
+
+    changePassword: (newPassword: string) =>
+      apiFetch<Record<string, string>>("/api/v1/users/password", {
+        method: "POST",
+        body: JSON.stringify({ newPassword } satisfies ChangePasswordRequest),
+      }),
+
+    getBankAccount: () =>
+      apiFetch<BankAccount | null>("/api/v1/users/bank-account"),
+
+    saveBankAccount: (body: BankAccount) =>
+      apiFetch<BankAccount>("/api/v1/users/bank-account", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    getNotifPrefs: () =>
+      apiFetch<NotificationPreferences>("/api/v1/users/notification-preferences"),
+
+    updateNotifPrefs: (body: NotificationPreferences) =>
+      apiFetch<NotificationPreferences>("/api/v1/users/notification-preferences", {
+        method: "PATCH",
+        body: JSON.stringify(body),
       }),
   },
 
@@ -114,6 +178,20 @@ export const api = {
     removeMember: (id: string, userId: string) =>
       apiFetch<void>(`/api/v1/properties/${id}/members/${userId}`, {
         method: "DELETE",
+      }),
+
+    getPrivacy: (id: string) =>
+      apiFetch<PropertyAccessSettings>(`/api/v1/properties/${id}/privacy`),
+
+    updatePrivacy: (id: string, isPrivate: boolean) =>
+      apiFetch<PropertyAccessSettings>(`/api/v1/properties/${id}/privacy`, {
+        method: "PATCH",
+        body: JSON.stringify({ isPrivate }),
+      }),
+
+    setCoverImage: (id: string, imageId: string) =>
+      apiFetch<PropertyImage>(`/api/v1/properties/${id}/images/${imageId}/cover`, {
+        method: "PATCH",
       }),
   },
 
@@ -225,6 +303,9 @@ export const api = {
     confirm: (id: string) =>
       apiFetch<Payment>(`/api/v1/payments/${id}/confirm`, { method: "POST" }),
 
+    receipt: (id: string) =>
+      apiFetchBlob(`/api/v1/payments/${id}/receipt`),
+
     payouts: (page = 1, limit = 20) =>
       apiFetch<Paginated<Payout>>(`/api/v1/payouts${qs({ page, limit })}`),
   },
@@ -273,12 +354,24 @@ export const api = {
   // ── Organizations ─────────────────────────────────────────────────────────────
 
   orgs: {
+    list: () =>
+      apiFetch<Organization[]>("/api/v1/orgs"),
+
     me: () =>
       apiFetch<Organization>("/api/v1/orgs/me"),
+
+    get: (id: string) =>
+      apiFetch<Organization>(`/api/v1/orgs/${id}`),
 
     create: (name: string) =>
       apiFetch<Organization>("/api/v1/orgs", {
         method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+
+    update: (id: string, name: string) =>
+      apiFetch<Organization>(`/api/v1/orgs/${id}`, {
+        method: "PATCH",
         body: JSON.stringify({ name }),
       }),
 
@@ -301,7 +394,76 @@ export const api = {
       apiFetch<void>(`/api/v1/orgs/${id}/members/${userId}`, {
         method: "DELETE",
       }),
+
+    listProperties: (id: string) =>
+      apiFetch<OrgProperty[]>(`/api/v1/orgs/${id}/properties`),
+
+    bulkAssignMemberProperties: (id: string, userId: string, body: BulkAssignOrgMemberPropertiesRequest) =>
+      apiFetch<Record<string, string>>(`/api/v1/orgs/${id}/members/${userId}/properties`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    transferOwnership: (id: string, newBillingOwnerUserId: string) =>
+      apiFetch<Organization>(`/api/v1/orgs/${id}/transfer-ownership`, {
+        method: "PATCH",
+        body: JSON.stringify({ newBillingOwnerUserId }),
+      }),
   },
+
+  // ── Maintenance ───────────────────────────────────────────────────────────────
+
+  maintenance: {
+    list: (propertyId: string, params?: { status?: string; priority?: string; page?: number; limit?: number }) =>
+      apiFetch<Paginated<MaintenanceRequest>>(
+        `/api/v1/properties/${propertyId}/maintenance${qs({ ...params })}`,
+      ),
+
+    create: (propertyId: string, body: CreateMaintenanceRequest) =>
+      apiFetch<MaintenanceRequest>(`/api/v1/properties/${propertyId}/maintenance`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+
+    get: (id: string) =>
+      apiFetch<MaintenanceRequest>(`/api/v1/maintenance/${id}`),
+
+    update: (id: string, body: UpdateMaintenanceRequest) =>
+      apiFetch<MaintenanceRequest>(`/api/v1/maintenance/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
+
+    delete: (id: string) =>
+      apiFetch<void>(`/api/v1/maintenance/${id}`, { method: "DELETE" }),
+  },
+
+  // ── Public ────────────────────────────────────────────────────────────────────
+
+  public: {
+    cities: () =>
+      apiFetch<string[]>("/api/v1/public/cities"),
+
+    getProperty: (id: string) =>
+      apiFetch<Property>(`/api/v1/public/properties/${id}`),
+
+    properties: (params?: { page?: number; limit?: number; location?: string }) =>
+      apiFetch<Paginated<Property>>(`/api/v1/public/properties${qs({ ...params })}`),
+
+    search: (params?: {
+      query?: string; location?: string; type?: string;
+      minPrice?: number; maxPrice?: number; page?: number; limit?: number;
+    }) =>
+      apiFetch<Paginated<Property>>(`/api/v1/public/search${qs({ ...params })}`),
+  },
+
+  // ── Contact ───────────────────────────────────────────────────────────────────
+
+  contact: (body: { name?: string; email: string; subject?: string; message: string }) =>
+    apiFetch<Record<string, string>>("/api/v1/contact", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // ── Reports ───────────────────────────────────────────────────────────────────
 
@@ -310,14 +472,23 @@ export const api = {
       apiFetch<PropertyReport>(
         `/api/v1/reports/properties/${propertyId}${qs({ month })}`,
       ),
+
+    revenueChart: (propertyId: string, months?: number) =>
+      apiFetch<RevenueChartResponse>(
+        `/api/v1/reports/properties/${propertyId}/chart${qs({ months })}`,
+      ),
   },
 };
 
 // Re-export types and client for convenience
 export type {
-  AppUser, OnboardingRequest, UpdateProfileRequest, ImageUploadRequest,
-  CurrentStay,
-  Property, CreatePropertyRequest, PropertyImage, PropertyMember,
+  AppUser, OnboardingRequest, OnboardingCompleteResponse, UpdateProfileRequest, ImageUploadRequest,
+  CurrentStay, RoleContext,
+  AuthLinkingStartRequest, AuthLinkingStartResponse,
+  AuthLinkingCompleteRequest, AuthLinkingCompleteResponse,
+  AuthSessionEvaluateRequest, AuthSessionEvaluateResponse,
+  BankAccount, NotificationPreferences, ChangePasswordRequest, ContactRequest,
+  Property, CreatePropertyRequest, PropertyImage, PropertyMember, PropertyAccessSettings,
   Room, CreateRoomRequest, UpdateRoomRequest,
   Tenant, InviteTenantRequest, TenantInviteResponse, UpdateTenantRequest,
   Payment, PaymentStatus, PaymentType, CollectionMode,
@@ -325,8 +496,10 @@ export type {
   Payout,
   Notification, NotificationType,
   Plan, Subscription,
-  Organization, OrgMember, AddOrgMemberRequest,
-  PropertyReport,
+  Organization, OrgMember, OrgProperty, AddOrgMemberRequest, BulkAssignOrgMemberPropertiesRequest,
+  PropertyReport, RevenueChartPoint, RevenueChartResponse,
+  MaintenanceRequest, MaintenanceStatus, MaintenancePriority,
+  CreateMaintenanceRequest, UpdateMaintenanceRequest,
   Paginated, PaginationMeta, ApiErrorBody,
 } from "./types";
 export { ApiError } from "./client";

@@ -19,6 +19,7 @@ export const MOCK_ORGS: Organization[] = [
     ownerId: "o1",
     members: [
       { id: "m1", userId: "m1", name: "Ravi Kumar", email: "ravi@ravikumarproperties.in", avatarUrl: "", role: "owner", assignedProperties: [], status: "active", joinedAt: "2024-01-15" },
+      { id: "m0", userId: "m0", name: "Amol Tribhuwan", email: "amoltribhuwan05@gmail.com", avatarUrl: "", role: "owner", assignedProperties: ["p1", "p2", "p3"], status: "active", joinedAt: "2024-01-15" },
       { id: "m2", userId: "m2", name: "Sunita Devi", email: "sunita@ravikumarproperties.in", avatarUrl: "", role: "manager", assignedProperties: ["p1", "p2"], status: "active", joinedAt: "2024-02-01" },
       { id: "m3", userId: "m3", name: "Ramu Electrician", email: "ramu@gmail.com", avatarUrl: "", role: "caretaker", assignedProperties: ["p1"], status: "active", joinedAt: "2024-03-10" },
       { id: "m4", userId: "m4", name: "Pradeep Shetty", email: "pradeep.ca@gmail.com", avatarUrl: "", role: "accountant", assignedProperties: [], status: "active", joinedAt: "2026-04-18" },

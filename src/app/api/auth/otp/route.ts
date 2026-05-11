@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateOtp, verifyOtp } from "@/lib/otp";
-import { findUserByEmail, updatePassword } from "@/lib/users";
+import { findUserByEmail, updatePassword } from "@/lib/serverUsers";
+import { isDemoAuthAllowed } from "@/lib/serverEnv";
 
 export async function POST(req: NextRequest) {
+  if (!isDemoAuthAllowed()) {
+    return NextResponse.json({ error: "Demo OTP reset is disabled" }, { status: 404 });
+  }
+
   const body = await req.json().catch(() => ({})) as {
     action?: string;
     email?: string;

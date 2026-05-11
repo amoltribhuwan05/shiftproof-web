@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { isProductionRuntime } from "@/lib/serverEnv";
 
 /**
  * POST /webhooks/razorpay
@@ -8,19 +10,37 @@ import { NextRequest, NextResponse } from "next/server";
  * Production requirement: verify X-Razorpay-Signature header via HMAC-SHA256
  * using RAZORPAY_WEBHOOK_SECRET before processing any event.
  *
- * This mock always returns 200 to prevent Razorpay retries during development.
- * The signature is intentionally NOT verified in mock mode.
+ * Development mode returns an acknowledgment so Razorpay does not retry local
+ * tests. Production verifies the HMAC before acknowledging the event.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const signature = req.headers.get("X-Razorpay-Signature");
+  const rawBody = await req.text();
 
-  // In production the real backend performs:
-  //   const hmac = createHmac("sha256", process.env.RAZORPAY_WEBHOOK_SECRET!);
-  //   hmac.update(rawBody);
-  //   const expected = hmac.digest("hex");
-  //   if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) return 401;
+  if (isProductionRuntime()) {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) {
+      return NextResponse.json(
+        { error: "Razorpay webhook secret is not configured" },
+        { status: 503 },
+      );
+    }
 
-  if (process.env.NODE_ENV !== "production") {
+    if (!signature) {
+      return NextResponse.json({ error: "Missing Razorpay signature" }, { status: 401 });
+    }
+
+    const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+    const actualBytes = Buffer.from(signature, "hex");
+    const expectedBytes = Buffer.from(expected, "hex");
+
+    if (
+      actualBytes.length !== expectedBytes.length ||
+      !timingSafeEqual(actualBytes, expectedBytes)
+    ) {
+      return NextResponse.json({ error: "Invalid Razorpay signature" }, { status: 401 });
+    }
+  } else {
     console.info("[webhook/razorpay] mock — signature check skipped, sig:", signature);
   }
 

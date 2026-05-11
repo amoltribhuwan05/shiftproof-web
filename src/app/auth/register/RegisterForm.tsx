@@ -24,6 +24,7 @@ import {
 const STRONG_PW = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 const EMAIL_RE  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TOTAL_STEPS = 5;
+const DEMO_AUTH_ENABLED = !process.env.NEXT_PUBLIC_API_URL;
 
 /* ── option data ────────────────────────────────────────────────────── */
 
@@ -272,32 +273,34 @@ export default function RegisterForm() {
       const userCred = await createUserWithEmailAndPassword(auth, form.email, password);
       await updateProfile(userCred.user, { displayName: form.name });
 
-      const cleanPhone = form.phone.replace(/[^\d+]/g, "");
-      const hasPhone   = cleanPhone.replace(/^\+\d{1,4}/, "").length >= 7;
+      if (DEMO_AUTH_ENABLED) {
+        const cleanPhone = form.phone.replace(/[^\d+]/g, "");
+        const hasPhone   = cleanPhone.replace(/^\+\d{1,4}/, "").length >= 7;
 
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name:  form.name,
-          email: form.email,
-          ...(hasPhone      ? { phone:    cleanPhone    } : {}),
-          ...(form.gender   ? { gender:   form.gender   } : {}),
-          ...(form.roomType ? { roomType: form.roomType } : {}),
-          password,
-          deferSession: true,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        await userCred.user.delete().catch(() => {});
-        if (data.error?.includes("email")) {
-          toast.error("Email already registered", "Is email se account pehle se bana hua hai. Peeche jaao aur email badlo.");
-          setStep(2);
-        } else {
-          setError(data.error ?? "Registration fail ho gayi. Dobara try karo.");
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name:  form.name,
+            email: form.email,
+            ...(hasPhone      ? { phone:    cleanPhone    } : {}),
+            ...(form.gender   ? { gender:   form.gender   } : {}),
+            ...(form.roomType ? { roomType: form.roomType } : {}),
+            password,
+            deferSession: true,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          await userCred.user.delete().catch(() => {});
+          if (data.error?.includes("email")) {
+            toast.error("Email already registered", "Is email se account pehle se bana hua hai. Peeche jaao aur email badlo.");
+            setStep(2);
+          } else {
+            setError(data.error ?? "Registration fail ho gayi. Dobara try karo.");
+          }
+          return;
         }
-        return;
       }
 
       await sendEmailVerification(userCred.user);

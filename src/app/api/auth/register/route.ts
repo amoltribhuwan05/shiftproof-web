@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addUser, findUserByEmail, SESSION_COOKIE, Session, upsertUserByEmail } from "@/lib/users";
+import { SESSION_COOKIE, type Session } from "@/lib/users";
+import { addUser, findUserByEmail, upsertUserByEmail } from "@/lib/serverUsers";
+import { isDemoAuthAllowed } from "@/lib/serverEnv";
 
 const PHONE_RE = /^\+\d{7,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
+  if (!isDemoAuthAllowed()) {
+    return NextResponse.json({ error: "Demo registration is disabled" }, { status: 404 });
+  }
+
   const body = await req.json().catch(() => ({})) as {
     name?: string;
     email?: string;

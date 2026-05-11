@@ -6,13 +6,19 @@
  * this route is never hit.
  */
 import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { handleMockApiRoute } from "@/lib/mockApi";
+import { isMockApiAllowed } from "@/lib/serverEnv";
 
 type RouteContext = {
   params: Promise<{ slug: string[] }>;
 };
 
 async function run(req: NextRequest, context: RouteContext) {
+  if (!isMockApiAllowed()) {
+    return NextResponse.json({ error: "Mock API is disabled in production" }, { status: 404 });
+  }
+
   const { slug } = await context.params;
   return handleMockApiRoute(req, slug);
 }

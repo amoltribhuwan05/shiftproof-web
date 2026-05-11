@@ -1,5 +1,7 @@
 @AGENTS.md
 
+Your context window will be automatically compacted as it approaches its limit, allowing you to continue working indefinitely from where you left off. Do not stop tasks early due to token concerns. Before compaction, preserve important architectural decisions, audit findings, pending investigations, and unresolved issues. Continue tasks autonomously and avoid losing project state across compaction.
+
 <!-- code-review-graph MCP tools -->
 ## MCP Tools: code-review-graph
 

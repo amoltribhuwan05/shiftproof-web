@@ -248,23 +248,29 @@ Tailwind v4 syntax differs significantly from v3:
 
 - **Save/favourite**: local `Set<string>` state — no persistence.
 
+- **Public API contract**: `/find-pg` sends only documented public-search query params (`query`, `location`, `type`, `minPrice`, `maxPrice`, `page`, `limit`) and applies gender / room type / amenity filters client-side until the backend contract officially supports those params.
+
 ### Auth verification flow — key implementation details
 
 - **Firebase email/password signup**: `RegisterForm.tsx` now collects only basic identity data, calls `sendEmailVerification()` immediately after account creation, signs the Firebase user out, and shows a "check your inbox" state instead of creating the app session.
 - **Firebase email/password login**: `LoginForm.tsx` checks `user.emailVerified` after `signInWithEmailAndPassword()`. If unverified, it re-sends the verification email, signs the Firebase user out, and blocks dashboard access.
-- **Server-side session gate**: `src/app/api/auth/session/route.ts` now reads `email_verified` and `firebase.sign_in_provider` from the Firebase ID token payload and rejects unverified `password` logins before setting the web session cookie.
+- **Server-side session gate**: `src/app/api/auth/session/route.ts` now reads `email_verified` and `firebase.sign_in_provider` from the Firebase ID token payload, rejects unverified `password` logins before setting the web session cookie, and fails closed if the backend cannot verify the token in production.
 - **Branded email action page**: `src/app/auth/action/page.tsx` + `ActionHandler.tsx` now handle Firebase `verifyEmail` and `resetPassword` links on the frontend using Firebase SDK methods instead of Firebase’s default hosted UI.
 - **Phone auth guard**: phone OTP verification now performs the account-collision check after Firebase OTP confirmation but before the app session is established. Numbers already tied to email-first accounts are blocked from creating a separate phone session.
 - **Linking guidance UI**: login UI now explains that sign-in methods can converge into one account later. Collision states for phone and Google push the user toward email-first recovery instead of leaving them with a generic auth failure.
 - **Onboarding flow**: New phone auth users with incomplete profiles are redirected to `/auth/onboarding` to collect Name, Gender, and Role before dashboard access.
+- **Demo auth guard**: `/api/auth/login`, `/api/auth/register`, and `/api/auth/otp` are development-only unless `ALLOW_DEMO_AUTH=true` is explicitly set. `LoginForm` and `RegisterForm` skip demo auth paths when `NEXT_PUBLIC_API_URL` is configured.
 
 ### Mock API backend — key implementation details
 
-- **Swagger coverage**: `src/app/api/v1/[...slug]/route.ts` delegates the full documented `/api/v1/*` surface to `src/lib/mockApi.ts`
-- **Storage model**: uses a singleton in-memory store on `globalThis` seeded from `mockData.ts`, `orgData.ts`, and API-aligned types; state resets on process restart
-- **Default API base**: `src/lib/api/client.ts` now defaults to same-origin when `NEXT_PUBLIC_API_URL` is unset, so the app can talk to the local mock backend without a separate service on port 8080
+- **Swagger coverage**: `src/app/api/v1/[...slug]/route.ts` delegates the full documented `/api/v1/*` surface to `src/lib/mockApi.ts` in development. Production returns 404 unless `ALLOW_MOCK_API=true` is explicitly set.
+- **Storage model**: uses a singleton in-memory store on `globalThis` seeded from `mockData.ts`, `orgData.ts`, and API-aligned types; auth/profile mock records persist to `.shiftproof/mock-store.json`, while other mock API state resets on process restart
+- **Default API base**: `src/lib/api/client.ts` defaults to same-origin only when `NEXT_PUBLIC_API_URL` is unset. Production `.env.production` sets `NEXT_PUBLIC_API_URL=https://api.shiftproof.in`; `next.config.ts` also accepts `API_ORIGIN` as a build-time fallback for this public origin.
+- **API client resilience**: `apiFetch` attaches Firebase Bearer tokens, applies a 15s timeout, retries idempotent reads once on network/5xx/408 failures, and throws `ApiError` for non-2xx responses.
 - **Auth model**: mock API accepts either the existing signed-in session cookie or a Firebase Bearer token payload; roles are mapped into API `AppUser` records and persisted in-memory
-- **Extra utility routes**: `/health` returns service health JSON and `/webhooks/razorpay` returns an acknowledgment payload for local integration flows
+- **Firebase identity matching**: Firebase users are treated as profile-complete when their email/phone matches seeded mock users, tenant records, or org members, preventing existing DB/mock records from being sent back to onboarding
+- **Dashboard fail-closed behavior**: Owner and tenant dashboards redirect on 401/403/409 auth failures and show a blocking error state for other API failures instead of silently falling back to mock demo data.
+- **Extra utility routes**: `/health` returns service health JSON and `/webhooks/razorpay` returns an acknowledgment payload for local integration flows; production Razorpay webhooks require `RAZORPAY_WEBHOOK_SECRET` and HMAC verification.
 
 ### lib/bst.ts — API
 
