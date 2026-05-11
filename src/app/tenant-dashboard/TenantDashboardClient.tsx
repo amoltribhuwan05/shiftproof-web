@@ -9,7 +9,7 @@ import {
   Home, CreditCard, Wrench, Bell, ChevronLeft, Menu, AlertCircle,
   CheckCircle2, Clock, IndianRupee, Calendar,
   Plus, Download, Send, FileText, Users, MapPin, Phone, ChevronDown,
-  Shield, User, Lock, Smartphone, ToggleLeft, ToggleRight,
+  Shield, User, Lock, Smartphone, ToggleLeft, ToggleRight, Mail, MessageSquare,
   Edit3, Eye, EyeOff, Trash2, Settings, LogOut, RefreshCw, ArrowRight, Link2,
 } from "lucide-react";
 import { api, ApiError, type AppUser, type CurrentStay, type Property as ApiProperty, type Payment as ApiPayment, type Notification as ApiNotification, type MaintenanceRequest as ApiMaintenanceRequest } from "@/lib/api";
@@ -1171,19 +1171,22 @@ function AccountSection({ tenant, providers = [], roleLabel = "Tenant" }: { tena
         <h2 className={SEC}><Bell size={14} className="text-success-600" /> Notifications</h2>
         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Channels</p>
         <div className="flex gap-2 mb-3">
-          {(["email", "push", "sms"] as const).map(ch => (
-            <button key={ch}
-              onClick={() => toggleNotifChannel(ch)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                notifPrefs[ch]
-                  ? "bg-success-700 text-white border-success-700"
-                  : "border-slate-200 text-slate-400 hover:border-success-400"
-              }`}
-            >
-              <Smartphone size={11} />
-              {ch.charAt(0).toUpperCase() + ch.slice(1)}
-            </button>
-          ))}
+          {(["email", "push", "sms"] as const).map(ch => {
+            const Icon = ch === "email" ? Mail : ch === "push" ? Bell : MessageSquare;
+            return (
+              <button key={ch}
+                onClick={() => toggleNotifChannel(ch)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  notifPrefs[ch]
+                    ? "bg-success-700 text-white border-success-700"
+                    : "border-slate-200 text-slate-400 hover:border-success-400"
+                }`}
+              >
+                <Icon size={11} />
+                {ch.charAt(0).toUpperCase() + ch.slice(1)}
+              </button>
+            );
+          })}
         </div>
         <p className="text-xs text-slate-400">Changes are saved automatically.</p>
       </div>

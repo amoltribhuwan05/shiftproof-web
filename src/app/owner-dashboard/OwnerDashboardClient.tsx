@@ -12,7 +12,7 @@ import {
   ChevronRight, Download, IndianRupee, BedDouble, Home,
   ArrowLeft, MapPin, Edit3, Camera, Wifi, Car, Dumbbell, Phone, Mail,
   ChevronDown, FileText, CalendarDays, Banknote, UserX, ShieldCheck,
-  User, Lock, Smartphone, ToggleLeft, ToggleRight, Landmark, Trash2, Eye, EyeOff,
+  User, Lock, Smartphone, ToggleLeft, ToggleRight, Landmark, Trash2, Eye, EyeOff, MessageSquare,
   Globe, UserPlus, Send, Wallet, ArrowRightLeft, Link2, Upload, ImagePlus,
   RefreshCw, Star, ExternalLink, ShieldAlert,
 } from "lucide-react";
@@ -2254,20 +2254,23 @@ function AccountTab({ user }: { user: AppUser | null }) {
         </h2>
         <p className="text-[11px] font-semibold text-[color:var(--muted)] uppercase tracking-wide mb-2">Channels</p>
         <div className="flex flex-wrap gap-2 mb-4">
-          {(["email", "push", "sms"] as const).map(ch => (
-            <button
-              key={ch}
-              onClick={() => toggleNotifChannel(ch)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                notifPrefs[ch]
-                  ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
-                  : "border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--accent-300)]"
-              }`}
-            >
-              <Smartphone size={11} />
-              {ch.charAt(0).toUpperCase() + ch.slice(1)}
-            </button>
-          ))}
+          {(["email", "push", "sms"] as const).map(ch => {
+            const Icon = ch === "email" ? Mail : ch === "push" ? Bell : MessageSquare;
+            return (
+              <button
+                key={ch}
+                onClick={() => toggleNotifChannel(ch)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                  notifPrefs[ch]
+                    ? "bg-[color:var(--accent-500)] text-white border-[color:var(--accent-500)]"
+                    : "border-[color:var(--line)] text-[color:var(--muted)] hover:border-[color:var(--accent-300)]"
+                }`}
+              >
+                <Icon size={11} />
+                {ch.charAt(0).toUpperCase() + ch.slice(1)}
+              </button>
+            );
+          })}
         </div>
         <p className="text-xs text-slate-400">Changes are saved automatically.</p>
       </div>
