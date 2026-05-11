@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import OwnerDashboardClient from "./OwnerDashboardClient";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function OwnerDashboardPage() {
-  return <OwnerDashboardClient />;
+  return (
+    <Suspense>
+      <OwnerDashboardClient />
+    </Suspense>
+  );
 }

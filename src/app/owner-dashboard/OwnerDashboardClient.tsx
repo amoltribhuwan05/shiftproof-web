@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/Toast";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import PhoneInput from "@/components/PhoneInput";
 import {
@@ -3883,10 +3883,16 @@ function SettingsDropdown({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const VALID_TABS = new Set(["overview","properties","tenants","payments","maintenance","reports","payouts","organization","account"]);
+
 function OwnerDashboardClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [activeNav, setActiveNav] = useState("overview");
+  const [activeNav, setActiveNav] = useState(() => {
+    const t = searchParams.get("tab") ?? "";
+    return VALID_TABS.has(t) ? t : "overview";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deepPropId,    setDeepPropId]    = useState<string | null>(null);
   const [deepTenantId,  setDeepTenantId]  = useState<string | null>(null);
@@ -3982,6 +3988,7 @@ function OwnerDashboardClient() {
     setDeepPropId(null);
     setDeepTenantId(null);
     setActiveNav(tab);
+    router.replace(`/owner-dashboard?tab=${tab}`, { scroll: false });
   }
 
   // Nav from OrgTree View buttons — carries a deep link to open a specific entity
@@ -3989,6 +3996,7 @@ function OwnerDashboardClient() {
     if (propId !== undefined)   { setDeepPropId(propId);     setDeepPropVer(v => v + 1); }
     if (tenantId !== undefined) { setDeepTenantId(tenantId); setDeepTenantVer(v => v + 1); }
     setActiveNav(tab);
+    router.replace(`/owner-dashboard?tab=${tab}`, { scroll: false });
   }
 
   // Settings — loaded from localStorage, applied immediately on change
@@ -3996,7 +4004,8 @@ function OwnerDashboardClient() {
   React.useEffect(() => {
     const saved = loadSettings();
     setSettings(saved);
-    if (saved.defaultPage && saved.defaultPage !== "overview") setActiveNav(saved.defaultPage);
+    const urlTab = searchParams.get("tab") ?? "";
+    if (saved.defaultPage && saved.defaultPage !== "overview" && !VALID_TABS.has(urlTab)) setActiveNav(saved.defaultPage);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

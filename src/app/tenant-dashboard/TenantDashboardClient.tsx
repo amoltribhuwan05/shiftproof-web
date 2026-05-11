@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/Toast";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import PhoneInput from "@/components/PhoneInput";
 import {
   Home, CreditCard, Wrench, Bell, ChevronLeft, Menu, AlertCircle,
@@ -1288,10 +1288,16 @@ function AccountSection({ tenant, providers = [], roleLabel = "Tenant" }: { tena
 
 // ─── Main export ───────────────────────────────────────────────────────────────
 
+const VALID_TENANT_TABS = new Set<NavId>(["overview","myroom","payments","maintenance","notices","account"]);
+
 function TenantDashboardClient() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
-  const [activeNav,   setActiveNav]   = useState<NavId>("overview");
+  const [activeNav, setActiveNav] = useState<NavId>(() => {
+    const t = searchParams.get("tab") as NavId | null;
+    return t && VALID_TENANT_TABS.has(t) ? t : "overview";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<AppUser | null>(null);
   const [stay, setStay] = useState<CurrentStay | null>(null);
@@ -1305,6 +1311,11 @@ function TenantDashboardClient() {
   const [apiMaintenance, setApiMaintenance] = useState<ApiMaintenanceRequest[] | null>(null);
   const [apiProperty, setApiProperty] = useState<ApiProperty | null>(null);
   const [paying, setPaying] = useState(false);
+
+  function navTo(tab: NavId) {
+    setActiveNav(tab);
+    router.replace(`/tenant-dashboard?tab=${tab}`, { scroll: false });
+  }
 
   useEffect(() => {
     async function loadData() {
@@ -1523,7 +1534,7 @@ function TenantDashboardClient() {
           {NAV_IDS.map(id => (
             <button
               key={id}
-              onClick={() => { setActiveNav(id); setSidebarOpen(false); }}
+              onClick={() => { navTo(id); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
                 activeNav === id
                   ? "bg-success-700 text-white shadow-sm"
@@ -1555,7 +1566,7 @@ function TenantDashboardClient() {
         {/* Profile footer */}
         <div className="px-3 py-3 border-t border-[color:var(--background)] shrink-0 space-y-0.5">
           <button
-            onClick={() => { setActiveNav("account"); setSidebarOpen(false); }}
+            onClick={() => { navTo("account"); setSidebarOpen(false); }}
             className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-colors text-left ${
               activeNav === "account"
                 ? "bg-success-700 text-white"
@@ -1642,7 +1653,7 @@ function TenantDashboardClient() {
             )}
             <button
               className="relative w-8 h-8 rounded-xl hover:bg-[color:var(--background)] flex items-center justify-center text-slate-400 transition-colors border border-[color:var(--background)]"
-              onClick={() => setActiveNav("notices")}
+              onClick={() => navTo("notices")}
             >
               <Bell size={14} strokeWidth={1.75} />
               {unreadNotices > 0 && (
@@ -1654,7 +1665,7 @@ function TenantDashboardClient() {
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {activeNav === "overview"    && <OverviewSection onNav={setActiveNav} tenant={TENANT} payments={PAYMENT_HISTORY} tickets={MAINTENANCE_REQUESTS} notices={effectiveNotices} onPayNow={payNow} hasStay={!!stay} />}
+          {activeNav === "overview"    && <OverviewSection onNav={navTo} tenant={TENANT} payments={PAYMENT_HISTORY} tickets={MAINTENANCE_REQUESTS} notices={effectiveNotices} onPayNow={payNow} hasStay={!!stay} />}
           {activeNav === "myroom"      && <MyRoomSection tenant={TENANT} amenities={apiProperty?.amenities ?? []} roomImageUrl={apiProperty?.imageUrl} />}
           {activeNav === "payments"    && <PaymentsSection payments={PAYMENT_HISTORY} onPayNow={payNow} />}
           {activeNav === "maintenance" && <MaintenanceSection tickets={MAINTENANCE_REQUESTS} onSubmit={async (title, priority, desc) => {
